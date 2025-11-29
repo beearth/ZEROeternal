@@ -59,3 +59,41 @@ export async function sendMessageToGemini(
   }
 }
 
+// 단어의 한글 뜻을 가져오는 함수
+export async function getKoreanMeaning(word: string): Promise<string> {
+  if (!genAI) {
+    console.warn('Gemini API가 초기화되지 않았습니다.');
+    return "";
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
+    const prompt = `다음 영어 단어의 한글 뜻을 한 단어 또는 짧은 구로만 답변해주세요. 다른 설명 없이 뜻만 답변하세요: "${word}"`;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    // 답변에서 한글 뜻만 추출 (불필요한 설명 제거)
+    let meaning = text.split('\n')[0].trim();
+    
+    // 따옴표나 특수문자 제거
+    meaning = meaning.replace(/^["']|["']$/g, '').trim();
+    
+    // 빈 문자열이거나 너무 긴 경우 재시도
+    if (!meaning || meaning.length > 50) {
+      console.warn(`의심스러운 번역 결과: "${meaning}"`);
+      // 간단한 재시도
+      const retryResult = await model.generateContent(`"${word}"의 한글 뜻만 답변:`);
+      const retryResponse = await retryResult.response;
+      meaning = retryResponse.text().trim().split('\n')[0].replace(/^["']|["']$/g, '').trim();
+    }
+    
+    return meaning || "";
+  } catch (error: any) {
+    console.error(`단어 "${word}"의 한글 뜻 가져오기 실패:`, error);
+    console.error('에러 상세:', error.message || error);
+    return "";
+  }
+}
+

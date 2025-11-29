@@ -1,8 +1,8 @@
-import { Plus, MessageSquare, Trash2, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, X, Star, FileText } from "lucide-react";
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -14,6 +14,14 @@ interface Conversation {
   timestamp: Date;
 }
 
+interface StackCounts {
+  red: number;
+  yellow: number;
+  green: number;
+  important: number;
+  sentence: number;
+}
+
 interface SidebarProps {
   conversations: Conversation[];
   currentConversationId: string;
@@ -22,6 +30,11 @@ interface SidebarProps {
   onDeleteConversation: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  counts: StackCounts;
+  currentView: "chat" | "red" | "yellow" | "green" | "important" | "sentences";
+  onSelectView: (
+    view: "chat" | "red" | "yellow" | "green" | "important" | "sentences"
+  ) => void;
 }
 
 export function Sidebar({
@@ -32,6 +45,9 @@ export function Sidebar({
   onDeleteConversation,
   isOpen,
   onClose,
+  counts,
+  currentView,
+  onSelectView,
 }: SidebarProps) {
   return (
     <>
@@ -45,19 +61,19 @@ export function Sidebar({
 
       {/* 사이드바 */}
       <aside
-        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-[#1e1f20] border-r border-[#2a2b2c] flex flex-col transition-transform duration-300 ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* 헤더 */}
-        <div className="p-4 border-b border-slate-200">
+        <div className="p-4 border-b border-[#2a2b2c]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-slate-800">대화 목록</h2>
+            <h2 className="text-[#E3E3E3] font-semibold">대화 목록</h2>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors lg:hidden"
+              className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors lg:hidden"
             >
-              <X className="w-5 h-5 text-slate-600" />
+              <X className="w-5 h-5 text-[#E3E3E3]" />
             </button>
           </div>
           <button
@@ -69,6 +85,125 @@ export function Sidebar({
           </button>
         </div>
 
+        {/* 스택 통계 */}
+        <div className="p-4 border-b border-[#2a2b2c]">
+          <h3 className="text-sm font-semibold text-[#E3E3E3] mb-3">
+            학습 스택
+          </h3>
+          <div className="space-y-1">
+            {/* Red Stack */}
+            <button
+              onClick={() => onSelectView("red")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
+                currentView === "red" ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span>
+                <span className="text-red-400 font-medium truncate">
+                  Red Stack
+                </span>
+              </span>
+              {counts.red > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.red}
+                </span>
+              )}
+            </button>
+
+            {/* Yellow Stack */}
+            <button
+              onClick={() => onSelectView("yellow")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
+                currentView === "yellow"
+                  ? "bg-[#2a2b2c]"
+                  : "hover:bg-[#2a2b2c]/50"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="w-3 h-3 rounded-full bg-yellow-500 flex-shrink-0"></span>
+                <span className="text-yellow-400 font-medium truncate">
+                  Yellow Stack
+                </span>
+              </span>
+              {counts.yellow > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.yellow}
+                </span>
+              )}
+            </button>
+
+            {/* Green Stack */}
+            <button
+              onClick={() => onSelectView("green")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
+                currentView === "green"
+                  ? "bg-[#2a2b2c]"
+                  : "hover:bg-[#2a2b2c]/50"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span>
+                <span className="text-green-400 font-medium truncate">
+                  Green Stack
+                </span>
+              </span>
+              {counts.green > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.green}
+                </span>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="pt-2 border-t border-[#2a2b2c] mt-2"></div>
+
+            {/* Important */}
+            <button
+              onClick={() => onSelectView("important")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
+                currentView === "important"
+                  ? "bg-[#2a2b2c]"
+                  : "hover:bg-[#2a2b2c]/50"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                <Star className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                <span className="text-[#E3E3E3] font-medium truncate">
+                  Important
+                </span>
+              </span>
+              {counts.important > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.important}
+                </span>
+              )}
+            </button>
+
+            {/* Sentences */}
+            <button
+              onClick={() => onSelectView("sentences")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
+                currentView === "sentences"
+                  ? "bg-[#2a2b2c]"
+                  : "hover:bg-[#2a2b2c]/50"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <span className="text-[#E3E3E3] font-medium truncate">
+                  Sentences
+                </span>
+              </span>
+              {counts.sentence > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.sentence}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* 대화 목록 */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {conversations.map((conversation) => (
@@ -76,23 +211,26 @@ export function Sidebar({
               key={conversation.id}
               className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                 conversation.id === currentConversationId
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200'
-                  : 'hover:bg-slate-50 border border-transparent'
+                  ? "bg-[#2a2b2c] border border-[#3a3b3c]"
+                  : "hover:bg-[#2a2b2c]/50 border border-transparent"
               }`}
-              onClick={() => onSelectConversation(conversation.id)}
+              onClick={() => {
+                onSelectConversation(conversation.id);
+                onSelectView("chat");
+              }}
             >
               <div
                 className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
                   conversation.id === currentConversationId
-                    ? 'bg-gradient-to-br from-blue-500 to-purple-600'
-                    : 'bg-slate-100'
+                    ? "bg-gradient-to-br from-blue-500 to-purple-600"
+                    : "bg-[#2a2b2c]"
                 }`}
               >
                 <MessageSquare
                   className={`w-5 h-5 ${
                     conversation.id === currentConversationId
-                      ? 'text-white'
-                      : 'text-slate-600'
+                      ? "text-white"
+                      : "text-[#9ca3af]"
                   }`}
                 />
               </div>
@@ -100,16 +238,16 @@ export function Sidebar({
                 <p
                   className={`truncate ${
                     conversation.id === currentConversationId
-                      ? 'text-slate-800'
-                      : 'text-slate-700'
+                      ? "text-[#E3E3E3]"
+                      : "text-[#E3E3E3]"
                   }`}
                 >
                   {conversation.title}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#9ca3af] mt-1">
                   {conversation.messages.length > 0
                     ? `메시지 ${conversation.messages.length}개`
-                    : '메시지 없음'}
+                    : "메시지 없음"}
                 </p>
               </div>
               <button
@@ -117,17 +255,17 @@ export function Sidebar({
                   e.stopPropagation();
                   onDeleteConversation(conversation.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 rounded-lg transition-all"
+                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#3a3b3c] rounded-lg transition-all"
               >
-                <Trash2 className="w-4 h-4 text-red-500" />
+                <Trash2 className="w-4 h-4 text-red-400" />
               </button>
             </div>
           ))}
         </div>
 
         {/* 푸터 */}
-        <div className="p-4 border-t border-slate-200">
-          <div className="text-xs text-slate-500 text-center">
+        <div className="p-4 border-t border-[#2a2b2c]">
+          <div className="text-xs text-[#9ca3af] text-center">
             AI 채팅 어시스턴트 v1.0
           </div>
         </div>
