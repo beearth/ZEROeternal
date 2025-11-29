@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import { Send, Menu, X } from 'lucide-react';
+import { sendMessageToGemini, ChatMessage as GeminiChatMessage } from './services/gemini';
 
 interface Message {
   id: string;
@@ -61,13 +62,27 @@ export default function App() {
       )
     );
 
-    // AI 응답 시뮬레이션
+    // AI 응답 받기
     setIsTyping(true);
-    setTimeout(() => {
+    
+    try {
+      // 현재 대화의 모든 메시지를 Gemini 형식으로 변환
+      const allMessages = [
+        ...currentConversation.messages,
+        userMessage,
+      ];
+      
+      const geminiMessages: GeminiChatMessage[] = allMessages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      const aiResponse = await sendMessageToGemini(geminiMessages);
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: generateMockResponse(content),
+        content: aiResponse,
         timestamp: new Date(),
       };
 
@@ -78,19 +93,25 @@ export default function App() {
             : conv
         )
       );
-      setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
-  };
+    } catch (error) {
+      console.error('AI 응답 오류:', error);
+      const errorMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. API 키가 올바르게 설정되어 있는지 확인해주세요.',
+      timestamp: new Date(),
+    };
 
-  const generateMockResponse = (userMessage: string): string => {
-    const responses = [
-      '안녕하세요! 무엇을 도와드릴까요?',
-      '좋은 질문이네요. 제가 자세히 설명해드리겠습니다.',
-      '그것에 대해 말씀드리자면, 여러 관점에서 생각해볼 수 있습니다.',
-      '이해하셨습니다. 다음과 같이 답변드리겠습니다.',
-      '흥미로운 주제네요! 함께 탐구해보겠습니다.',
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === currentConversationId
+          ? { ...conv, messages: [...conv.messages, errorMessage] }
+          : conv
+      )
+    );
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleNewConversation = () => {
