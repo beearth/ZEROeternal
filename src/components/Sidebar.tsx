@@ -1,4 +1,5 @@
-import { Plus, MessageSquare, Trash2, X, Star, FileText } from "lucide-react";
+import { Plus, MessageSquare, Trash2, X } from "lucide-react";
+import { SettingsMenu } from "./SettingsMenu";
 
 interface Message {
   id: string;
@@ -18,8 +19,6 @@ interface StackCounts {
   red: number;
   yellow: number;
   green: number;
-  important: number;
-  sentence: number;
 }
 
 interface SidebarProps {
@@ -31,10 +30,33 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   counts: StackCounts;
-  currentView: "chat" | "red" | "yellow" | "green" | "important" | "sentences";
+  currentView: "chat" | "red" | "yellow" | "green";
   onSelectView: (
-    view: "chat" | "red" | "yellow" | "green" | "important" | "sentences"
+    view: "chat" | "red" | "yellow" | "green"
   ) => void;
+  onLogout: () => void;
+  onResetLanguage: () => void;
+}
+
+interface TrafficLightIconProps {
+  active: "red" | "yellow" | "green";
+  className?: string;
+}
+
+function TrafficLightIcon({ active, className }: TrafficLightIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <rect x="5" y="2" width="14" height="20" rx="4" fill="#1e1f20" stroke="#3a3b3c" strokeWidth="1.5" />
+      <circle cx="12" cy="7" r="2.5" fill={active === "red" ? "#ef4444" : "#2a2b2c"} className={active === "red" ? "animate-pulse" : ""} />
+      <circle cx="12" cy="12" r="2.5" fill={active === "yellow" ? "#eab308" : "#2a2b2c"} className={active === "yellow" ? "animate-pulse" : ""} />
+      <circle cx="12" cy="17" r="2.5" fill={active === "green" ? "#22c55e" : "#2a2b2c"} className={active === "green" ? "animate-pulse" : ""} />
+    </svg>
+  );
 }
 
 export function Sidebar({
@@ -48,6 +70,8 @@ export function Sidebar({
   counts,
   currentView,
   onSelectView,
+  onLogout,
+  onResetLanguage,
 }: SidebarProps) {
   return (
     <>
@@ -61,14 +85,16 @@ export function Sidebar({
 
       {/* 사이드바 */}
       <aside
-        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-[#1e1f20] border-r border-[#2a2b2c] flex flex-col transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-[#1e1f20] border-r border-[#2a2b2c] flex flex-col transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         {/* 헤더 */}
         <div className="p-4 border-b border-[#2a2b2c]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[#E3E3E3] font-semibold">대화 목록</h2>
+            <div className="flex items-center gap-2">
+              <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} />
+              <h2 className="text-[#E3E3E3] font-semibold">대화 목록</h2>
+            </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors lg:hidden"
@@ -94,16 +120,17 @@ export function Sidebar({
             {/* Red Stack */}
             <button
               onClick={() => onSelectView("red")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
-                currentView === "red" ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
-              }`}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "red" ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
+                }`}
             >
-              <span className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <TrafficLightIcon active="red" className="w-5 h-5" />
+                </div>
                 <span className="text-red-400 font-medium truncate">
                   Red Stack
                 </span>
-              </span>
+              </div>
               {counts.red > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-semibold flex-shrink-0 ml-2">
                   {counts.red}
@@ -114,18 +141,19 @@ export function Sidebar({
             {/* Yellow Stack */}
             <button
               onClick={() => onSelectView("yellow")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
-                currentView === "yellow"
-                  ? "bg-[#2a2b2c]"
-                  : "hover:bg-[#2a2b2c]/50"
-              }`}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "yellow"
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
             >
-              <span className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="w-3 h-3 rounded-full bg-yellow-500 flex-shrink-0"></span>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                  <TrafficLightIcon active="yellow" className="w-5 h-5" />
+                </div>
                 <span className="text-yellow-400 font-medium truncate">
                   Yellow Stack
                 </span>
-              </span>
+              </div>
               {counts.yellow > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-semibold flex-shrink-0 ml-2">
                   {counts.yellow}
@@ -136,68 +164,22 @@ export function Sidebar({
             {/* Green Stack */}
             <button
               onClick={() => onSelectView("green")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
-                currentView === "green"
-                  ? "bg-[#2a2b2c]"
-                  : "hover:bg-[#2a2b2c]/50"
-              }`}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "green"
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
             >
-              <span className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                  <TrafficLightIcon active="green" className="w-5 h-5" />
+                </div>
                 <span className="text-green-400 font-medium truncate">
                   Green Stack
                 </span>
-              </span>
+              </div>
               {counts.green > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold flex-shrink-0 ml-2">
                   {counts.green}
-                </span>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div className="pt-2 border-t border-[#2a2b2c] mt-2"></div>
-
-            {/* Important */}
-            <button
-              onClick={() => onSelectView("important")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
-                currentView === "important"
-                  ? "bg-[#2a2b2c]"
-                  : "hover:bg-[#2a2b2c]/50"
-              }`}
-            >
-              <span className="flex items-center gap-2 min-w-0 flex-1">
-                <Star className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                <span className="text-[#E3E3E3] font-medium truncate">
-                  Important
-                </span>
-              </span>
-              {counts.important > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.important}
-                </span>
-              )}
-            </button>
-
-            {/* Sentences */}
-            <button
-              onClick={() => onSelectView("sentences")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${
-                currentView === "sentences"
-                  ? "bg-[#2a2b2c]"
-                  : "hover:bg-[#2a2b2c]/50"
-              }`}
-            >
-              <span className="flex items-center gap-2 min-w-0 flex-1">
-                <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span className="text-[#E3E3E3] font-medium truncate">
-                  Sentences
-                </span>
-              </span>
-              {counts.sentence > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.sentence}
                 </span>
               )}
             </button>
@@ -209,38 +191,34 @@ export function Sidebar({
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                conversation.id === currentConversationId
-                  ? "bg-[#2a2b2c] border border-[#3a3b3c]"
-                  : "hover:bg-[#2a2b2c]/50 border border-transparent"
-              }`}
+              className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId
+                ? "bg-[#2a2b2c] border border-[#3a3b3c]"
+                : "hover:bg-[#2a2b2c]/50 border border-transparent"
+                }`}
               onClick={() => {
                 onSelectConversation(conversation.id);
                 onSelectView("chat");
               }}
             >
               <div
-                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                  conversation.id === currentConversationId
-                    ? "bg-gradient-to-br from-blue-500 to-purple-600"
-                    : "bg-[#2a2b2c]"
-                }`}
+                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId
+                  ? "bg-gradient-to-br from-blue-500 to-purple-600"
+                  : "bg-[#2a2b2c]"
+                  }`}
               >
                 <MessageSquare
-                  className={`w-5 h-5 ${
-                    conversation.id === currentConversationId
-                      ? "text-white"
-                      : "text-[#9ca3af]"
-                  }`}
+                  className={`w-5 h-5 ${conversation.id === currentConversationId
+                    ? "text-white"
+                    : "text-[#9ca3af]"
+                    }`}
                 />
               </div>
               <div className="flex-1 min-w-0">
                 <p
-                  className={`truncate ${
-                    conversation.id === currentConversationId
-                      ? "text-[#E3E3E3]"
-                      : "text-[#E3E3E3]"
-                  }`}
+                  className={`truncate ${conversation.id === currentConversationId
+                    ? "text-[#E3E3E3]"
+                    : "text-[#E3E3E3]"
+                    }`}
                 >
                   {conversation.title}
                 </p>

@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { ChatMessage } from "./components/ChatMessage";
 import { ChatInput } from "./components/ChatInput";
 import { StackView } from "./components/StackView";
 import { Auth } from "./components/Auth";
+import { OnboardingModal } from "./components/OnboardingModal";
+import { MainContent } from "./components/MainContent";
 import { Send, Menu, X, LogOut, User } from "lucide-react";
 import {
   sendMessageToGemini,
   ChatMessage as GeminiChatMessage,
+  generateStudyTips,
+  generatePersonalizedTips,
+  getKoreanMeaning,
 } from "./services/gemini";
 import { Toaster, toast } from "sonner";
 import { onAuthStateChange, logout } from "./services/auth";
@@ -47,15 +52,19 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [currentView, setCurrentView] = useState<
-    "chat" | "red" | "yellow" | "green" | "important" | "sentences"
+    "chat" | "red" | "yellow" | "green"
   >("chat");
+
+  // 언어 상태
+  const [nativeLang, setNativeLang] = useState("ko");
+  const [targetLang, setTargetLang] = useState<string | null>(null);
 
   // 전역 단어장 상태 (Key: 단어(소문자), Value: 상태와 한글 뜻)
   interface VocabularyEntry {
     status: "red" | "yellow" | "green";
     koreanMeaning: string;
   }
-  
+
   const [userVocabulary, setUserVocabulary] = useState<
     Record<string, VocabularyEntry>
   >({});
@@ -96,11 +105,15 @@ export default function App() {
     try {
       const userRef = doc(db, "users", userId);
       const userSnap = await getDoc(userRef);
-      
+
       if (userSnap.exists()) {
         const data = userSnap.data();
         const vocabData = data.vocabulary || {};
-        
+
+        // 언어 설정 불러오기
+        if (data.nativeLang) setNativeLang(data.nativeLang);
+        if (data.targetLang) setTargetLang(data.targetLang);
+
         // 기존 형식 (단순 status)을 새 형식으로 변환
         const vocabulary: Record<string, VocabularyEntry> = {};
         Object.keys(vocabData).forEach((word) => {
@@ -119,7 +132,7 @@ export default function App() {
             };
           }
         });
-        
+
         setUserVocabulary(vocabulary);
       } else {
         // 문서가 없으면 빈 객체로 초기화
@@ -153,6 +166,21 @@ export default function App() {
     }, 500);
   };
 
+  // 언어 설정 저장
+  const saveLanguageSettings = async (native: string, target: string) => {
+    if (user) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+          nativeLang: native,
+          targetLang: target,
+        }, { merge: true });
+      } catch (error) {
+        console.error("언어 설정 저장 실패:", error);
+      }
+    }
+  };
+
   // 사용자 데이터 불러오기
   const loadUserData = async (userId: string) => {
     // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
@@ -162,7 +190,7 @@ export default function App() {
     setGreenStack([]);
     setImportantStack([]);
     setSentenceStack([]);
-    
+
     // 단어장 불러오기 (새로운 함수 사용)
     await loadVocabularyFromDB(userId);
 
@@ -174,9 +202,9 @@ export default function App() {
       const redData = stacksResult.stacks.red || [];
       const yellowData = stacksResult.stacks.yellow || [];
       const greenData = stacksResult.stacks.green || [];
-      
+
       // WordData[] 형태인 경우 string[]로 변환
-      setRedStack(Array.isArray(redData) && redData.length > 0 && typeof redData[0] === 'object' 
+      setRedStack(Array.isArray(redData) && redData.length > 0 && typeof redData[0] === 'object'
         ? redData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
         : redData);
       setYellowStack(Array.isArray(yellowData) && yellowData.length > 0 && typeof yellowData[0] === 'object'
@@ -185,7 +213,7 @@ export default function App() {
       setGreenStack(Array.isArray(greenData) && greenData.length > 0 && typeof greenData[0] === 'object'
         ? greenData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
         : greenData);
-      
+
       setImportantStack(stacksResult.stacks.important || []);
       setSentenceStack(stacksResult.stacks.sentences || []);
     }
@@ -215,7 +243,7 @@ export default function App() {
       // 로그인 상태: Firebase에 저장 (Debounce 적용)
       saveVocabularyToDB(user.uid, userVocabulary);
     }
-    
+
     // cleanup: 컴포넌트 언마운트 시 타이머 정리
     return () => {
       if (saveVocabularyTimeoutRef.current) {
@@ -275,7 +303,7 @@ export default function App() {
     const unsubscribe = onAuthStateChange((currentUser) => {
       setUser(currentUser);
       setLoading(false);
-      
+
       if (currentUser) {
         // 로그인 시: 사용자 데이터 불러오기 (단어장 포함)
         loadUserData(currentUser.uid);
@@ -296,7 +324,8 @@ export default function App() {
           },
         ]);
         setCurrentConversationId("1");
-        
+        setTargetLang(null); // 로그아웃 시 언어 설정 초기화
+
         // Debounce 타이머 정리
         if (saveVocabularyTimeoutRef.current) {
           clearTimeout(saveVocabularyTimeoutRef.current);
@@ -332,13 +361,13 @@ export default function App() {
       prev.map((conv) =>
         conv.id === currentConversationId
           ? {
-              ...conv,
-              messages: [...conv.messages, userMessage],
-              title:
-                conv.messages.length === 0
-                  ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
-                  : conv.title,
-            }
+            ...conv,
+            messages: [...conv.messages, userMessage],
+            title:
+              conv.messages.length === 0
+                ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
+                : conv.title,
+          }
           : conv
       )
     );
@@ -355,7 +384,11 @@ export default function App() {
         content: msg.content,
       }));
 
-      const aiResponse = await sendMessageToGemini(geminiMessages);
+      const aiResponse = await sendMessageToGemini(
+        geminiMessages,
+        nativeLang,
+        targetLang || "en" // Default to English if null
+      );
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -432,42 +465,42 @@ export default function App() {
   };
 
   // 단어 상태 업데이트 핸들러 (전역 동기화 + Firestore 저장)
-  const handleUpdateWordStatus = async (
-    wordId: string,
-    newStatus: "red" | "yellow" | "green",
+  const handleUpdateWordStatus = useCallback(async (
     word: string,
-    messageId: string,
-    sentence: string,
-    koreanMeaning: string = "",
-    isReturningToRed: boolean = false
+    newStatus: "red" | "yellow" | "green",
+    koreanMeaning: string = ""
   ) => {
     // 깔끔하게 정제된 단어 텍스트 추출
     const cleanWord = extractCleanWord(word);
     const wordKey = cleanWord.toLowerCase().trim();
-    
+
     if (!cleanWord || cleanWord.length < 2) {
       console.warn("유효하지 않은 단어:", word);
       return;
     }
 
-    // 한글 뜻이 없으면 AI로 자동 번역
+    // 이전 단어 상태 확인
+    const prevEntry = userVocabulary[wordKey];
+    const isExistingWord = !!prevEntry;
+
+    // 한글 뜻 처리 로직
     let finalKoreanMeaning = koreanMeaning;
-    if (!finalKoreanMeaning) {
-      const prevEntry = userVocabulary[wordKey];
-      if (!prevEntry?.koreanMeaning) {
-        // AI로 한글 뜻 가져오기 (비동기)
-        try {
-          finalKoreanMeaning = await getKoreanMeaning(cleanWord);
-        } catch (error) {
-          console.error("한글 뜻 가져오기 실패:", error);
-          finalKoreanMeaning = "";
-        }
-      } else {
-        finalKoreanMeaning = prevEntry.koreanMeaning;
+
+    // 1. 처음 단어장에 추가될 때 (Red, Yellow, Green 모두) 번역 가져오기
+    if (!prevEntry && !finalKoreanMeaning) {
+      try {
+        finalKoreanMeaning = await getKoreanMeaning(cleanWord);
+      } catch (error: any) {
+        console.error(`❌ 단어 "${cleanWord}"의 한글 뜻 가져오기 실패:`, error);
+        finalKoreanMeaning = "";
       }
     }
+    // 2. 기존 단어인 경우 기존 한글 뜻 유지
+    else if (isExistingWord) {
+      finalKoreanMeaning = finalKoreanMeaning || prevEntry.koreanMeaning || "";
+    }
 
-    // 1. 전역 단어장 업데이트 (상태와 한글 뜻 모두 저장)
+    // 1. 전역 단어장 업데이트
     setUserVocabulary((prev) => {
       const updatedVocabulary = {
         ...prev,
@@ -476,31 +509,32 @@ export default function App() {
           koreanMeaning: finalKoreanMeaning || prev[wordKey]?.koreanMeaning || "",
         },
       };
-      
-      // 2. 로그인 상태라면 Firestore에 즉시 저장 (Debounce 적용)
+
+      // 2. 로그인 상태라면 Firestore에 즉시 저장
       if (user) {
         saveVocabularyToDB(user.uid, updatedVocabulary);
       }
-      
+
       return updatedVocabulary;
     });
+  }, [user, userVocabulary]);
 
-    // 스택은 userVocabulary 변경 시 useEffect에서 자동으로 재계산됨
+  // 단어 상태 초기화 핸들러 (White/Default로 복원)
+  const handleResetWordStatus = (word: string) => {
+    const wordKey = word.toLowerCase().trim();
+    if (!wordKey || wordKey.length < 2) return;
 
-    // 4. 모든 대화의 모든 메시지에서 해당 단어 찾아서 상태 동기화
-    setConversations((prev) =>
-      prev.map((conv) => ({
-        ...conv,
-        // 메시지 내용은 그대로 두고, ChatMessage 컴포넌트가 userVocabulary를 참조하도록 함
-        // 실제 렌더링은 ChatMessage에서 userVocabulary를 보고 결정
-      }))
-    );
+    setUserVocabulary((prev) => {
+      const updated = { ...prev };
+      delete updated[wordKey];
+      if (user) saveVocabularyToDB(user.uid, updated);
+      return updated;
+    });
   };
 
   // 중요 단어 저장 핸들러
   const handleSaveImportant = (word: WordData) => {
     setImportantStack((prev) => {
-      // 중복 체크
       if (prev.find((w) => w.id === word.id)) return prev;
       return [...prev, word];
     });
@@ -509,7 +543,6 @@ export default function App() {
   // 문장 저장 핸들러
   const handleSaveSentence = (sentence: string) => {
     setSentenceStack((prev) => {
-      // 중복 체크
       if (prev.includes(sentence)) return prev;
       return [...prev, sentence];
     });
@@ -534,7 +567,7 @@ export default function App() {
     return (
       <>
         <Toaster position="top-center" richColors />
-        <Auth onAuthSuccess={() => {}} />
+        <Auth onAuthSuccess={() => { }} />
       </>
     );
   }
@@ -542,6 +575,18 @@ export default function App() {
   return (
     <>
       <Toaster position="top-center" richColors />
+
+      {/* 온보딩 모달 */}
+      <OnboardingModal
+        isOpen={!targetLang}
+        onComplete={(native, target) => {
+          setNativeLang(native);
+          setTargetLang(target);
+          saveLanguageSettings(native, target);
+        }}
+        onLogout={logout}
+      />
+
       <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         {/* 사이드바 */}
         <Sidebar
@@ -561,167 +606,62 @@ export default function App() {
           }}
           currentView={currentView}
           onSelectView={setCurrentView}
+          onLogout={logout}
+          onResetLanguage={() => {
+            setTargetLang(null);
+            saveLanguageSettings(nativeLang, "");
+          }}
         />
 
         {/* 메인 컨텐츠 영역 */}
         {currentView === "chat" ? (
-          <div className="flex-1 flex flex-col">
-          {/* 헤더 */}
-          <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors lg:hidden"
-              >
-                {isSidebarOpen ? (
-                  <X className="w-5 h-5 text-slate-600" />
-                ) : (
-                  <Menu className="w-5 h-5 text-slate-600" />
-                )}
-              </button>
-              <div>
-                <h1 className="text-slate-800">AI 채팅</h1>
-                <p className="text-sm text-slate-500">인공지능과 대화하세요</p>
-              </div>
-            </div>
-            
-            {/* 사용자 정보 */}
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-slate-800 font-medium">
-                      {user.displayName || user.email?.split("@")[0] || "사용자"}
-                    </p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={async () => {
-                    const result = await logout();
-                    if (result.error) {
-                      toast.error(result.error);
-                    } else {
-                      toast.success("로그아웃되었습니다.");
-                      setUser(null);
-                    }
-                  }}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  title="로그아웃"
-                >
-                  <LogOut className="w-5 h-5 text-slate-600" />
-                </button>
-              </div>
-            )}
-          </header>
-
-          {/* 메시지 영역 */}
-          <div className="flex-1 overflow-y-auto px-4 py-6">
-            {currentConversation?.messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center max-w-md">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                    <Send className="w-8 h-8 text-white" />
-                  </div>
-                  <h2 className="text-slate-800 mb-2">새로운 대화 시작</h2>
-                  <p className="text-slate-500">
-                    무엇이든 물어보세요. AI가 답변해드립니다.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="max-w-3xl mx-auto space-y-6">
-                {currentConversation?.messages.map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    onUpdateWordStatus={handleUpdateWordStatus}
-                    onSaveImportant={handleSaveImportant}
-                    onSaveSentence={handleSaveSentence}
-                    userVocabulary={userVocabulary}
-                  />
-                ))}
-                {isTyping && (
-                  <ChatMessage
-                    message={{
-                      id: "typing",
-                      role: "assistant",
-                      content: "",
-                      timestamp: new Date(),
-                    }}
-                    isTyping={true}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 입력 영역 */}
-          <div className="border-t border-slate-200 bg-white px-4 py-4">
-            <div className="max-w-3xl mx-auto">
-              <ChatInput
-                onSendMessage={handleSendMessage}
-                disabled={isTyping}
-              />
-            </div>
-          </div>
-        </div>
+          <MainContent
+            nativeLang={nativeLang}
+            targetLang={targetLang}
+            currentConversation={currentConversation}
+            isTyping={isTyping}
+            onSendMessage={handleSendMessage}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            user={user}
+            onLogout={logout}
+            userVocabulary={userVocabulary}
+            onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+            onResetWordStatus={handleResetWordStatus}
+            onSaveImportant={handleSaveImportant}
+            onSaveSentence={handleSaveSentence}
+          />
         ) : (
           <StackView
             title={
-              currentView === "red"
-                ? "Red Stack"
-                : currentView === "yellow"
-                ? "Yellow Stack"
-                : currentView === "green"
-                ? "Green Stack"
-                : currentView === "important"
-                ? "Important"
-                : "Sentences"
+              currentView === "red" ? "Red Stack" :
+                currentView === "yellow" ? "Yellow Stack" : "Green Stack"
             }
             color={
-              currentView === "red"
-                ? "#ef4444"
-                : currentView === "yellow"
-                ? "#eab308"
-                : currentView === "green"
-                ? "#22c55e"
-                : currentView === "important"
-                ? "#a855f7"
-                : "#3b82f6"
+              currentView === "red" ? "#ef4444" :
+                currentView === "yellow" ? "#eab308" : "#22c55e"
             }
             items={
-              currentView === "red"
-                ? redStack
-                : currentView === "yellow"
-                ? yellowStack
-                : currentView === "green"
-                ? greenStack
-                : currentView === "important"
-                ? importantStack
-                : sentenceStack
+              currentView === "red" ? redStack :
+                currentView === "yellow" ? yellowStack : greenStack
             }
             onBack={() => setCurrentView("chat")}
             userVocabulary={userVocabulary}
             onUpdateVocabulary={(wordKey, meaning) => {
-              // StackView에서 번역한 한글 뜻을 userVocabulary에 저장
               setUserVocabulary((prev) => {
                 const entry = prev[wordKey];
                 if (entry) {
                   return {
                     ...prev,
-                    [wordKey]: {
-                      ...entry,
-                      koreanMeaning: meaning,
-                    },
+                    [wordKey]: { ...entry, koreanMeaning: meaning },
                   };
                 }
                 return prev;
               });
             }}
+            onGenerateStudyTips={handleGenerateStudyTips}
+            onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+            onDeleteWord={(word) => handleResetWordStatus(word)}
           />
         )}
       </div>
