@@ -106,10 +106,11 @@ export async function sendMessageToGemini(
 사용자가 학습 중인 언어: ${targetLang}
 
 규칙:
-1. 당신은 사용자의 모국어(${nativeLang})로 자연스럽게 대화해야 합니다.
-2. 당신의 답변에 포함된 모든 문장 또는 핵심 문장에 대해, 반드시 학습 언어(${targetLang})로 번역된 문장을 한 줄씩 덧붙여주세요.
-3. 번역된 문장은 클릭 가능한 학습 재료가 되므로, 명확하게 구분되어야 합니다.
-4. 형식 예시:
+1. **절대로 슬래시('/') 문자를 사용하지 마십시오. 단어의 품사 구분 등 필요한 경우에도 슬래시 대신 괄호나 쉼표를 사용하십시오.**
+2. 당신은 사용자의 모국어(${nativeLang})로 자연스럽게 대화해야 합니다.
+3. 당신의 답변에 포함된 모든 문장 또는 핵심 문장에 대해, 반드시 학습 언어(${targetLang})로 번역된 문장을 한 줄씩 덧붙여주세요.
+4. 번역된 문장은 클릭 가능한 학습 재료가 되므로, 명확하게 구분되어야 합니다.
+5. 형식 예시:
    [모국어 문장]
    [학습 언어 번역 문장]
    
@@ -227,7 +228,7 @@ export async function getKoreanMeaning(word: string): Promise<string> {
 // 단어의 맞춤 학습 전략을 생성하는 함수
 export async function generateStudyTips(
   wordText: string,
-  status: "red" | "yellow" | "green"
+  status: "red" | "yellow" | "green" | "white"
 ): Promise<string> {
   if (!genAI) {
     throw new Error('Gemini API가 초기화되지 않았습니다.');
@@ -241,6 +242,7 @@ export async function generateStudyTips(
       red: "모르는 단어 (처음 접하는 단어)",
       yellow: "학습 중인 단어 (어느 정도 알고 있지만 완전히 마스터하지 못한 단어)",
       green: "마스터한 단어 (완전히 익힌 단어)",
+      white: "미분류 단어 (아직 학습 상태가 정해지지 않은 단어)",
     };
 
     const prompt = `나는 현재 영단어 "${wordText}"를 ${statusDescriptions[status]} 상태로 분류했습니다. 
@@ -284,3 +286,18 @@ export async function generatePersonalizedTips(
   }
 }
 
+export async function generateText(prompt: string): Promise<string> {
+  if (!genAI) {
+    throw new Error('Gemini API가 초기화되지 않았습니다.');
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  } catch (error: any) {
+    console.error('텍스트 생성 실패:', error);
+    throw new Error(`텍스트 생성 중 오류가 발생했습니다: ${error.message}`);
+  }
+}

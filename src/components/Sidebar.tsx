@@ -1,5 +1,6 @@
-import { Plus, MessageSquare, Trash2, X } from "lucide-react";
+import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface Message {
   id: string;
@@ -19,6 +20,8 @@ interface StackCounts {
   red: number;
   yellow: number;
   green: number;
+  important: number;
+  sentence: number;
 }
 
 interface SidebarProps {
@@ -30,10 +33,6 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   counts: StackCounts;
-  currentView: "chat" | "red" | "yellow" | "green";
-  onSelectView: (
-    view: "chat" | "red" | "yellow" | "green"
-  ) => void;
   onLogout: () => void;
   onResetLanguage: () => void;
 }
@@ -68,11 +67,14 @@ export function Sidebar({
   isOpen,
   onClose,
   counts,
-  currentView,
-  onSelectView,
   onLogout,
   onResetLanguage,
 }: SidebarProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path: string) => location.pathname === path;
+
   return (
     <>
       {/* 모바일 오버레이 */}
@@ -119,8 +121,8 @@ export function Sidebar({
           <div className="space-y-1">
             {/* Red Stack */}
             <button
-              onClick={() => onSelectView("red")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "red" ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
+              onClick={() => navigate("/stack/red")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/red") ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -140,8 +142,8 @@ export function Sidebar({
 
             {/* Yellow Stack */}
             <button
-              onClick={() => onSelectView("yellow")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "yellow"
+              onClick={() => navigate("/stack/yellow")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/yellow")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
                 }`}
@@ -163,8 +165,8 @@ export function Sidebar({
 
             {/* Green Stack */}
             <button
-              onClick={() => onSelectView("green")}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${currentView === "green"
+              onClick={() => navigate("/stack/green")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/green")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
                 }`}
@@ -183,6 +185,70 @@ export function Sidebar({
                 </span>
               )}
             </button>
+
+            {/* TOEIC 4000 */}
+            <button
+              onClick={() => navigate("/toeic-4000")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/toeic-4000")
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-5 h-5 text-purple-400" />
+                </div>
+                <span className="text-purple-400 font-medium truncate">
+                  TOEIC 4000
+                </span>
+              </div>
+            </button>
+
+            {/* Important Stack */}
+            <button
+              onClick={() => navigate("/stack/important")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/important")
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                  <Star className="w-5 h-5 text-orange-400" />
+                </div>
+                <span className="text-orange-400 font-medium truncate">
+                  중요 단어장
+                </span>
+              </div>
+              {counts.important > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.important}
+                </span>
+              )}
+            </button>
+
+            {/* Sentence Stack */}
+            <button
+              onClick={() => navigate("/stack/sentence")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/sentence")
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                </div>
+                <span className="text-blue-400 font-medium truncate">
+                  문장 보관소
+                </span>
+              </div>
+              {counts.sentence > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
+                  {counts.sentence}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -191,23 +257,23 @@ export function Sidebar({
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId
+              className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId && isActive("/")
                 ? "bg-[#2a2b2c] border border-[#3a3b3c]"
                 : "hover:bg-[#2a2b2c]/50 border border-transparent"
                 }`}
               onClick={() => {
                 onSelectConversation(conversation.id);
-                onSelectView("chat");
+                navigate("/");
               }}
             >
               <div
-                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId
+                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId && isActive("/")
                   ? "bg-gradient-to-br from-blue-500 to-purple-600"
                   : "bg-[#2a2b2c]"
                   }`}
               >
                 <MessageSquare
-                  className={`w-5 h-5 ${conversation.id === currentConversationId
+                  className={`w-5 h-5 ${conversation.id === currentConversationId && isActive("/")
                     ? "text-white"
                     : "text-[#9ca3af]"
                     }`}
@@ -215,7 +281,7 @@ export function Sidebar({
               </div>
               <div className="flex-1 min-w-0">
                 <p
-                  className={`truncate ${conversation.id === currentConversationId
+                  className={`truncate ${conversation.id === currentConversationId && isActive("/")
                     ? "text-[#E3E3E3]"
                     : "text-[#E3E3E3]"
                     }`}

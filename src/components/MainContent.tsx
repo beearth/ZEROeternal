@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import type { User as FirebaseUser } from "firebase/auth";
-import type { WordData } from "./ChatMessage";
+import type { WordData, VocabularyEntry } from "../types";
 
 interface Message {
     id: string;
@@ -20,11 +20,6 @@ interface Conversation {
     timestamp: Date;
 }
 
-interface VocabularyEntry {
-    status: "red" | "yellow" | "green";
-    koreanMeaning: string;
-}
-
 interface MainContentProps {
     nativeLang: string;
     targetLang: string | null;
@@ -38,7 +33,7 @@ interface MainContentProps {
     userVocabulary: Record<string, VocabularyEntry>;
     onUpdateWordStatus: (
         wordId: string,
-        newStatus: "red" | "yellow" | "green",
+        newStatus: "red" | "yellow" | "green" | "white",
         word: string,
         messageId: string,
         sentence: string,

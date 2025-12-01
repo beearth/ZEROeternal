@@ -6,6 +6,7 @@ import { StackView } from "./components/StackView";
 import { Auth } from "./components/Auth";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { MainContent } from "./components/MainContent";
+import { ToeicWordList } from "./components/ToeicWordList";
 import { Send, Menu, X, LogOut, User } from "lucide-react";
 import {
   sendMessageToGemini,
@@ -13,6 +14,7 @@ import {
   generateStudyTips,
   generatePersonalizedTips,
   getKoreanMeaning,
+  generateText,
 } from "./services/gemini";
 import { Toaster, toast } from "sonner";
 import { onAuthStateChange, logout } from "./services/auth";
@@ -35,7 +37,13 @@ interface Conversation {
   timestamp: Date;
 }
 
-import type { WordData } from "./components/ChatMessage";
+import type { WordData, VocabularyEntry } from "./types";
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+
+
+// ... (imports remain the same, remove unused ones if any)
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -51,19 +59,15 @@ export default function App() {
   const [currentConversationId, setCurrentConversationId] = useState("1");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
-  const [currentView, setCurrentView] = useState<
-    "chat" | "red" | "yellow" | "green"
-  >("chat");
 
   // 언어 상태
   const [nativeLang, setNativeLang] = useState("ko");
   const [targetLang, setTargetLang] = useState<string | null>(null);
+  const [isToeicLoading, setIsToeicLoading] = useState(false);
 
-  // 전역 단어장 상태 (Key: 단어(소문자), Value: 상태와 한글 뜻)
-  interface VocabularyEntry {
-    status: "red" | "yellow" | "green";
-    koreanMeaning: string;
-  }
+  // ... (existing code)
+
+
 
   const [userVocabulary, setUserVocabulary] = useState<
     Record<string, VocabularyEntry>
@@ -71,6 +75,9 @@ export default function App() {
 
   // Debounce를 위한 ref
   const saveVocabularyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 초기 로드 플래그 (스택 재계산 방지)
+  const isInitialLoad = useRef(true);
 
   // 마크다운 제거 함수 (단어 정제용)
   const cleanMarkdown = (text: string): string => {
@@ -89,7 +96,18 @@ export default function App() {
     const cleaned = cleanMarkdown(text);
     // 공백이나 문장부호로 분리하여 첫 번째 단어만 추출
     const words = cleaned.split(/[\s\n.,?!;:()\[\]{}"'`]+/).filter(w => w.length > 0);
-    return words.length > 0 ? words[0] : cleaned.trim();
+
+    // 유효한 단어인지 확인 (숫자로 시작하고 하이픈이 포함된 토큰 제외)
+    if (words.length > 0) {
+      const candidate = words[0];
+      // "17645250569 2-start" 같은 패턴 필터링 (숫자+하이픈+문자)
+      if (/^\d+-[a-zA-Z]+/.test(candidate) || /^\d+\s+\d+-[a-zA-Z]+/.test(candidate)) {
+        return "";
+      }
+      return candidate;
+    }
+
+    return cleaned.trim();
   };
 
   // 5개의 데이터 저장소 (useEffect보다 먼저 선언)
@@ -125,15 +143,50 @@ export default function App() {
               koreanMeaning: "",
             };
           } else if (entry && typeof entry === "object" && "status" in entry) {
-            // 새 형식: { word: { status: "...", koreanMeaning: "..." } }
+            // 새 형식: { word: { status: "...", koreanMeaning: "...", category: "..." } }
             vocabulary[word] = {
               status: entry.status,
               koreanMeaning: entry.koreanMeaning || "",
+              category: entry.category,
             };
           }
         });
 
-        setUserVocabulary(vocabulary);
+        // Data Cleanup: Remove corrupted words (too long or containing newlines)
+        const cleaned: Record<string, VocabularyEntry> = {};
+        let hasChanges = false;
+
+        Object.entries(vocabulary).forEach(([word, entry]) => {
+          // Only filter out clearly invalid patterns:
+          // 1. Contains timestamp-like long numbers at start (e.g., "1764528737126-8-intensively")
+          const hasTimestamp = /^\d{10,}-/.test(word);
+
+          // 2. Standard invalid patterns from before
+          const hasInvalidChars =
+            word.includes('\n') ||
+            word.includes('**') ||
+            word.includes('.') ||
+            word.includes('/');
+
+          const isTooLong = word.length > 40;
+
+          // Keep the word unless it matches the problematic patterns
+          if (!hasTimestamp && !hasInvalidChars && !isTooLong) {
+            cleaned[word] = entry as VocabularyEntry;
+          } else {
+            hasChanges = true;
+            console.log(`Filtered out invalid word: ${word}`);
+          }
+        });
+
+        setUserVocabulary(cleaned);
+
+        if (hasChanges) {
+          console.log("Cleaned up corrupted vocabulary data");
+          // Optionally save back to DB immediately, but state update will trigger save in useEffect if we have one for that.
+          // Current app saves on change, so we might need to trigger a save.
+          // But let's just let the user continue, next save will overwrite.
+        }
       } else {
         // 문서가 없으면 빈 객체로 초기화
         setUserVocabulary({});
@@ -154,11 +207,25 @@ export default function App() {
     // 500ms 후 저장 (Debounce)
     saveVocabularyTimeoutRef.current = setTimeout(async () => {
       try {
+        // undefined 값 제거 (Firestore는 undefined를 허용하지 않음)
+        const cleanedVocabData: Record<string, any> = {};
+        Object.entries(vocabData).forEach(([word, entry]) => {
+          const cleanedEntry: any = {};
+          Object.entries(entry).forEach(([key, value]) => {
+            if (value !== undefined) {
+              cleanedEntry[key] = value;
+            }
+          });
+          cleanedVocabData[word] = cleanedEntry;
+        });
+
         const userRef = doc(db, "users", userId);
         await setDoc(userRef, {
-          vocabulary: vocabData,
+          vocabulary: cleanedVocabData,
           updatedAt: new Date(),
         }, { merge: true });
+
+        console.log('✅ 단어장이 Firestore에 저장되었습니다.');
       } catch (error: any) {
         console.error("단어장 저장 실패:", error);
         toast.error("단어장 저장에 실패했습니다.");
@@ -238,9 +305,21 @@ export default function App() {
   };
 
   // 전역 단어장을 Firebase에 저장 (사용자별로, Debounce 적용)
+  const hasLoadedInitialData = useRef(false);
+
   useEffect(() => {
-    if (user && Object.keys(userVocabulary).length >= 0) {
-      // 로그인 상태: Firebase에 저장 (Debounce 적용)
+    // 초기 로드가 완료되지 않았으면 저장하지 않음
+    if (!hasLoadedInitialData.current) {
+      // 데이터가 실제로 있으면 로드 완료로 간주
+      if (Object.keys(userVocabulary).length > 0) {
+        hasLoadedInitialData.current = true;
+      }
+      return;
+    }
+
+    if (user && Object.keys(userVocabulary).length > 0) {
+      // 로그인 상태이고 데이터가 있을 때만: Firebase에 저장 (Debounce 적용)
+      console.log('💾 단어장 저장 예약됨 (500ms 후)');
       saveVocabularyToDB(user.uid, userVocabulary);
     }
 
@@ -252,8 +331,14 @@ export default function App() {
     };
   }, [userVocabulary, user]);
 
-  // userVocabulary 변경 시 스택 재계산
+  // userVocabulary 변경 시 스택 재계산 (단, 초기 로드 시에는 제외)
   useEffect(() => {
+    // 초기 로드 시에는 스택을 재계산하지 않음 (Firestore에서 불러온 값 유지)
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return;
+    }
+
     const redWords: string[] = [];
     const yellowWords: string[] = [];
     const greenWords: string[] = [];
@@ -467,12 +552,20 @@ export default function App() {
   // 단어 상태 업데이트 핸들러 (전역 동기화 + Firestore 저장)
   const handleUpdateWordStatus = useCallback(async (
     word: string,
-    newStatus: "red" | "yellow" | "green",
+    newStatus: "red" | "yellow" | "green" | "white",
     koreanMeaning: string = ""
   ) => {
-    // 깔끔하게 정제된 단어 텍스트 추출
-    const cleanWord = extractCleanWord(word);
-    const wordKey = cleanWord.toLowerCase().trim();
+    console.log("Updating status for:", word, "to", newStatus);
+
+    // 1. 먼저 입력된 단어를 그대로 키로 변환해 시도 (TOEIC 리스트 등에서 정확한 키를 보낼 때)
+    let wordKey = word.toLowerCase().trim();
+    let cleanWord = word.trim();
+
+    // 2. 만약 키가 존재하지 않으면, 마크다운/특수문자 제거 후 다시 시도 (채팅에서 드래그로 선택했을 때)
+    if (!userVocabulary[wordKey]) {
+      cleanWord = extractCleanWord(word);
+      wordKey = cleanWord.toLowerCase().trim();
+    }
 
     if (!cleanWord || cleanWord.length < 2) {
       console.warn("유효하지 않은 단어:", word);
@@ -502,11 +595,15 @@ export default function App() {
 
     // 1. 전역 단어장 업데이트
     setUserVocabulary((prev) => {
+      const existingEntry = prev[wordKey];
+      console.log("Existing entry for", wordKey, ":", existingEntry);
+
       const updatedVocabulary = {
         ...prev,
         [wordKey]: {
+          ...existingEntry, // 기존 속성(category 등) 유지
           status: newStatus,
-          koreanMeaning: finalKoreanMeaning || prev[wordKey]?.koreanMeaning || "",
+          koreanMeaning: finalKoreanMeaning || existingEntry?.koreanMeaning || "",
         },
       };
 
@@ -530,6 +627,30 @@ export default function App() {
       if (user) saveVocabularyToDB(user.uid, updated);
       return updated;
     });
+  };
+
+  // 학습 팁 생성 핸들러
+  const handleGenerateStudyTips = useCallback(async (word: string, status: "red" | "yellow" | "green" | "white") => {
+    return await generateStudyTips(word, status);
+  }, []);
+
+  // 토익 필수 단어 가져오기
+  const getToeicVocabulary = async (count: number = 10, seed: number = 0): Promise<string[]> => {
+    try {
+      // 프롬프트에 랜덤성을 부여하기 위해 seed 사용 (실제로는 프롬프트 텍스트에 반영)
+      const topics = ["비즈니스", "경제", "일상", "여행", "쇼핑", "계약", "마케팅", "기술", "금융", "인사"];
+      const topic = topics[seed % topics.length];
+
+      const prompt = `토익(TOEIC) ${topic} 관련 필수 영단어(명사/동사) ${count}개를 쉼표로 구분하여 나열하세요. 번호나 설명 없이 오직 단어만 작성하세요. (예: negotiation, contract, schedule)`;
+      const text = await generateText(prompt);
+
+      const words = text.split(',').map(word => word.trim()).filter(word => word.length > 0);
+      console.log(`Fetched ${words.length} words for topic ${topic}`);
+      return words;
+    } catch (error) {
+      console.error("토익 단어 가져오기 실패:", error);
+      return [];
+    }
   };
 
   // 중요 단어 저장 핸들러
@@ -571,23 +692,124 @@ export default function App() {
       </>
     );
   }
+  // 토익 단어 추가 로드 핸들러 (로컬 데이터 사용)
+  const handleLoadMoreToeicWords = async () => {
+    if (isToeicLoading) return;
+
+    setIsToeicLoading(true);
+    toast.info("토익 필수 단어를 불러오는 중입니다...");
+
+    try {
+      // 로컬 데이터에서 가져오기
+      const { toeicWordList } = await import("./data/toeic4000");
+
+      // 1초 정도 로딩 효과 (너무 빠르면 사용자가 인지 못함)
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      setUserVocabulary((prev) => {
+        const newVocab = { ...prev };
+        let addedCount = 0;
+        const targetCount = 50; // 한 번에 추가할 목표 개수 (50개로 변경)
+
+        // 이미 있는 단어 제외하고 순서대로 추가
+        // (랜덤하게 섞고 싶다면 여기서 toeicWordList를 셔플하면 됨)
+        const shuffledList = [...toeicWordList].sort(() => Math.random() - 0.5);
+
+        for (const word of shuffledList) {
+          if (addedCount >= targetCount) break;
+
+          const wordKey = word.toLowerCase().trim();
+          if (!newVocab[wordKey]) {
+            newVocab[wordKey] = {
+              status: 'white',
+              koreanMeaning: '',
+              category: 'toeic'
+            };
+            addedCount++;
+          }
+        }
+
+        if (user) {
+          saveVocabularyToDB(user.uid, newVocab);
+        }
+
+        if (addedCount > 0) {
+          toast.success(`${addedCount}개의 새로운 단어가 추가되었습니다!`);
+        } else {
+          toast.info("더 이상 추가할 새로운 단어가 없습니다.");
+        }
+
+        return newVocab;
+      });
+
+    } catch (error) {
+      console.error("단어 로드 중 오류:", error);
+      toast.error("단어 로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsToeicLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    setUserVocabulary({});
+    setRedStack([]);
+    setYellowStack([]);
+    setGreenStack([]);
+    setImportantStack([]);
+    setSentenceStack([]);
+    setConversations([]);
+    setCurrentConversationId("");
+    // setShowOnboarding(true); // 필요 시 주석 해제
+  };
 
   return (
-    <>
+    <BrowserRouter>
       <Toaster position="top-center" richColors />
 
       {/* 온보딩 모달 */}
+      {/* 온보딩 모달 */}
       <OnboardingModal
         isOpen={!targetLang}
-        onComplete={(native, target) => {
+        onComplete={async (native, target, contentType) => {
           setNativeLang(native);
           setTargetLang(target);
           saveLanguageSettings(native, target);
+
+          if (contentType === 'toeic') {
+            toast.info("토익 필수 단어를 불러오는 중입니다...");
+            const toeicWords = await getToeicVocabulary(50); // 처음엔 50개
+
+            if (toeicWords.length > 0) {
+              setUserVocabulary((prev) => {
+                const newVocab = { ...prev };
+                toeicWords.forEach(word => {
+                  const wordKey = word.toLowerCase().trim();
+                  if (!newVocab[wordKey]) {
+                    newVocab[wordKey] = {
+                      status: 'white',
+                      koreanMeaning: '', // 나중에 필요할 때 가져오거나 지금 가져올 수도 있음
+                      category: 'toeic'
+                    };
+                  }
+                });
+
+                if (user) {
+                  saveVocabularyToDB(user.uid, newVocab);
+                }
+                return newVocab;
+              });
+              toast.success(`${toeicWords.length}개의 토익 단어가 추가되었습니다!`);
+            } else {
+              toast.error("단어를 불러오지 못했습니다.");
+            }
+          }
         }}
         onLogout={logout}
       />
 
-      <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="flex h-screen bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden">
         {/* 사이드바 */}
         <Sidebar
           conversations={conversations}
@@ -604,9 +826,7 @@ export default function App() {
             important: importantStack.length,
             sentence: sentenceStack.length,
           }}
-          currentView={currentView}
-          onSelectView={setCurrentView}
-          onLogout={logout}
+          onLogout={handleLogout}
           onResetLanguage={() => {
             setTargetLang(null);
             saveLanguageSettings(nativeLang, "");
@@ -614,57 +834,170 @@ export default function App() {
         />
 
         {/* 메인 컨텐츠 영역 */}
-        {currentView === "chat" ? (
-          <MainContent
-            nativeLang={nativeLang}
-            targetLang={targetLang}
-            currentConversation={currentConversation}
-            isTyping={isTyping}
-            onSendMessage={handleSendMessage}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            user={user}
-            onLogout={logout}
-            userVocabulary={userVocabulary}
-            onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-            onResetWordStatus={handleResetWordStatus}
-            onSaveImportant={handleSaveImportant}
-            onSaveSentence={handleSaveSentence}
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <MainContent
+                nativeLang={nativeLang}
+                targetLang={targetLang}
+                currentConversation={currentConversation}
+                isTyping={isTyping}
+                onSendMessage={handleSendMessage}
+                isSidebarOpen={isSidebarOpen}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                user={user}
+                onLogout={handleLogout}
+                userVocabulary={userVocabulary}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onResetWordStatus={handleResetWordStatus}
+                onSaveImportant={handleSaveImportant}
+                onSaveSentence={handleSaveSentence}
+              />
+            }
           />
-        ) : (
-          <StackView
-            title={
-              currentView === "red" ? "Red Stack" :
-                currentView === "yellow" ? "Yellow Stack" : "Green Stack"
+          <Route
+            path="/stack/red"
+            element={
+              <StackView
+                title="Red Stack"
+                color="#ef4444"
+                items={redStack}
+                userVocabulary={userVocabulary}
+                onUpdateVocabulary={(wordKey, meaning) => {
+                  setUserVocabulary((prev) => {
+                    const entry = prev[wordKey];
+                    if (entry) {
+                      return {
+                        ...prev,
+                        [wordKey]: { ...entry, koreanMeaning: meaning },
+                      };
+                    }
+                    return prev;
+                  });
+                }}
+                onGenerateStudyTips={handleGenerateStudyTips}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onDeleteWord={(word) => handleResetWordStatus(word)}
+                onSaveImportant={handleSaveImportant}
+              />
             }
-            color={
-              currentView === "red" ? "#ef4444" :
-                currentView === "yellow" ? "#eab308" : "#22c55e"
-            }
-            items={
-              currentView === "red" ? redStack :
-                currentView === "yellow" ? yellowStack : greenStack
-            }
-            onBack={() => setCurrentView("chat")}
-            userVocabulary={userVocabulary}
-            onUpdateVocabulary={(wordKey, meaning) => {
-              setUserVocabulary((prev) => {
-                const entry = prev[wordKey];
-                if (entry) {
-                  return {
-                    ...prev,
-                    [wordKey]: { ...entry, koreanMeaning: meaning },
-                  };
-                }
-                return prev;
-              });
-            }}
-            onGenerateStudyTips={handleGenerateStudyTips}
-            onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-            onDeleteWord={(word) => handleResetWordStatus(word)}
           />
-        )}
+          <Route
+            path="/stack/yellow"
+            element={
+              <StackView
+                title="Yellow Stack"
+                color="#eab308"
+                items={yellowStack}
+                userVocabulary={userVocabulary}
+                onUpdateVocabulary={(wordKey, meaning) => {
+                  setUserVocabulary((prev) => {
+                    const entry = prev[wordKey];
+                    if (entry) {
+                      return {
+                        ...prev,
+                        [wordKey]: { ...entry, koreanMeaning: meaning },
+                      };
+                    }
+                    return prev;
+                  });
+                }}
+                onGenerateStudyTips={handleGenerateStudyTips}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onDeleteWord={(word) => handleResetWordStatus(word)}
+                onSaveImportant={handleSaveImportant}
+              />
+            }
+          />
+          <Route
+            path="/stack/green"
+            element={
+              <StackView
+                title="Green Stack"
+                color="#22c55e"
+                items={greenStack}
+                userVocabulary={userVocabulary}
+                onUpdateVocabulary={(wordKey, meaning) => {
+                  setUserVocabulary((prev) => {
+                    const entry = prev[wordKey];
+                    if (entry) {
+                      return {
+                        ...prev,
+                        [wordKey]: { ...entry, koreanMeaning: meaning },
+                      };
+                    }
+                    return prev;
+                  });
+                }}
+                onGenerateStudyTips={handleGenerateStudyTips}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onDeleteWord={(word) => handleResetWordStatus(word)}
+                onSaveImportant={handleSaveImportant}
+              />
+            }
+          />
+          <Route
+            path="/stack/important"
+            element={
+              <StackView
+                title="Important Stack"
+                color="#f97316"
+                items={importantStack}
+                userVocabulary={userVocabulary}
+                onUpdateVocabulary={(wordKey, meaning) => {
+                  setUserVocabulary((prev) => {
+                    const entry = prev[wordKey];
+                    if (entry) {
+                      return {
+                        ...prev,
+                        [wordKey]: { ...entry, koreanMeaning: meaning },
+                      };
+                    }
+                    return prev;
+                  });
+                }}
+                onGenerateStudyTips={handleGenerateStudyTips}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onDeleteWord={(word) => {
+                  setImportantStack((prev) => prev.filter((item) => item.word !== word));
+                }}
+                onSaveImportant={handleSaveImportant}
+              />
+            }
+          />
+          <Route
+            path="/stack/sentence"
+            element={
+              <StackView
+                title="Sentences"
+                color="#3b82f6"
+                items={sentenceStack}
+                onDeleteWord={(sentence) => {
+                  setSentenceStack((prev) => prev.filter((item) => item !== sentence));
+                }}
+                onSaveImportant={handleSaveImportant}
+              />
+            }
+          />
+          <Route
+            path="/toeic-4000"
+            element={
+              <ToeicWordList
+                userVocabulary={userVocabulary}
+                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onGenerateStudyTips={handleGenerateStudyTips}
+                onLoadMore={handleLoadMoreToeicWords}
+                onDeleteWord={handleResetWordStatus}
+                onSaveImportant={handleSaveImportant}
+                isLoading={isToeicLoading}
+              />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
-    </>
+    </BrowserRouter>
   );
 }
+

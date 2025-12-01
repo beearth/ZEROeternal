@@ -15,9 +15,9 @@ interface WordDetailModalProps {
   onOpenChange: (open: boolean) => void;
   word: string;
   koreanMeaning: string;
-  status: "red" | "yellow" | "green";
-  onGenerateStudyTips: (wordText: string, status: "red" | "yellow" | "green") => Promise<string>;
-  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green") => void;
+  status: "red" | "yellow" | "green" | "white";
+  onGenerateStudyTips: (wordText: string, status: "red" | "yellow" | "green" | "white") => Promise<string>;
+  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white") => void;
   onDeleteWord?: (word: string) => void;
 }
 
@@ -64,26 +64,30 @@ export function WordDetailModal({
   }, [open, word, status, onGenerateStudyTips]);
 
   const statusLabels = {
-    red: "모르는 단어",
-    yellow: "학습 중인 단어",
-    green: "마스터한 단어",
+    red: "학습 필요",
+    yellow: "복습 필요",
+    green: "학습 완료",
+    white: "미분류",
   };
 
   const statusColors = {
     red: "text-red-400",
     yellow: "text-yellow-400",
     green: "text-green-400",
+    white: "text-white",
   };
 
   // 다음 상태로 이동하는 함수
   const handleMoveToNextStatus = () => {
-    let nextStatus: "red" | "yellow" | "green";
+    let nextStatus: "red" | "yellow" | "green" | "white";
     if (status === "red") {
       nextStatus = "yellow";
     } else if (status === "yellow") {
       nextStatus = "green";
+    } else if (status === "green") {
+      nextStatus = "white";
     } else {
-      nextStatus = "red"; // green -> red (순환)
+      nextStatus = "red";
     }
 
     if (onUpdateWordStatus) {
@@ -92,6 +96,7 @@ export function WordDetailModal({
         red: "Red Stack",
         yellow: "Yellow Stack",
         green: "Green Stack",
+        white: "White Stack",
       };
       toast.success(`단어 "${word}"이(가) ${statusNames[nextStatus]}으로 이동되었습니다.`);
       onOpenChange(false);

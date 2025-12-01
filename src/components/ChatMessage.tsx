@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { useLongPress } from "../hooks/useLongPress";
 import { RadialMenu, RadialDirection } from "./RadialMenuNew";
 
+import type { WordData } from "../types";
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -11,23 +13,12 @@ interface Message {
   timestamp: Date;
 }
 
-export interface WordData {
-  id: string;
-  word: string;
-  status: "red" | "yellow" | "green";
-  messageId: string;
-  sentence: string;
-  timestamp: Date;
-  isInteractive?: boolean;
-  koreanMeaning?: string; // 한글 뜻 추가
-}
-
 interface ChatMessageProps {
   message: Message;
   isTyping?: boolean;
   onUpdateWordStatus?: (
     wordId: string,
-    newStatus: "red" | "yellow" | "green",
+    newStatus: "red" | "yellow" | "green" | "white",
     word: string,
     messageId: string,
     sentence: string,
@@ -37,7 +28,7 @@ interface ChatMessageProps {
   onResetWordStatus?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
   onSaveSentence?: (sentence: string) => void;
-  userVocabulary?: Record<string, { status: "red" | "yellow" | "green"; koreanMeaning: string }>;
+  userVocabulary?: Record<string, { status: "red" | "yellow" | "green" | "white"; koreanMeaning: string }>;
 }
 
 interface WordInteractionState {
