@@ -364,8 +364,27 @@ export default function App() {
   }, [userVocabulary]);
 
   // 스택을 Firebase에 저장
+  const hasLoadedStacks = useRef(false);
+
   useEffect(() => {
+    // 초기 로드가 완료되지 않았으면 저장하지 않음
+    if (!hasLoadedStacks.current) {
+      // 데이터가 하나라도 있으면 로드 완료로 간주
+      if (redStack.length > 0 || yellowStack.length > 0 || greenStack.length > 0 || importantStack.length > 0 || sentenceStack.length > 0) {
+        hasLoadedStacks.current = true;
+      }
+      return;
+    }
+
     if (user) {
+      console.log('💾 스택 저장 중...', {
+        red: redStack.length,
+        yellow: yellowStack.length,
+        green: greenStack.length,
+        important: importantStack.length,
+        sentences: sentenceStack.length
+      });
+
       saveUserStacks(user.uid, {
         red: redStack,
         yellow: yellowStack,
