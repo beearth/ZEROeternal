@@ -1351,3 +1351,17 @@ html {
     transform: none;
   }
 }
+
+/* 강제 그리드 스타일 */
+.force-word-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+}
+
+@media (min-width: 768px) {
+  .force-word-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
