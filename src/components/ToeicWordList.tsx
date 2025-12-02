@@ -270,7 +270,7 @@ export function ToeicWordList({
       <div className="flex-1 overflow-y-auto p-3 md:p-6">
         <div className="max-w-6xl mx-auto">
           {toeicWords.length > 0 ? (
-            <div className="grid grid-cols-5 gap-3 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 py-4">
               {toeicWords.map(([word, entry]) => {
                 const isDeleting = deletingWords.has(word);
                 return (
