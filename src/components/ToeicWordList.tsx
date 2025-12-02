@@ -270,10 +270,7 @@ export function ToeicWordList({
       <div className="flex-1 overflow-y-auto p-3 md:p-6">
         <div className="max-w-6xl mx-auto">
           {toeicWords.length > 0 ? (
-            <div
-              className="flex flex-wrap gap-x-2 gap-y-2 py-4 items-start"
-              style={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start' }}
-            >
+            <div className="grid grid-cols-5 gap-3 py-4">
               {toeicWords.map(([word, entry]) => {
                 const isDeleting = deletingWords.has(word);
                 return (
@@ -286,7 +283,7 @@ export function ToeicWordList({
                       handleWordClick(word, entry.status);
                     }}
                     style={getStatusStyle(entry.status)}
-                    className={`inline-flex flex-grow-0 max-w-full items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(
+                    className={`flex items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(
                       entry.status
                     )} ${isDeleting ? "opacity-0 scale-95" : ""}`}
                   >
