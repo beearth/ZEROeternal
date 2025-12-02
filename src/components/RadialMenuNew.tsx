@@ -73,10 +73,7 @@ export function RadialMenu({
       else if (angleDeg >= 45 && angleDeg < 135) newDirection = "bottom";
       else if (angleDeg >= 135 && angleDeg < 225) newDirection = "left";
       else if (angleDeg >= 225 && angleDeg < 315) {
-        // Only allow top direction if showDelete is true
-        if (showDelete) {
-          newDirection = "top";
-        }
+        newDirection = "top";
       }
 
       setActiveDirection(newDirection);
@@ -85,6 +82,13 @@ export function RadialMenu({
     const handlePointerUp = () => {
       // Only close if a direction is selected
       if (activeDirection !== "none") {
+        // If direction is top and showDelete is false, do nothing (just close or stay open?)
+        // Let's just close without triggering action
+        if (activeDirection === "top" && !showDelete) {
+          onClose();
+          return;
+        }
+
         onSelect(activeDirection);
         onClose();
       }
@@ -111,7 +115,8 @@ export function RadialMenu({
     bgColor: string,
     borderColor: string,
     textColor: string,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    isDisabled: boolean = false
   ) => {
     const isActive = activeDirection === direction;
 
@@ -119,6 +124,10 @@ export function RadialMenu({
       <div
         onPointerDown={(e) => {
           e.stopPropagation(); // Prevent bubbling
+          if (isDisabled) {
+            onClose();
+            return;
+          }
           onSelect(direction);
           onClose();
         }}
@@ -135,12 +144,12 @@ export function RadialMenu({
           transition: 'all 0.2s ease',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           border: `2px solid ${isActive ? borderColor : 'rgba(255, 255, 255, 0.5)'}`,
-          backgroundColor: isActive ? bgColor : 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: isActive ? bgColor : (isDisabled ? 'rgba(241, 245, 249, 0.9)' : 'rgba(255, 255, 255, 0.9)'),
           color: isActive ? textColor : '#64748b',
           transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) ${isActive ? 'scale(1.25)' : 'scale(1)'}`,
           zIndex: isActive ? 20 : 10,
           pointerEvents: 'auto',
-          cursor: 'pointer',
+          cursor: isDisabled ? 'default' : 'pointer',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -148,7 +157,7 @@ export function RadialMenu({
         </div>
 
         {/* Label */}
-        {(isActive || label) && (
+        {!isDisabled && (isActive || label) && (
           <div
             style={{
               position: 'absolute',
@@ -291,8 +300,8 @@ export function RadialMenu({
         )}
 
 
-        {/* Top: Delete */}
-        {showDelete && renderMenuItem(
+        {/* Top: Delete (or Blank) */}
+        {showDelete ? renderMenuItem(
           "top",
           <X size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
           "삭제",
@@ -300,6 +309,15 @@ export function RadialMenu({
           "#dc2626", // red-600
           "white",
           positions.top
+        ) : renderMenuItem(
+          "top",
+          null, // No icon
+          "", // No label
+          "#e2e8f0", // slate-200 (Active background for blank)
+          "#cbd5e1", // slate-300
+          "transparent",
+          positions.top,
+          true // isDisabled
         )}
 
       </div>
