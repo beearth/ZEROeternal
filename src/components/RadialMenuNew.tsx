@@ -20,6 +20,7 @@ interface RadialMenuProps {
   onClose: () => void;
   onSelect: (direction: RadialDirection) => void;
   selectedWord: string;
+  showDelete?: boolean;
 }
 
 export function RadialMenu({
@@ -28,6 +29,7 @@ export function RadialMenu({
   onClose,
   onSelect,
   selectedWord,
+  showDelete = true,
 }: RadialMenuProps) {
   const [activeDirection, setActiveDirection] =
     useState<RadialDirection>("none");
@@ -70,7 +72,12 @@ export function RadialMenu({
       if (angleDeg >= 315 || angleDeg < 45) newDirection = "right";
       else if (angleDeg >= 45 && angleDeg < 135) newDirection = "bottom";
       else if (angleDeg >= 135 && angleDeg < 225) newDirection = "left";
-      else if (angleDeg >= 225 && angleDeg < 315) newDirection = "top";
+      else if (angleDeg >= 225 && angleDeg < 315) {
+        // Only allow top direction if showDelete is true
+        if (showDelete) {
+          newDirection = "top";
+        }
+      }
 
       setActiveDirection(newDirection);
     };
@@ -92,7 +99,7 @@ export function RadialMenu({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [isOpen, center, activeDirection, onSelect, onClose]);
+  }, [isOpen, center, activeDirection, onSelect, onClose, showDelete]);
 
   if (!isOpen) return null;
 
@@ -285,7 +292,7 @@ export function RadialMenu({
 
 
         {/* Top: Delete */}
-        {renderMenuItem(
+        {showDelete && renderMenuItem(
           "top",
           <X size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
           "삭제",

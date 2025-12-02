@@ -722,6 +722,7 @@ export function ChatMessage({
           }}
           onSelect={handleRadialSelect}
           selectedWord={radialMenu.selectedWordData?.word || ""}
+          showDelete={false}
         />
       )}
 
