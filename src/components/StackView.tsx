@@ -41,20 +41,6 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   const [menuOpenWord, setMenuOpenWord] = useState<string | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
-
-  // 삭제 중인 단어 추적 (애니메이션용)
-  const [deletingWords, setDeletingWords] = useState<Set<string>>(new Set());
-
-  // 현재 스택의 상태 결정
-  const getCurrentStatus = (): "red" | "yellow" | "green" => {
-    if (title === "Red Stack") return "red";
-    if (title === "Yellow Stack") return "yellow";
-    if (title === "Green Stack") return "green";
-    return "red";
-  };
-
-  const currentStatus = getCurrentStatus();
-
   // 단어 삭제 핸들러
   const handleDeleteWord = (word: string) => {
     if (deletingWords.has(word)) return;

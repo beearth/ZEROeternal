@@ -879,7 +879,7 @@ export default function App() {
             path="/stack/red"
             element={
               <StackView
-                title="Red Stack"
+                title="Red Signal"
                 color="#ef4444"
                 items={redStack}
                 userVocabulary={userVocabulary}
@@ -906,7 +906,7 @@ export default function App() {
             path="/stack/yellow"
             element={
               <StackView
-                title="Yellow Stack"
+                title="Yellow Signal"
                 color="#eab308"
                 items={yellowStack}
                 userVocabulary={userVocabulary}
@@ -933,7 +933,7 @@ export default function App() {
             path="/stack/green"
             element={
               <StackView
-                title="Green Stack"
+                title="Green Signal"
                 color="#22c55e"
                 items={greenStack}
                 userVocabulary={userVocabulary}

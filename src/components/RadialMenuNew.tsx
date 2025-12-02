@@ -283,13 +283,14 @@ export function RadialMenu({
           positions.left
         )}
 
-        {/* Top: Close/Cancel */}
+
+        {/* Top: Delete */}
         {renderMenuItem(
           "top",
           <X size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
-          "취소",
-          "#94a3b8", // slate-400
-          "#64748b", // slate-500
+          "삭제",
+          "#ef4444", // red-500
+          "#dc2626", // red-600
           "white",
           positions.top
         )}

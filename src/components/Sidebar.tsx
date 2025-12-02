@@ -37,12 +37,12 @@ interface SidebarProps {
   onResetLanguage: () => void;
 }
 
-interface TrafficLightIconProps {
+interface StackIconProps {
   active: "red" | "yellow" | "green";
   className?: string;
 }
 
-function TrafficLightIcon({ active, className }: TrafficLightIconProps) {
+function StackIcon({ active, className }: StackIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -95,7 +95,7 @@ export function Sidebar({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} />
-              <h2 className="text-[#E3E3E3] font-semibold">대화 목록</h2>
+              <h2 className="text-[#E3E3E3] font-semibold">🔴🟡🟢 SIGNAL VOCA</h2>
             </div>
             <button
               onClick={onClose}
@@ -116,7 +116,7 @@ export function Sidebar({
         {/* 스택 통계 */}
         <div className="p-4 border-b border-[#2a2b2c]">
           <h3 className="text-sm font-semibold text-[#E3E3E3] mb-3">
-            학습 스택
+            학습 시그널
           </h3>
           <div className="space-y-1">
             {/* Red Stack */}
@@ -127,10 +127,10 @@ export function Sidebar({
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                  <TrafficLightIcon active="red" className="w-5 h-5" />
+                  <StackIcon active="red" className="w-5 h-5" />
                 </div>
                 <span className="text-red-400 font-medium truncate">
-                  Red Stack
+                  Red Signal
                 </span>
               </div>
               {counts.red > 0 && (
@@ -150,10 +150,10 @@ export function Sidebar({
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <TrafficLightIcon active="yellow" className="w-5 h-5" />
+                  <StackIcon active="yellow" className="w-5 h-5" />
                 </div>
                 <span className="text-yellow-400 font-medium truncate">
-                  Yellow Stack
+                  Yellow Signal
                 </span>
               </div>
               {counts.yellow > 0 && (
@@ -173,10 +173,10 @@ export function Sidebar({
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                  <TrafficLightIcon active="green" className="w-5 h-5" />
+                  <StackIcon active="green" className="w-5 h-5" />
                 </div>
                 <span className="text-green-400 font-medium truncate">
-                  Green Stack
+                  Green Signal
                 </span>
               </div>
               {counts.green > 0 && (

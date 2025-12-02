@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Plus, X, Trash2, FileText, Star, Volume2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
+import { RadialMenu, type RadialDirection } from "./RadialMenuNew";
 
 interface ToeicWordListProps {
   userVocabulary: Record<string, VocabularyEntry>;
@@ -33,6 +34,7 @@ export function ToeicWordList({
   const navigate = useNavigate();
   // 메뉴가 열린 단어 추적
   const [menuOpenWord, setMenuOpenWord] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
 
@@ -80,11 +82,15 @@ export function ToeicWordList({
   };
 
   // 롱프레스 핸들러
-  const handlePointerDown = (word: string) => {
+  const handlePointerDown = (word: string, event: React.PointerEvent) => {
     isLongPress.current = false;
+    const x = event.clientX;
+    const y = event.clientY;
+
     longPressTimerRef.current = setTimeout(() => {
       isLongPress.current = true;
       setMenuOpenWord(word);
+      setMenuPosition({ x, y });
       // 햅틱 피드백 (모바일)
       if (navigator.vibrate) navigator.vibrate(50);
     }, 500);
@@ -107,6 +113,47 @@ export function ToeicWordList({
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
     window.speechSynthesis.speak(utterance);
+  };
+
+  // RadialMenu select 핸들러
+  const handleRadialMenuSelect = (direction: RadialDirection) => {
+    if (!menuOpenWord) return;
+
+    const entry = userVocabulary[menuOpenWord];
+
+    switch (direction) {
+      case "top": // 삭제
+        if (onDeleteWord) {
+          onDeleteWord(menuOpenWord);
+        }
+        break;
+      case "bottom": // 듣기
+        handleTTS(menuOpenWord);
+        break;
+      case "left": // 상세보기
+        if (entry) {
+          setSelectedWord({
+            word: menuOpenWord,
+            koreanMeaning: entry.koreanMeaning,
+            status: entry.status,
+          });
+        }
+        break;
+      case "right": // 중요 저장
+        if (onSaveImportant && entry) {
+          onSaveImportant({
+            id: Date.now().toString(),
+            word: menuOpenWord,
+            koreanMeaning: entry.koreanMeaning,
+            status: entry.status === "white" ? "red" : entry.status,
+            messageId: "manual",
+            sentence: "",
+            timestamp: new Date()
+          });
+          toast.success("중요 단어장에 저장되었습니다.");
+        }
+        break;
+    }
   };
 
   const handleWordClick = (word: string, currentStatus: string) => {
@@ -232,7 +279,7 @@ export function ToeicWordList({
                 return (
                   <div
                     key={word}
-                    onPointerDown={() => handlePointerDown(word)}
+                    onPointerDown={(e) => handlePointerDown(word, e)}
                     onPointerUp={handlePointerUp}
                     onPointerLeave={handlePointerLeave}
                     onClick={() => {
@@ -250,81 +297,6 @@ export function ToeicWordList({
                       </span>
                     )}
 
-                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full" />
-
-                    {/* 롱프레스 메뉴 (Radial Menu) */}
-                    {menuOpenWord === word && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
-                        <div className="relative w-48 h-48 flex items-center justify-center">
-                          {/* 중앙 원 */}
-                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg z-10">
-                            <span className="text-xl font-bold text-gray-800">{word.substring(0, 2).toUpperCase()}</span>
-                          </div>
-
-                          {/* 상단: 삭제 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteWord(word);
-                            }}
-                            className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-red-100 transition-colors"
-                          >
-                            <X className="w-6 h-6 text-gray-600 hover:text-red-500" />
-                          </button>
-
-                          {/* 하단: 듣기 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTTS(word);
-                              setMenuOpenWord(null);
-                            }}
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-blue-100 transition-colors"
-                          >
-                            <Volume2 className="w-6 h-6 text-gray-600 hover:text-blue-500" />
-                          </button>
-
-                          {/* 좌측: 상세 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedWord({
-                                word: word,
-                                koreanMeaning: entry.koreanMeaning,
-                                status: entry.status,
-                              });
-                              setMenuOpenWord(null);
-                            }}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-purple-100 transition-colors"
-                          >
-                            <FileText className="w-6 h-6 text-gray-600 hover:text-purple-500" />
-                          </button>
-
-                          {/* 우측: 중요 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onSaveImportant) {
-                                onSaveImportant({
-                                  id: Date.now().toString(),
-                                  word: word,
-                                  koreanMeaning: entry.koreanMeaning,
-                                  status: entry.status === "white" ? "red" : entry.status,
-                                  messageId: "manual",
-                                  sentence: "",
-                                  timestamp: new Date()
-                                });
-                                toast.success("중요 단어장에 저장되었습니다.");
-                              }
-                              setMenuOpenWord(null);
-                            }}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-yellow-100 transition-colors"
-                          >
-                            <Star className="w-6 h-6 text-gray-600 hover:text-yellow-500" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -366,6 +338,31 @@ export function ToeicWordList({
       <div className="bg-[#1e1f20] border-t border-[#2a2b2c] p-4 text-center text-gray-500 text-sm">
         현재 {toeicWords.length}개의 단어가 저장되어 있습니다.
       </div>
+
+      {/* RadialMenu */}
+      {menuOpenWord && menuPosition && (
+        <RadialMenu
+          center={menuPosition}
+          isOpen={!!menuOpenWord}
+          onClose={() => {
+            setMenuOpenWord(null);
+            setMenuPosition(null);
+          }}
+          onSelect={handleRadialMenuSelect}
+          selectedWord={menuOpenWord}
+        />
+      )}
+
+      {/* 단어 상세 모달 */}
+      {selectedWord && (
+        <WordDetailModal
+          word={selectedWord.word}
+          koreanMeaning={selectedWord.koreanMeaning}
+          status={selectedWord.status}
+          onClose={() => setSelectedWord(null)}
+          onGenerateStudyTips={onGenerateStudyTips}
+        />
+      )}
     </div >
   );
 }
