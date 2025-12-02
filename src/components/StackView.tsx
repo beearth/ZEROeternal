@@ -293,7 +293,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                 ) : (
                   // Red/Yellow/Green Stack & Important Stack -> Grid Layout
                   <div
-                    className="grid grid-cols-2 md:grid-cols-3 gap-3"
+                    className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full"
                   >
                     {isStringArray && !isWordDataArray ? (
                       // Red/Yellow/Green Stack (string[])
