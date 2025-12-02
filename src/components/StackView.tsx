@@ -303,21 +303,21 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                         const koreanMeaning = vocabEntry?.koreanMeaning || "";
                         const status = vocabEntry?.status || currentStatus;
 
+                        const isDeleting = deletingWords.has(item);
                         return (
                           <div
                             key={index}
-                            onPointerDown={() => handlePointerDown(item)}
+                            onPointerDown={(e) => handlePointerDown(item, e)}
                             onPointerUp={handlePointerUp}
                             onPointerLeave={handlePointerLeave}
                             onClick={() => handleWordClick(item, status)}
                             style={getStatusStyle(status)}
-                            className={`p-3 rounded-xl border-2 transition-all duration-200 text-left group relative overflow-hidden cursor-pointer min-w-0 ${getStatusColor(status)}`}
+                            className={`flex items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(status)} ${isDeleting ? "opacity-0 scale-95" : ""}`}
                           >
-                            <span className="font-bold text-sm sm:text-lg block mb-1 truncate">{item}</span>
+                            <span className="font-bold text-sm mr-1">{item}</span>
                             {koreanMeaning && (
-                              <span className="text-sm opacity-70 block truncate">{koreanMeaning}</span>
+                              <span className="text-xs opacity-70 border-l border-current pl-1 ml-1">{koreanMeaning}</span>
                             )}
-                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                             {/* 롱프레스 메뉴 (Radial Menu) */}
                             {menuOpenWord === item && (
@@ -403,21 +403,21 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                         const koreanMeaning = vocabEntry?.koreanMeaning || item.koreanMeaning || "";
                         const status = item.status || "red";
 
+                        const isDeleting = deletingWords.has(item.word);
                         return (
                           <div
                             key={item.id}
-                            onPointerDown={() => handlePointerDown(item.word)}
+                            onPointerDown={(e) => handlePointerDown(item.word, e)}
                             onPointerUp={handlePointerUp}
                             onPointerLeave={handlePointerLeave}
                             onClick={() => handleWordClick(item.word, status)}
                             style={getStatusStyle(status)}
-                            className={`p-3 rounded-xl border-2 transition-all duration-200 text-left group relative overflow-hidden cursor-pointer min-w-0 ${getStatusColor(status)}`}
+                            className={`flex items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(status)} ${isDeleting ? "opacity-0 scale-95" : ""}`}
                           >
-                            <span className="font-bold text-sm sm:text-lg block mb-1 truncate">{item.word}</span>
+                            <span className="font-bold text-sm mr-1">{item.word}</span>
                             {koreanMeaning && (
-                              <span className="text-sm opacity-70 block truncate">{koreanMeaning}</span>
+                              <span className="text-xs opacity-70 border-l border-current pl-1 ml-1">{koreanMeaning}</span>
                             )}
-                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                             {/* 롱프레스 메뉴 (Radial Menu) */}
                             {menuOpenWord === item.word && (
