@@ -64,6 +64,7 @@ export default function App() {
   const [nativeLang, setNativeLang] = useState("ko");
   const [targetLang, setTargetLang] = useState<string | null>(null);
   const [isToeicLoading, setIsToeicLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false); // 데이터 로딩 완료 여부
 
   // ... (existing code)
 
@@ -250,57 +251,66 @@ export default function App() {
 
   // 사용자 데이터 불러오기
   const loadUserData = async (userId: string) => {
-    // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
-    setUserVocabulary({});
-    setRedStack([]);
-    setYellowStack([]);
-    setGreenStack([]);
-    setImportantStack([]);
-    setSentenceStack([]);
+    try {
+      // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
+      setUserVocabulary({});
+      setRedStack([]);
+      setYellowStack([]);
+      setGreenStack([]);
+      setImportantStack([]);
+      setSentenceStack([]);
 
-    // 단어장 불러오기 (새로운 함수 사용)
-    await loadVocabularyFromDB(userId);
+      // 단어장 불러오기 (새로운 함수 사용)
+      await loadVocabularyFromDB(userId);
 
-    // 스택 불러오기
-    const stacksResult = await getUserStacks(userId);
-    if (!stacksResult.error && stacksResult.stacks) {
-      // Red, Yellow, Green Stack은 string[] 타입이므로 그대로 사용
-      // 만약 기존 데이터가 WordData[] 형태라면 변환 필요
-      const redData = stacksResult.stacks.red || [];
-      const yellowData = stacksResult.stacks.yellow || [];
-      const greenData = stacksResult.stacks.green || [];
+      // 스택 불러오기
+      const stacksResult = await getUserStacks(userId);
+      if (!stacksResult.error && stacksResult.stacks) {
+        // Red, Yellow, Green Stack은 string[] 타입이므로 그대로 사용
+        // 만약 기존 데이터가 WordData[] 형태라면 변환 필요
+        const redData = stacksResult.stacks.red || [];
+        const yellowData = stacksResult.stacks.yellow || [];
+        const greenData = stacksResult.stacks.green || [];
 
-      // WordData[] 형태인 경우 string[]로 변환
-      setRedStack(Array.isArray(redData) && redData.length > 0 && typeof redData[0] === 'object'
-        ? redData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-        : redData);
-      setYellowStack(Array.isArray(yellowData) && yellowData.length > 0 && typeof yellowData[0] === 'object'
-        ? yellowData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-        : yellowData);
-      setGreenStack(Array.isArray(greenData) && greenData.length > 0 && typeof greenData[0] === 'object'
-        ? greenData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-        : greenData);
+        // WordData[] 형태인 경우 string[]로 변환
+        setRedStack(Array.isArray(redData) && redData.length > 0 && typeof redData[0] === 'object'
+          ? redData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
+          : redData);
+        setYellowStack(Array.isArray(yellowData) && yellowData.length > 0 && typeof yellowData[0] === 'object'
+          ? yellowData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
+          : yellowData);
+        setGreenStack(Array.isArray(greenData) && greenData.length > 0 && typeof greenData[0] === 'object'
+          ? greenData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
+          : greenData);
 
-      setImportantStack(stacksResult.stacks.important || []);
-      setSentenceStack(stacksResult.stacks.sentences || []);
-    }
-
-    // 대화 불러오기
-    const convResult = await getUserConversations(userId);
-    if (!convResult.error && convResult.conversations.length > 0) {
-      // Firestore에서 불러온 데이터를 Conversation 형식으로 변환
-      const loadedConversations = convResult.conversations.map((conv: any) => ({
-        ...conv,
-        timestamp: conv.timestamp?.toDate ? conv.timestamp.toDate() : new Date(conv.timestamp),
-        messages: conv.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp),
-        })),
-      }));
-      setConversations(loadedConversations);
-      if (loadedConversations.length > 0) {
-        setCurrentConversationId(loadedConversations[0].id);
+        setImportantStack(stacksResult.stacks.important || []);
+        setSentenceStack(stacksResult.stacks.sentences || []);
       }
+
+      // 대화 불러오기
+      const convResult = await getUserConversations(userId);
+      if (!convResult.error && convResult.conversations.length > 0) {
+        // Firestore에서 불러온 데이터를 Conversation 형식으로 변환
+        const loadedConversations = convResult.conversations.map((conv: any) => ({
+          ...conv,
+          timestamp: conv.timestamp?.toDate ? conv.timestamp.toDate() : new Date(conv.timestamp),
+          messages: conv.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp),
+          })),
+        }));
+        setConversations(loadedConversations);
+        if (loadedConversations.length > 0) {
+          setCurrentConversationId(loadedConversations[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("사용자 데이터 로딩 실패:", error);
+      toast.error("데이터를 불러오는 중 오류가 발생했습니다.");
+    } finally {
+      // 모든 데이터 로딩 완료 (성공하든 실패하든)
+      setIsDataLoaded(true);
+      console.log("✅ 모든 사용자 데이터 로딩 완료");
     }
   };
 
@@ -308,16 +318,10 @@ export default function App() {
   const hasLoadedInitialData = useRef(false);
 
   useEffect(() => {
-    // 초기 로드가 완료되지 않았으면 저장하지 않음
-    if (!hasLoadedInitialData.current) {
-      // 데이터가 실제로 있으면 로드 완료로 간주
-      if (Object.keys(userVocabulary).length > 0) {
-        hasLoadedInitialData.current = true;
-      }
-      return;
-    }
+    // 데이터 로딩이 완료되지 않았으면 저장하지 않음
+    if (!isDataLoaded) return;
 
-    if (user && Object.keys(userVocabulary).length > 0) {
+    if (user) {
       // 로그인 상태이고 데이터가 있을 때만: Firebase에 저장 (Debounce 적용)
       console.log('💾 단어장 저장 예약됨 (500ms 후)');
       saveVocabularyToDB(user.uid, userVocabulary);
@@ -367,14 +371,8 @@ export default function App() {
   const hasLoadedStacks = useRef(false);
 
   useEffect(() => {
-    // 초기 로드가 완료되지 않았으면 저장하지 않음
-    if (!hasLoadedStacks.current) {
-      // 데이터가 하나라도 있으면 로드 완료로 간주
-      if (redStack.length > 0 || yellowStack.length > 0 || greenStack.length > 0 || importantStack.length > 0 || sentenceStack.length > 0) {
-        hasLoadedStacks.current = true;
-      }
-      return;
-    }
+    // 데이터 로딩이 완료되지 않았으면 저장하지 않음
+    if (!isDataLoaded) return;
 
     if (user) {
       console.log('💾 스택 저장 중...', {
@@ -397,6 +395,8 @@ export default function App() {
 
   // 대화를 Firebase에 저장
   useEffect(() => {
+    if (!isDataLoaded) return;
+
     if (user && conversations.length > 0) {
       saveUserConversations(user.uid, conversations);
     }
@@ -413,6 +413,7 @@ export default function App() {
         loadUserData(currentUser.uid);
       } else {
         // 로그아웃 시: 모든 데이터 초기화
+        setIsDataLoaded(false); // 로딩 상태 초기화
         setUserVocabulary({});
         setRedStack([]);
         setYellowStack([]);
