@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
 import { useNavigate } from "react-router-dom";
+import { RadialMenu, type RadialDirection } from "./RadialMenuNew";
 
 interface StackViewProps {
   title: string;
@@ -39,6 +40,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
   // 메뉴가 열린 단어 추적
   const [menuOpenWord, setMenuOpenWord] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
   // 단어 삭제 핸들러
@@ -73,14 +75,73 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   };
 
   // 롱프레스 핸들러
-  const handlePointerDown = (word: string) => {
+  const handlePointerDown = (word: string, event?: React.PointerEvent) => {
     isLongPress.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPress.current = true;
-      setMenuOpenWord(word);
-      // 햅틱 피드백 (모바일)
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 500);
+
+    // RadialMenuNew를 위한 위치 저장
+    if (event) {
+      const x = event.clientX;
+      const y = event.clientY;
+      longPressTimerRef.current = setTimeout(() => {
+        isLongPress.current = true;
+        setMenuOpenWord(word);
+        setMenuPosition({ x, y });
+        // 햅틱 피드백 (모바일)
+        if (navigator.vibrate) navigator.vibrate(50);
+      }, 500);
+    } else {
+      // 기존 inline menu용 (event 없을 때)
+      longPressTimerRef.current = setTimeout(() => {
+        isLongPress.current = true;
+        setMenuOpenWord(word);
+        // 햅틱 피드백 (모바일)
+        if (navigator.vibrate) navigator.vibrate(50);
+      }, 500);
+    }
+  };
+
+  // RadialMenu select 핸들러
+  const handleRadialMenuSelect = (direction: RadialDirection) => {
+    if (!menuOpenWord) return;
+
+    const wordKey = menuOpenWord.toLowerCase();
+    const vocabEntry = userVocabulary[wordKey];
+
+    switch (direction) {
+      case "top": // 삭제
+        if (onDeleteWord) {
+          onDeleteWord(menuOpenWord);
+        }
+        break;
+      case "bottom": // 듣기
+        const utterance = new SpeechSynthesisUtterance(menuOpenWord);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+        break;
+      case "left": // 상세보기
+        if (vocabEntry) {
+          setSelectedWord({
+            word: menuOpenWord,
+            koreanMeaning: vocabEntry.koreanMeaning,
+            status: vocabEntry.status,
+          });
+        }
+        break;
+      case "right": // 중요 저장
+        if (onSaveImportant && vocabEntry) {
+          onSaveImportant({
+            id: Date.now().toString(),
+            word: menuOpenWord,
+            koreanMeaning: vocabEntry.koreanMeaning,
+            status: vocabEntry.status === "white" ? "red" : vocabEntry.status,
+            messageId: "manual",
+            sentence: "",
+            timestamp: new Date()
+          });
+          toast.success("중요 단어장에 저장되었습니다.");
+        }
+        break;
+    }
   };
 
   const handlePointerUp = () => {
