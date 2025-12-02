@@ -319,79 +319,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                               <span className="text-xs opacity-70 border-l border-current pl-1 ml-1">{koreanMeaning}</span>
                             )}
 
-                            {/* 롱프레스 메뉴 (Radial Menu) */}
-                            {menuOpenWord === item && (
-                              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
-                                <div className="relative w-48 h-48 flex items-center justify-center">
-                                  {/* 중앙 원 (단어 앞글자) */}
-                                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg z-10">
-                                    <span className="text-xl font-bold text-gray-800">{item.substring(0, 2).toUpperCase()}</span>
-                                  </div>
 
-                                  {/* 상단: 삭제 (X) */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteWord(item);
-                                    }}
-                                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-red-100 transition-colors"
-                                  >
-                                    <X className="w-6 h-6 text-gray-600 hover:text-red-500" />
-                                  </button>
-
-                                  {/* 하단: 듣기 (Speaker) */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTTS(item);
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-blue-100 transition-colors"
-                                  >
-                                    <Volume2 className="w-6 h-6 text-gray-600 hover:text-blue-500" />
-                                  </button>
-
-                                  {/* 좌측: 상세 (FileText) */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedWord({
-                                        word: item,
-                                        koreanMeaning: koreanMeaning,
-                                        status: status,
-                                      });
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-purple-100 transition-colors"
-                                  >
-                                    <FileText className="w-6 h-6 text-gray-600 hover:text-purple-500" />
-                                  </button>
-
-                                  {/* 우측: 중요 (Star) */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (onSaveImportant) {
-                                        onSaveImportant({
-                                          id: Date.now().toString(),
-                                          word: item,
-                                          koreanMeaning: koreanMeaning,
-                                          status: status,
-                                          messageId: "manual",
-                                          sentence: "",
-                                          timestamp: new Date()
-                                        });
-                                        toast.success("중요 단어장에 저장되었습니다.");
-                                      }
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-yellow-100 transition-colors"
-                                  >
-                                    <Star className="w-6 h-6 text-gray-600 hover:text-yellow-500" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         );
                       })
@@ -419,71 +347,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                               <span className="text-xs opacity-70 border-l border-current pl-1 ml-1">{koreanMeaning}</span>
                             )}
 
-                            {/* 롱프레스 메뉴 (Radial Menu) */}
-                            {menuOpenWord === item.word && (
-                              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in duration-200">
-                                <div className="relative w-48 h-48 flex items-center justify-center">
-                                  {/* 중앙 원 */}
-                                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg z-10">
-                                    <span className="text-xl font-bold text-gray-800">{item.word.substring(0, 2).toUpperCase()}</span>
-                                  </div>
 
-                                  {/* 상단: 삭제 */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteWord(item.word);
-                                    }}
-                                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-red-100 transition-colors"
-                                  >
-                                    <X className="w-6 h-6 text-gray-600 hover:text-red-500" />
-                                  </button>
-
-                                  {/* 하단: 듣기 */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTTS(item.word);
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-blue-100 transition-colors"
-                                  >
-                                    <Volume2 className="w-6 h-6 text-gray-600 hover:text-blue-500" />
-                                  </button>
-
-                                  {/* 좌측: 상세 */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedWord({
-                                        word: item.word,
-                                        koreanMeaning: koreanMeaning,
-                                        status: status,
-                                      });
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-purple-100 transition-colors"
-                                  >
-                                    <FileText className="w-6 h-6 text-gray-600 hover:text-purple-500" />
-                                  </button>
-
-                                  {/* 우측: 중요 */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (onSaveImportant) {
-                                        onSaveImportant(item);
-                                        toast.success("중요 단어장에 저장되었습니다.");
-                                      }
-                                      setMenuOpenWord(null);
-                                    }}
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center shadow-md hover:bg-yellow-100 transition-colors"
-                                  >
-                                    <Star className="w-6 h-6 text-gray-600 hover:text-yellow-500" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         );
                       })
@@ -508,6 +372,20 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
             onGenerateStudyTips={onGenerateStudyTips}
             onUpdateWordStatus={onUpdateWordStatus}
             onDeleteWord={onDeleteWord}
+          />
+        )}
+
+        {/* RadialMenu */}
+        {menuOpenWord && menuPosition && (
+          <RadialMenu
+            center={menuPosition}
+            isOpen={!!menuOpenWord}
+            onClose={() => {
+              setMenuOpenWord(null);
+              setMenuPosition(null);
+            }}
+            onSelect={handleRadialMenuSelect}
+            selectedWord={menuOpenWord}
           />
         )}
       </div>
