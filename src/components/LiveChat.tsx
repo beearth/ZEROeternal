@@ -589,7 +589,7 @@ export function LiveChat({
                                     </div>
 
                                     {/* Learning Line: Target Language Translation (if exists) */}
-                                    {msg.learningTranslation && (
+                                    {msg.learningTranslation ? (
                                         <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
                                             <div className="flex items-center gap-1 mb-1">
                                                 <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
@@ -598,6 +598,34 @@ export function LiveChat({
                                             </div>
                                             {renderClickableText(msg.learningTranslation, msg.id)}
                                         </div>
+                                    ) : (
+                                        targetLang !== nativeLang && (
+                                            <div className={`text-xs mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-200" : "border-slate-100 text-slate-400"}`}>
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                            toast.info("번역 시도 중...");
+                                                            const translated = await translateText(msg.text, targetLang);
+                                                            // Update local state
+                                                            setMessages(prev => prev.map(m =>
+                                                                m.id === msg.id ? { ...m, learningTranslation: translated } : m
+                                                            ));
+                                                            // Cache it
+                                                            localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
+                                                            toast.success("번역 완료!");
+                                                        } catch (error) {
+                                                            console.error("Manual translation failed", error);
+                                                            toast.error("번역 실패. API 키나 할당량을 확인하세요.");
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-1 hover:underline opacity-70 hover:opacity-100 transition-opacity"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" />
+                                                    <span>번역 다시 시도</span>
+                                                </button>
+                                            </div>
+                                        )
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1 px-1">

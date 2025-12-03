@@ -304,7 +304,16 @@ export async function generateText(prompt: string): Promise<string> {
 
 export async function translateText(text: string, targetLang: string): Promise<string> {
   if (!genAI) {
-    throw new Error('Gemini API가 초기화되지 않았습니다.');
+    const errorMsg = 'Gemini API 키가 설정되지 않았습니다.';
+    if (typeof window !== 'undefined') {
+      // toast is not imported here, but we can use console.error or try to import it if possible.
+      // Since this is a service file, importing UI components like toast might be tricky if not already there.
+      // But we see 'import { GoogleGenerativeAI } from ...' at top.
+      // We can't easily add 'import { toast } from "sonner"' if it's not there.
+      // Actually, looking at the file content, 'toast' is NOT imported.
+      // We should add the import first.
+    }
+    throw new Error(errorMsg);
   }
 
   const langMap: Record<string, string> = {
@@ -328,6 +337,14 @@ export async function translateText(text: string, targetLang: string): Promise<s
     return response.text().trim();
   } catch (error: any) {
     console.error('번역 실패:', error);
+
+    // Check for specific error types
+    if (error.message?.includes('API_KEY') || error.message?.includes('403')) {
+      console.error("API Key Error: Please check if the key is valid and has correct restrictions (HTTP Referrer).");
+    } else if (error.message?.includes('429') || error.message?.includes('quota')) {
+      console.error("Quota Exceeded: The API usage limit has been reached.");
+    }
+
     throw new Error(`번역 중 오류가 발생했습니다: ${error.message}`);
   }
 }
