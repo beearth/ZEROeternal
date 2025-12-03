@@ -168,15 +168,21 @@ export function LiveChat({
                 const originalDbTranslatedText = msg.translatedText;
                 const allowApiCall = index >= startIndexToTranslate;
 
-                // 1. Ensure Main Translation is in Native Language
+                // 1. Ensure Main Translation is in Native Language (e.g. Korean)
                 if (msg.targetLang === nativeLang) {
-                    // DB already has Native Language
+                    // If the message was sent targeting my native language, use the DB value
+                    // This is correct for messages sent by others targeting my language
                 } else {
+                    // If I sent the message, msg.translatedText in DB is my Target Language (e.g. Spanish)
+                    // So I need to translate it back to Native Language (Korean) for display
+
+                    // Or if others sent it in a different language
                     try {
                         const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
                         if (cachedNative) {
                             msg.translatedText = cachedNative;
                         } else if (allowApiCall) {
+                            // Translate ORIGINAL text to Native Language
                             const translated = await translateText(msg.text, nativeLang);
                             msg.translatedText = translated;
                             localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
@@ -186,9 +192,14 @@ export function LiveChat({
                     }
                 }
 
-                // 2. Ensure Learning Translation is in Target Language
+                // 2. Ensure Learning Translation is in Target Language (e.g. Spanish)
                 if (targetLang !== nativeLang) {
-                    if (msg.targetLang === targetLang) {
+                    // If I sent the message, the DB's translatedText IS ALREADY the target language
+                    if (msg.senderId === user?.uid && msg.targetLang === targetLang) {
+                        msg.learningTranslation = originalDbTranslatedText;
+                    }
+                    // If others sent it, or if I changed my target language
+                    else if (msg.targetLang === targetLang) {
                         msg.learningTranslation = originalDbTranslatedText;
                     } else {
                         try {
