@@ -39,6 +39,7 @@ interface ChatMessage {
     timestamp: Timestamp;
     originalLang: string;
     targetLang: string;
+    learningTranslation?: string;
 }
 
 interface WordSpanProps {
@@ -167,7 +168,7 @@ export function LiveChat({
 
                 // If the message is NOT from me:
                 if (user && msg.senderId !== user.uid) {
-                    // Check if the message needs translation to my native language
+                    // 1. Check if the message needs translation to my native language (for understanding)
                     if (msg.targetLang !== nativeLang) {
                         try {
                             const cachedTranslation = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
@@ -182,6 +183,23 @@ export function LiveChat({
                             console.error("Auto-translation failed", e);
                         }
                     }
+
+                    // 2. Check if we also need translation to the User's Target Language (for learning)
+                    if (targetLang !== nativeLang && targetLang !== msg.originalLang) {
+                        try {
+                            const cachedLearningTrans = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
+                            if (cachedLearningTrans) {
+                                msg.learningTranslation = cachedLearningTrans;
+                            } else {
+                                // We translate the ORIGINAL text to the TARGET language
+                                const learningTranslated = await translateText(msg.text, targetLang);
+                                msg.learningTranslation = learningTranslated;
+                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, learningTranslated);
+                            }
+                        } catch (e) {
+                            console.error("Learning translation failed", e);
+                        }
+                    }
                 }
 
                 return msg;
@@ -192,7 +210,7 @@ export function LiveChat({
         });
 
         return () => unsubscribe();
-    }, [user, nativeLang]);
+    }, [user, nativeLang, targetLang]);
 
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -543,6 +561,18 @@ export function LiveChat({
                                             renderClickableText(msg.translatedText, msg.id)
                                         )}
                                     </div>
+
+                                    {/* Learning Line: Target Language Translation (if exists) */}
+                                    {!isMe && msg.learningTranslation && (
+                                        <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
+                                            <div className="flex items-center gap-1 mb-1">
+                                                <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                                                    Learning
+                                                </span>
+                                            </div>
+                                            {renderClickableText(msg.learningTranslation, msg.id)}
+                                        </div>
+                                    )}
                                 </div>
                                 <span className="text-xs text-slate-400 px-1">
                                     {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
