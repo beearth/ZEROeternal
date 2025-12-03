@@ -563,7 +563,7 @@ export function LiveChat({
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                         placeholder="Type a message..."
-                        className="flex-1 bg-slate-100 border-0 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        className="flex-1 bg-slate-100 text-slate-900 placeholder:text-slate-500 border-0 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         disabled={isSending}
                     />
                     <button
