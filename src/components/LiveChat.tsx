@@ -233,8 +233,15 @@ export function LiveChat({
 
         setIsSending(true);
         try {
-            // 1. Translate text
-            const translated = await translateText(inputText, targetLang);
+            // 1. Translate text (Attempt)
+            let translated = inputText;
+            try {
+                translated = await translateText(inputText, targetLang);
+            } catch (translationError) {
+                console.error("Translation failed during send:", translationError);
+                toast.warning("번역 실패. 원문으로 전송됩니다.");
+                // Fallback to original text is already set
+            }
 
             // 2. Save to Firestore
             await addDoc(collection(db, "chats"), {
