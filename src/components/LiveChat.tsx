@@ -572,19 +572,19 @@ export function LiveChat({
                                     ? "bg-blue-500 text-white rounded-tr-sm"
                                     : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
                                     }`}>
-                                    {/* Top Line: Original Text */}
-                                    <div className={`text-sm mb-2 pb-2 border-b ${isMe ? "border-blue-400/50" : "border-slate-100"}`}>
+                                    {/* Top Line: Original Text - Removed to avoid redundancy/3rd language display */}
+                                    {/* <div className={`text-sm mb-2 pb-2 border-b ${isMe ? "border-blue-400/50" : "border-slate-100"}`}>
                                         {msg.text}
-                                    </div>
+                                    </div> */}
 
-                                    {/* Bottom Line: Translated Text (Clickable) */}
+                                    {/* Bottom Line: Translated Text (Clickable) - This acts as the Main/Native display */}
                                     <div className={`text-base font-medium ${isMe ? "text-blue-50" : "text-slate-900"}`}>
                                         {isMe ? (
                                             <div className="text-white">
-                                                {renderClickableText(msg.translatedText, msg.id)}
+                                                {renderClickableText(msg.translatedText || msg.text, msg.id)}
                                             </div>
                                         ) : (
-                                            renderClickableText(msg.translatedText, msg.id)
+                                            renderClickableText(msg.translatedText || msg.text, msg.id)
                                         )}
                                     </div>
 
