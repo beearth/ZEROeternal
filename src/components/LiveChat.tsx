@@ -40,6 +40,7 @@ interface ChatMessage {
     originalLang: string;
     targetLang: string;
     learningTranslation?: string;
+    nativeTranslation?: string;
 }
 
 interface WordSpanProps {
@@ -150,72 +151,97 @@ export function LiveChat({
     useEffect(() => {
         const q = query(collection(db, "chats"), orderBy("timestamp", "asc"));
         const unsubscribe = onSnapshot(q, async (snapshot) => {
-            const msgs: ChatMessage[] = [];
-
-            // Use Promise.all to handle async translations
             const totalDocs = snapshot.docs.length;
             const startIndexToTranslate = Math.max(0, totalDocs - 5); // Only translate last 5 messages via API
 
             const promises = snapshot.docs.map(async (doc, index) => {
                 const data = doc.data() as Omit<ChatMessage, 'id'>;
                 const msg: ChatMessage = { id: doc.id, ...data };
-
-                // Logic to handle translations for ALL messages (both mine and others)
-                // Goal:
-                // 1. msg.translatedText -> Should always be in my Native Language (for understanding)
-                // 2. msg.learningTranslation -> Should always be in my Target Language (for learning)
-
-                const originalDbTranslatedText = msg.translatedText;
                 const allowApiCall = index >= startIndexToTranslate;
 
-                // 1. Ensure Main Translation is in Native Language (e.g. Korean)
-                if (msg.targetLang === nativeLang) {
-                    // If the message was sent targeting my native language, use the DB value
-                    // This is correct for messages sent by others targeting my language
+                // ---------------------------------------------------------
+                // 1. Determine Native Translation (Line 1)
+                // ---------------------------------------------------------
+                // Goal: Always show text in 'nativeLang' (e.g., Korean)
+
+                let nativeTx = "";
+
+                // Case A: Message is already in Native Language (approximate check)
+                // If I sent it and my originalLang matches nativeLang, assume it's Native.
+                // (Unless I typed in English while setting was Korean, but we can't easily detect that without API)
+                // IMPROVEMENT: If I typed in English but setting was Korean, 'msg.text' is English.
+                // So we should try to translate 'msg.text' to 'nativeLang' if it's not already.
+
+                // We will use a cache-first strategy with API fallback.
+                const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
+
+                if (cachedNative) {
+                    nativeTx = cachedNative;
                 } else {
-                    // If I sent the message, msg.translatedText in DB is my Target Language (e.g. Spanish)
-                    // So I need to translate it back to Native Language (Korean) for display
-
-                    // Or if others sent it in a different language
-                    try {
-                        const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
-                        if (cachedNative) {
-                            msg.translatedText = cachedNative;
-                        } else if (allowApiCall) {
-                            // Translate ORIGINAL text to Native Language
-                            const translated = await translateText(msg.text, nativeLang);
-                            msg.translatedText = translated;
-                            localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
-                        }
-                    } catch (e) {
-                        console.error("Native translation failed", e);
-                    }
-                }
-
-                // 2. Ensure Learning Translation is in Target Language (e.g. Spanish)
-                if (targetLang !== nativeLang) {
-                    // If I sent the message, the DB's translatedText IS ALREADY the target language
-                    if (msg.senderId === user?.uid && msg.targetLang === targetLang) {
-                        msg.learningTranslation = originalDbTranslatedText;
-                    }
-                    // If others sent it, or if I changed my target language
-                    else if (msg.targetLang === targetLang) {
-                        msg.learningTranslation = originalDbTranslatedText;
-                    } else {
+                    // If no cache, check if we can use existing data
+                    if (msg.originalLang === nativeLang && msg.senderId === user?.uid) {
+                        // I sent it, and I said it was Native.
+                        // But if I typed "Hello" (English) while Native=Korean, this is wrong.
+                        // So we should probably force translation if we are not sure.
+                        // However, to save API, let's assume if it's mine and originalLang==nativeLang, it's Native.
+                        // EXCEPT if the user explicitly wants translation.
+                        // Let's try to detect if it's NOT native.
+                        nativeTx = msg.text;
+                    } else if (msg.targetLang === nativeLang && msg.translatedText) {
+                        // Someone else sent it, and their target was my Native.
+                        nativeTx = msg.translatedText;
+                    } else if (allowApiCall) {
+                        // Need translation
                         try {
-                            const cachedLearning = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
-                            if (cachedLearning) {
-                                msg.learningTranslation = cachedLearning;
-                            } else if (allowApiCall) {
-                                const translated = await translateText(msg.text, targetLang);
-                                msg.learningTranslation = translated;
-                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
+                            // Optimization: If text seems to be Native (e.g. Korean), skip.
+                            // Simple check for Korean:
+                            const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(msg.text);
+                            if (nativeLang === 'ko' && hasKorean) {
+                                nativeTx = msg.text;
+                            } else {
+                                nativeTx = await translateText(msg.text, nativeLang);
+                                localStorage.setItem(`trans_${msg.id}_${nativeLang}`, nativeTx);
                             }
                         } catch (e) {
-                            console.error("Learning translation failed", e);
+                            console.error("Native translation failed", e);
+                            nativeTx = msg.text; // Fallback
+                        }
+                    } else {
+                        nativeTx = msg.text; // Fallback for old messages
+                    }
+                }
+
+                // Assign to a new property to avoid confusion with DB 'translatedText'
+                msg.nativeTranslation = nativeTx;
+
+
+                // ---------------------------------------------------------
+                // 2. Determine Learning Translation (Line 2)
+                // ---------------------------------------------------------
+                // Goal: Always show text in 'targetLang' (e.g., English)
+
+                let learningTx = "";
+
+                if (targetLang !== nativeLang) {
+                    const cachedLearning = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
+
+                    if (cachedLearning) {
+                        learningTx = cachedLearning;
+                    } else {
+                        // Check DB
+                        if (msg.targetLang === targetLang && msg.translatedText) {
+                            learningTx = msg.translatedText;
+                        } else if (allowApiCall) {
+                            try {
+                                learningTx = await translateText(msg.text, targetLang);
+                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, learningTx);
+                            } catch (e) {
+                                console.error("Learning translation failed", e);
+                            }
                         }
                     }
                 }
+                msg.learningTranslation = learningTx;
 
                 return msg;
             });
@@ -588,10 +614,11 @@ export function LiveChat({
                                     <div className={`text-base font-medium ${isMe ? "text-blue-50" : "text-slate-900"}`}>
                                         {isMe ? (
                                             <div className="text-white">
-                                                {renderClickableText(msg.translatedText || msg.text, msg.id)}
+                                                {/* Always show Native Translation (or fallback to text) */}
+                                                {renderClickableText(msg.nativeTranslation || msg.text, msg.id)}
                                             </div>
                                         ) : (
-                                            renderClickableText(msg.translatedText || msg.text, msg.id)
+                                            renderClickableText(msg.nativeTranslation || msg.text, msg.id)
                                         )}
                                     </div>
 
