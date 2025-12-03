@@ -577,7 +577,7 @@ export function LiveChat({
                                     </div>
 
                                     {/* Learning Line: Target Language Translation (if exists) */}
-                                    {!isMe && msg.learningTranslation && (
+                                    {msg.learningTranslation && (
                                         <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
                                             <div className="flex items-center gap-1 mb-1">
                                                 <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
