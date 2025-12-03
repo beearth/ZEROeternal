@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Send, ArrowLeft, RefreshCw, Bot, User } from "lucide-react";
+import { Send, ArrowLeft, RefreshCw, Bot, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { translateText } from "../services/gemini";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -257,6 +257,17 @@ export function LiveChat({
             toast.error("메시지 전송 실패");
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        if (!window.confirm("메시지를 삭제하시겠습니까?")) return;
+        try {
+            await deleteDoc(doc(db, "chats", messageId));
+            toast.success("메시지가 삭제되었습니다.");
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            toast.error("메시지 삭제 실패");
         }
     };
 
@@ -589,9 +600,20 @@ export function LiveChat({
                                         </div>
                                     )}
                                 </div>
-                                <span className="text-xs text-slate-400 px-1">
-                                    {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                                </span>
+                                <div className="flex items-center gap-1 px-1">
+                                    <span className="text-xs text-slate-400">
+                                        {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                    </span>
+                                    {isMe && (
+                                        <button
+                                            onClick={() => handleDeleteMessage(msg.id)}
+                                            className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                            title="메시지 삭제"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );
