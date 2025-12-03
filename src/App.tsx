@@ -18,7 +18,7 @@ import {
 } from "./services/gemini";
 import { Toaster, toast } from "sonner";
 import { onAuthStateChange, logout } from "./services/auth";
-import { getUserVocabulary, saveUserVocabulary, getUserStacks, saveUserStacks, getUserConversations, saveUserConversations } from "./services/userData";
+import { getUserVocabulary, saveUserVocabulary, getUserStacks, saveUserStacks, saveUserStackField, getUserConversations, saveUserConversations } from "./services/userData";
 import type { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -393,31 +393,38 @@ export default function App() {
     setGreenStack(greenWords);
   }, [userVocabulary]);
 
-  // 스택을 Firebase에 저장
-  const hasLoadedStacks = useRef(false);
+  // 스택을 Firebase에 저장 (개별 필드 저장으로 변경하여 Race Condition 방지)
 
+  // Red Stack 저장
   useEffect(() => {
-    // 데이터 로딩이 완료되지 않았으면 저장하지 않음
-    if (!isDataLoaded) return;
+    if (!isDataLoaded || !user) return;
+    saveUserStackField(user.uid, "red", redStack);
+  }, [redStack, user, isDataLoaded]);
 
-    if (user) {
-      console.log('💾 스택 저장 중...', {
-        red: redStack.length,
-        yellow: yellowStack.length,
-        green: greenStack.length,
-        important: importantStack.length,
-        sentences: sentenceStack.length
-      });
+  // Yellow Stack 저장
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    saveUserStackField(user.uid, "yellow", yellowStack);
+  }, [yellowStack, user, isDataLoaded]);
 
-      saveUserStacks(user.uid, {
-        red: redStack,
-        yellow: yellowStack,
-        green: greenStack,
-        important: importantStack,
-        sentences: sentenceStack,
-      });
-    }
-  }, [redStack, yellowStack, greenStack, importantStack, sentenceStack, user]);
+  // Green Stack 저장
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    saveUserStackField(user.uid, "green", greenStack);
+  }, [greenStack, user, isDataLoaded]);
+
+  // Important Stack 저장
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    saveUserStackField(user.uid, "important", importantStack);
+  }, [importantStack, user, isDataLoaded]);
+
+  // Sentence Stack 저장
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    console.log('💾 문장 보관소 저장:', sentenceStack.length);
+    saveUserStackField(user.uid, "sentences", sentenceStack);
+  }, [sentenceStack, user, isDataLoaded]);
 
   // 대화를 Firebase에 저장
   useEffect(() => {

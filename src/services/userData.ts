@@ -59,11 +59,11 @@ export const getUserVocabulary = async (userId: string) => {
   }
 };
 
-// 사용자 스택 저장
+// 사용자 스택 저장 (전체 덮어쓰기 - 레거시 호환용)
 export const saveUserStacks = async (
   userId: string,
   stacks: {
-    red: string[]; // Red, Yellow, Green Stack은 깔끔한 단어 텍스트만 저장
+    red: string[];
     yellow: string[];
     green: string[];
     important: WordData[];
@@ -87,6 +87,39 @@ export const saveUserStacks = async (
       });
       return { success: true, error: null };
     } catch (createError: any) {
+      return { success: false, error: createError.message };
+    }
+  }
+};
+
+// 개별 스택 필드 저장 (Race Condition 방지)
+export const saveUserStackField = async (
+  userId: string,
+  field: "red" | "yellow" | "green" | "important" | "sentences",
+  value: any[]
+) => {
+  try {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      [`stacks.${field}`]: value,
+      updatedAt: new Date(),
+    });
+    return { success: true, error: null };
+  } catch (error: any) {
+    // 문서가 없거나 stacks 필드가 없는 경우 처리
+    try {
+      const userRef = doc(db, "users", userId);
+      // setDoc with merge to ensure structure exists
+      // Note: dot notation in setDoc key creates nested object
+      await setDoc(userRef, {
+        stacks: {
+          [field]: value
+        },
+        updatedAt: new Date(),
+      }, { merge: true });
+      return { success: true, error: null };
+    } catch (createError: any) {
+      console.error(`Error saving stack field ${field}:`, createError);
       return { success: false, error: createError.message };
     }
   }
