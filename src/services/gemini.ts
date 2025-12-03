@@ -307,9 +307,21 @@ export async function translateText(text: string, targetLang: string): Promise<s
     throw new Error('Gemini API가 초기화되지 않았습니다.');
   }
 
+  const langMap: Record<string, string> = {
+    ko: "Korean",
+    en: "English",
+    ja: "Japanese",
+    zh: "Chinese",
+    es: "Spanish",
+    fr: "French",
+    hi: "Hindi"
+  };
+
+  const targetLangName = langMap[targetLang] || targetLang;
+
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-    const prompt = `Translate the following text to ${targetLang}. Only provide the translated text without any explanations or additional text:\n\n"${text}"`;
+    const prompt = `Translate the following text to ${targetLangName}. Only provide the translated text without any explanations or additional text:\n\n"${text}"`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
