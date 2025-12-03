@@ -1,26 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Sidebar } from "./components/Sidebar";
-import { ChatMessage } from "./components/ChatMessage";
-import { ChatInput } from "./components/ChatInput";
 import { StackView } from "./components/StackView";
 import { Auth } from "./components/Auth";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { MainContent } from "./components/MainContent";
 import { ToeicWordList } from "./components/ToeicWordList";
-import { Send, Menu, X, LogOut, User } from "lucide-react";
+import { Send, Menu } from "lucide-react";
+import { CommunityFeed } from "./features/community/CommunityFeed";
+import { CreatePostPage } from "./features/community/CreatePostPage";
+import { EditPostPage } from "./features/community/EditPostPage";
+import { DirectChat } from "./features/community/DirectChat";
+import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
 import {
   sendMessageToGemini,
   ChatMessage as GeminiChatMessage,
   generateStudyTips,
-  generatePersonalizedTips,
   getKoreanMeaning,
   generateText,
 } from "./services/gemini";
 import { Toaster, toast } from "sonner";
 import { onAuthStateChange, logout } from "./services/auth";
-import { getUserVocabulary, saveUserVocabulary, getUserStacks, saveUserStacks, getUserConversations, saveUserConversations } from "./services/userData";
+import { getUserStacks, saveUserStacks, getUserConversations, saveUserConversations } from "./services/userData";
 import type { User as FirebaseUser } from "firebase/auth";
-import { auth, db } from "./firebase";
+import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 interface Message {
@@ -1014,6 +1016,50 @@ export default function App() {
               />
             }
           />
+          <Route path="/community" element={
+            <div className="flex-1 flex flex-col h-full bg-[#f2f0ea] relative">
+              {/* 모바일 헤더 */}
+              <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30">
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <Menu className="w-6 h-6 text-slate-600" />
+                </button>
+                <span className="font-semibold text-slate-800">커뮤니티</span>
+                <div className="w-10" /> {/* Spacer */}
+              </div>
+              <CommunityFeed />
+            </div>
+          } />
+          <Route
+            path="/community/global-chat"
+            element={
+              <div className="flex-1 flex flex-col h-full bg-white relative">
+                {/* 모바일 헤더는 GlobalChatRoom 컴포넌트 내부에 있을 수 있습니다. */}
+                <GlobalChatRoom />
+              </div>
+            }
+          />
+          <Route path="/create-post" element={
+            <div className="flex-1 flex flex-col h-full bg-white relative">
+              <CreatePostPage onSubmit={(data) => {
+                // This will be handled by navigating back to community
+                console.log('New post created:', data);
+              }} />
+            </div>
+          } />
+          <Route path="/edit-post/:postId" element={
+            <div className="flex-1 flex flex-col h-full bg-white relative">
+              <EditPostPage />
+            </div>
+          } />
+          <Route path="/chat/:userId" element={
+            <div className="flex-1 flex flex-col h-full bg-white relative">
+              {/* 모바일 헤더는 DirectChat 컴포넌트 내부에 있음 */}
+              <DirectChat />
+            </div>
+          } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
