@@ -153,421 +153,466 @@ export function LiveChat({
             const msgs: ChatMessage[] = [];
 
             // Use Promise.all to handle async translations
-            const promises = snapshot.docs.map(async (doc) => {
+            const totalDocs = snapshot.docs.length;
+            const startIndexToTranslate = Math.max(0, totalDocs - 5); // Only translate last 5 messages via API
+
+            const promises = snapshot.docs.map(async (doc, index) => {
                 const data = doc.data() as Omit<ChatMessage, 'id'>;
                 const msg: ChatMessage = { id: doc.id, ...data };
-                console.error("Learning translation failed", e);
-            }
+
+                // Logic to handle translations for ALL messages (both mine and others)
+                // Goal:
+                // 1. msg.translatedText -> Should always be in my Native Language (for understanding)
+                // 2. msg.learningTranslation -> Should always be in my Target Language (for learning)
+
+                const originalDbTranslatedText = msg.translatedText;
+                const allowApiCall = index >= startIndexToTranslate;
+
+                // 1. Ensure Main Translation is in Native Language
+                if (msg.targetLang === nativeLang) {
+                    // DB already has Native Language
+                } else {
+                    try {
+                        const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
+                        if (cachedNative) {
+                            msg.translatedText = cachedNative;
+                        } else if (allowApiCall) {
+                            const translated = await translateText(msg.text, nativeLang);
+                            msg.translatedText = translated;
+                            localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
+                        }
+                    } catch (e) {
+                        console.error("Native translation failed", e);
+                    }
+                }
+
+                // 2. Ensure Learning Translation is in Target Language
+                if (targetLang !== nativeLang) {
+                    if (msg.targetLang === targetLang) {
+                        msg.learningTranslation = originalDbTranslatedText;
+                    } else {
+                        try {
+                            const cachedLearning = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
+                            if (cachedLearning) {
+                                msg.learningTranslation = cachedLearning;
+                            } else if (allowApiCall) {
+                                const translated = await translateText(msg.text, targetLang);
+                                msg.learningTranslation = translated;
+                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
+                            }
+                        } catch (e) {
+                            console.error("Learning translation failed", e);
+                        }
                     }
                 }
 
                 return msg;
-});
+            });
 
-const resolvedMsgs = await Promise.all(promises);
-setMessages(resolvedMsgs);
+            const resolvedMsgs = await Promise.all(promises);
+            setMessages(resolvedMsgs);
         });
 
-return () => unsubscribe();
+        return () => unsubscribe();
     }, [user, nativeLang, targetLang]);
 
-const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!inputText.trim() || !user || isSending) return;
+    const handleSendMessage = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!inputText.trim() || !user || isSending) return;
 
-    setIsSending(true);
-    try {
-        // 1. Translate text
-        const translated = await translateText(inputText, targetLang);
+        setIsSending(true);
+        try {
+            // 1. Translate text
+            const translated = await translateText(inputText, targetLang);
 
-        // 2. Save to Firestore
-        await addDoc(collection(db, "chats"), {
-            text: inputText,
-            translatedText: translated,
-            senderId: user.uid,
-            senderName: user.displayName || "User",
-            timestamp: serverTimestamp(),
-            originalLang: nativeLang,
-            targetLang: targetLang
-        });
-
-        setInputText("");
-        // Focus input after sending
-        setTimeout(() => {
-            inputRef.current?.focus();
-        }, 0);
-    } catch (error) {
-        console.error("Error sending message:", error);
-        toast.error("메시지 전송 실패");
-    } finally {
-        setIsSending(false);
-    }
-};
-
-// Helper to clean markdown
-const cleanMarkdown = (text: string): string => {
-    return text
-        .replace(/\*\*/g, "")
-        .replace(/\*/g, "")
-        .replace(/`/g, "")
-        .replace(/#{1,6}\s/g, "")
-        .trim();
-};
-
-// Helper to check if word is meaningful
-const isMeaningfulWord = (text: string): boolean => {
-    const cleaned = cleanMarkdown(text);
-    // Use Unicode Property Escapes to match any letter in any language (\p{L})
-    // Also allow numbers (\p{N})
-    // This covers Hindi, Arabic, Thai, CJK, etc.
-    return /[\p{L}\p{N}]/u.test(cleaned);
-};
-
-// Word Click Handler
-const handleWordClick = useCallback(async (word: string, messageId: string, fullSentence: string) => {
-    const cleanWord = cleanMarkdown(word);
-    if (!isMeaningfulWord(word)) return;
-
-    const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-    if (!finalWord || finalWord.length < 2) return;
-
-    const wordKey = finalWord.toLowerCase();
-    const uniqueKey = `${messageId}-${wordKey}`;
-
-    // Determine current state
-    const globalEntry = userVocabulary[wordKey];
-    const currentState = globalEntry
-        ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3)
-        : (wordStates[uniqueKey] || 0);
-
-    let nextState: number;
-    if (currentState === 0) nextState = 1;
-    else if (currentState === 3) nextState = 0;
-    else nextState = currentState + 1;
-
-    // Optimistic update
-    setWordStates(prev => ({ ...prev, [uniqueKey]: nextState }));
-
-    // Debounced API call
-    if (updateTimeouts.current[uniqueKey]) {
-        clearTimeout(updateTimeouts.current[uniqueKey]);
-    }
-
-    updateTimeouts.current[uniqueKey] = setTimeout(async () => {
-        if (nextState === 0) {
-            onResetWordStatus(finalWord);
-            toast.success(`"${finalWord}" 초기화됨`);
-        } else {
-            const statusMap: Record<number, "red" | "yellow" | "green"> = { 1: "red", 2: "yellow", 3: "green" };
-            await onUpdateWordStatus(
-                `${messageId}-${finalWord}`,
-                statusMap[nextState],
-                finalWord,
-                messageId,
-                fullSentence
-            );
-            toast.success(`"${finalWord}" -> ${statusMap[nextState].toUpperCase()}`);
-        }
-        delete updateTimeouts.current[uniqueKey];
-    }, 500);
-
-}, [userVocabulary, wordStates, onUpdateWordStatus, onResetWordStatus]);
-
-// Long Press Handler
-const handleLongPress = useCallback((e: React.PointerEvent, word: string, messageId: string, fullSentence: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const clickX = e.clientX;
-    const clickY = e.clientY;
-
-    if (navigator.vibrate) {
-        navigator.vibrate(50);
-    }
-
-    const cleanWord = cleanMarkdown(word);
-    const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-
-    setRadialMenu({
-        showRadialMenu: true,
-        menuCenter: { x: clickX, y: clickY },
-        selectedWordData: {
-            word: finalWord,
-            messageId,
-            fullSentence
-        },
-    });
-}, []);
-
-// Radial Menu Select Handler
-const handleRadialSelect = useCallback((direction: RadialDirection) => {
-    const { selectedWordData } = radialMenu;
-    if (!selectedWordData) return;
-
-    const { word, messageId, fullSentence } = selectedWordData;
-
-    switch (direction) {
-        case "left": // 문장 저장 (Save Sentence)
-            if (onSaveSentence) {
-                onSaveSentence(fullSentence);
-                toast.success("문장이 저장되었습니다.");
-            } else {
-                toast.error("문장 저장 기능을 사용할 수 없습니다.");
-            }
-            break;
-        case "top": // 상세보기 (Detail)
-            const entry = userVocabulary[word.toLowerCase()];
-            setSelectedDetailWord({
-                word: word,
-                koreanMeaning: entry?.koreanMeaning || "",
-                status: entry?.status || "white",
-                messageId: messageId,
-                fullSentence: fullSentence
+            // 2. Save to Firestore
+            await addDoc(collection(db, "chats"), {
+                text: inputText,
+                translatedText: translated,
+                senderId: user.uid,
+                senderName: user.displayName || "User",
+                timestamp: serverTimestamp(),
+                originalLang: nativeLang,
+                targetLang: targetLang
             });
-            break;
-        case "right": // 중요 저장 (Save Important)
-            if (onSaveImportant) {
-                onSaveImportant({
-                    id: `${messageId}-${word}`,
-                    word: word,
-                    status: "red",
-                    messageId: messageId,
-                    sentence: fullSentence,
-                    timestamp: new Date(),
-                    koreanMeaning: userVocabulary[word.toLowerCase()]?.koreanMeaning || ""
-                });
-                toast.success(`"${word}" 중요 단어로 저장됨`);
-            } else {
-                onUpdateWordStatus(
-                    `${messageId}-${word}`,
-                    "red",
-                    word,
-                    messageId,
-                    fullSentence
-                );
-                toast.success(`"${word}" 중요 단어로 저장됨`);
-            }
-            break;
-        case "bottom": // 듣기 (TTS)
-            if (window.speechSynthesis) {
-                const utterance = new SpeechSynthesisUtterance(word);
-                utterance.lang = "en-US";
-                window.speechSynthesis.speak(utterance);
-            }
-            break;
-        default:
-            break;
-    }
 
-    setRadialMenu({
-        showRadialMenu: false,
-        menuCenter: null,
-        selectedWordData: null,
-    });
-}, [radialMenu, onUpdateWordStatus, userVocabulary, onSaveSentence]);
-
-// Render clickable words
-const renderClickableText = (text: string, messageId: string) => {
-    let parts: string[] = [];
-
-    // Use Intl.Segmenter for intelligent word segmentation
-    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-        const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
-        const segments = segmenter.segment(text);
-        for (const { segment } of segments) {
-            parts.push(segment);
+            setInputText("");
+            // Focus input after sending
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 0);
+        } catch (error) {
+            console.error("Error sending message:", error);
+            toast.error("메시지 전송 실패");
+        } finally {
+            setIsSending(false);
         }
-    } else {
-        // Fallback
-        parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
-    }
+    };
 
-    return parts.map((part, index) => {
-        if (/^[\s\n.,?!;:()\[\]{}"'`]+$/.test(part)) {
-            return <span key={index}>{part}</span>;
-        }
+    // Helper to clean markdown
+    const cleanMarkdown = (text: string): string => {
+        return text
+            .replace(/\*\*/g, "")
+            .replace(/\*/g, "")
+            .replace(/`/g, "")
+            .replace(/#{1,6}\s/g, "")
+            .trim();
+    };
 
-        if (!isMeaningfulWord(part)) {
-            return <span key={index}>{part}</span>;
-        }
+    // Helper to check if word is meaningful
+    const isMeaningfulWord = (text: string): boolean => {
+        const cleaned = cleanMarkdown(text);
+        // Use Unicode Property Escapes to match any letter in any language (\p{L})
+        // Also allow numbers (\p{N})
+        // This covers Hindi, Arabic, Thai, CJK, etc.
+        return /[\p{L}\p{N}]/u.test(cleaned);
+    };
 
-        const finalWord = cleanMarkdown(part).trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+    // Word Click Handler
+    const handleWordClick = useCallback(async (word: string, messageId: string, fullSentence: string) => {
+        const cleanWord = cleanMarkdown(word);
+        if (!isMeaningfulWord(word)) return;
+
+        const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+        if (!finalWord || finalWord.length < 2) return;
+
         const wordKey = finalWord.toLowerCase();
         const uniqueKey = `${messageId}-${wordKey}`;
 
+        // Determine current state
         const globalEntry = userVocabulary[wordKey];
-        const state = globalEntry
+        const currentState = globalEntry
             ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3)
             : (wordStates[uniqueKey] || 0);
 
-        let bgClass = "";
-        let textClass = "";
+        let nextState: number;
+        if (currentState === 0) nextState = 1;
+        else if (currentState === 3) nextState = 0;
+        else nextState = currentState + 1;
 
-        if (state === 1) { bgClass = "bg-red-200"; textClass = "text-red-900"; }
-        else if (state === 2) { bgClass = "bg-yellow-200"; textClass = "text-yellow-900"; }
-        else if (state === 3) { bgClass = "bg-green-200"; textClass = "text-green-900"; }
-        else { bgClass = "hover:bg-slate-100"; }
+        // Optimistic update
+        setWordStates(prev => ({ ...prev, [uniqueKey]: nextState }));
 
-        return (
-            <WordSpan
-                key={index}
-                part={part}
-                messageId={messageId}
-                fullSentence={text}
-                bgClass={bgClass}
-                textClass={textClass}
-                onClick={() => handleWordClick(part, messageId, text)}
-                onLongPress={(e) => handleLongPress(e, part, messageId, text)}
-            />
-        );
-    });
-};
+        // Debounced API call
+        if (updateTimeouts.current[uniqueKey]) {
+            clearTimeout(updateTimeouts.current[uniqueKey]);
+        }
 
-return (
-    <div className="flex flex-col h-full bg-slate-50">
-        {/* Radial Menu */}
-        {radialMenu.showRadialMenu && radialMenu.menuCenter && (
-            <RadialMenu
-                center={radialMenu.menuCenter}
-                isOpen={radialMenu.showRadialMenu}
-                onClose={() => setRadialMenu({ showRadialMenu: false, menuCenter: null, selectedWordData: null })}
-                onSelect={handleRadialSelect}
-                selectedWord={radialMenu.selectedWordData?.word || ""}
-                showDelete={false}
-                variant="chat"
-            />
-        )}
+        updateTimeouts.current[uniqueKey] = setTimeout(async () => {
+            if (nextState === 0) {
+                onResetWordStatus(finalWord);
+                toast.success(`"${finalWord}" 초기화됨`);
+            } else {
+                const statusMap: Record<number, "red" | "yellow" | "green"> = { 1: "red", 2: "yellow", 3: "green" };
+                await onUpdateWordStatus(
+                    `${messageId}-${finalWord}`,
+                    statusMap[nextState],
+                    finalWord,
+                    messageId,
+                    fullSentence
+                );
+                toast.success(`"${finalWord}" -> ${statusMap[nextState].toUpperCase()}`);
+            }
+            delete updateTimeouts.current[uniqueKey];
+        }, 500);
 
-        {/* Word Detail Modal */}
-        <WordDetailModal
-            open={!!selectedDetailWord}
-            onOpenChange={(open) => !open && setSelectedDetailWord(null)}
-            word={selectedDetailWord?.word || ""}
-            koreanMeaning={selectedDetailWord?.koreanMeaning || ""}
-            status={selectedDetailWord?.status || "white"}
-            onGenerateStudyTips={generateStudyTips}
-            onUpdateWordStatus={(word, newStatus) => {
-                if (selectedDetailWord) {
-                    onUpdateWordStatus(
-                        `${selectedDetailWord.messageId}-${word}`,
-                        newStatus,
-                        word,
-                        selectedDetailWord.messageId,
-                        selectedDetailWord.fullSentence
-                    );
-                    // Update local state to reflect change immediately in modal
-                    setSelectedDetailWord(prev => prev ? { ...prev, status: newStatus } : null);
+    }, [userVocabulary, wordStates, onUpdateWordStatus, onResetWordStatus]);
+
+    // Long Press Handler
+    const handleLongPress = useCallback((e: React.PointerEvent, word: string, messageId: string, fullSentence: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+
+        const cleanWord = cleanMarkdown(word);
+        const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+
+        setRadialMenu({
+            showRadialMenu: true,
+            menuCenter: { x: clickX, y: clickY },
+            selectedWordData: {
+                word: finalWord,
+                messageId,
+                fullSentence
+            },
+        });
+    }, []);
+
+    // Radial Menu Select Handler
+    const handleRadialSelect = useCallback((direction: RadialDirection) => {
+        const { selectedWordData } = radialMenu;
+        if (!selectedWordData) return;
+
+        const { word, messageId, fullSentence } = selectedWordData;
+
+        switch (direction) {
+            case "left": // 문장 저장 (Save Sentence)
+                if (onSaveSentence) {
+                    onSaveSentence(fullSentence);
+                    toast.success("문장이 저장되었습니다.");
+                } else {
+                    toast.error("문장 저장 기능을 사용할 수 없습니다.");
                 }
-            }}
-        />
+                break;
+            case "top": // 상세보기 (Detail)
+                const entry = userVocabulary[word.toLowerCase()];
+                setSelectedDetailWord({
+                    word: word,
+                    koreanMeaning: entry?.koreanMeaning || "",
+                    status: entry?.status || "white",
+                    messageId: messageId,
+                    fullSentence: fullSentence
+                });
+                break;
+            case "right": // 중요 저장 (Save Important)
+                if (onSaveImportant) {
+                    onSaveImportant({
+                        id: `${messageId}-${word}`,
+                        word: word,
+                        status: "red",
+                        messageId: messageId,
+                        sentence: fullSentence,
+                        timestamp: new Date(),
+                        koreanMeaning: userVocabulary[word.toLowerCase()]?.koreanMeaning || ""
+                    });
+                    toast.success(`"${word}" 중요 단어로 저장됨`);
+                } else {
+                    onUpdateWordStatus(
+                        `${messageId}-${word}`,
+                        "red",
+                        word,
+                        messageId,
+                        fullSentence
+                    );
+                    toast.success(`"${word}" 중요 단어로 저장됨`);
+                }
+                break;
+            case "bottom": // 듣기 (TTS)
+                if (window.speechSynthesis) {
+                    const utterance = new SpeechSynthesisUtterance(word);
+                    utterance.lang = "en-US";
+                    window.speechSynthesis.speak(utterance);
+                }
+                break;
+            default:
+                break;
+        }
 
-        {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
-            <div className="flex items-center gap-3">
-                <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
-                </button>
-                <div>
-                    <h1 className="font-bold text-slate-800">Live AI Chat</h1>
-                    <p className="text-xs text-slate-500">Real-time Translation & Stacking</p>
+        setRadialMenu({
+            showRadialMenu: false,
+            menuCenter: null,
+            selectedWordData: null,
+        });
+    }, [radialMenu, onUpdateWordStatus, userVocabulary, onSaveSentence]);
+
+    // Render clickable words
+    const renderClickableText = (text: string, messageId: string) => {
+        let parts: string[] = [];
+
+        // Use Intl.Segmenter for intelligent word segmentation
+        if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+            const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
+            const segments = segmenter.segment(text);
+            for (const { segment } of segments) {
+                parts.push(segment);
+            }
+        } else {
+            // Fallback
+            parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+        }
+
+        return parts.map((part, index) => {
+            if (/^[\s\n.,?!;:()\[\]{}"'`]+$/.test(part)) {
+                return <span key={index}>{part}</span>;
+            }
+
+            if (!isMeaningfulWord(part)) {
+                return <span key={index}>{part}</span>;
+            }
+
+            const finalWord = cleanMarkdown(part).trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+            const wordKey = finalWord.toLowerCase();
+            const uniqueKey = `${messageId}-${wordKey}`;
+
+            const globalEntry = userVocabulary[wordKey];
+            const state = globalEntry
+                ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3)
+                : (wordStates[uniqueKey] || 0);
+
+            let bgClass = "";
+            let textClass = "";
+
+            if (state === 1) { bgClass = "bg-red-200"; textClass = "text-red-900"; }
+            else if (state === 2) { bgClass = "bg-yellow-200"; textClass = "text-yellow-900"; }
+            else if (state === 3) { bgClass = "bg-green-200"; textClass = "text-green-900"; }
+            else { bgClass = "hover:bg-slate-100"; }
+
+            return (
+                <WordSpan
+                    key={index}
+                    part={part}
+                    messageId={messageId}
+                    fullSentence={text}
+                    bgClass={bgClass}
+                    textClass={textClass}
+                    onClick={() => handleWordClick(part, messageId, text)}
+                    onLongPress={(e) => handleLongPress(e, part, messageId, text)}
+                />
+            );
+        });
+    };
+
+    return (
+        <div className="flex flex-col h-full bg-slate-50">
+            {/* Radial Menu */}
+            {radialMenu.showRadialMenu && radialMenu.menuCenter && (
+                <RadialMenu
+                    center={radialMenu.menuCenter}
+                    isOpen={radialMenu.showRadialMenu}
+                    onClose={() => setRadialMenu({ showRadialMenu: false, menuCenter: null, selectedWordData: null })}
+                    onSelect={handleRadialSelect}
+                    selectedWord={radialMenu.selectedWordData?.word || ""}
+                    showDelete={false}
+                    variant="chat"
+                />
+            )}
+
+            {/* Word Detail Modal */}
+            <WordDetailModal
+                open={!!selectedDetailWord}
+                onOpenChange={(open) => !open && setSelectedDetailWord(null)}
+                word={selectedDetailWord?.word || ""}
+                koreanMeaning={selectedDetailWord?.koreanMeaning || ""}
+                status={selectedDetailWord?.status || "white"}
+                onGenerateStudyTips={generateStudyTips}
+                onUpdateWordStatus={(word, newStatus) => {
+                    if (selectedDetailWord) {
+                        onUpdateWordStatus(
+                            `${selectedDetailWord.messageId}-${word}`,
+                            newStatus,
+                            word,
+                            selectedDetailWord.messageId,
+                            selectedDetailWord.fullSentence
+                        );
+                        // Update local state to reflect change immediately in modal
+                        setSelectedDetailWord(prev => prev ? { ...prev, status: newStatus } : null);
+                    }
+                }}
+            />
+
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    </button>
+                    <div>
+                        <h1 className="font-bold text-slate-800">Live AI Chat</h1>
+                        <p className="text-xs text-slate-500">Real-time Translation & Stacking</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <select
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value)}
+                        className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="en">English</option>
+                        <option value="ja">Japanese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="hi">Hindi</option>
+                    </select>
                 </div>
             </div>
-            <div className="flex items-center gap-2">
-                <select
-                    value={targetLang}
-                    onChange={(e) => setTargetLang(e.target.value)}
-                    className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    <option value="en">English</option>
-                    <option value="ja">Japanese</option>
-                    <option value="zh">Chinese</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="hi">Hindi</option>
-                </select>
-            </div>
-        </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {messages.map((msg) => {
-                const isMe = msg.senderId === user?.uid;
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {messages.map((msg) => {
+                    const isMe = msg.senderId === user?.uid;
 
-                return (
-                    <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                            {!isMe && (
-                                <span className="text-xs text-slate-500 ml-1">
-                                    {msg.senderName}
-                                </span>
-                            )}
-                            <div className={`px-4 py-3 rounded-2xl shadow-sm ${isMe
-                                ? "bg-blue-500 text-white rounded-tr-sm"
-                                : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
-                                }`}>
-                                {/* Top Line: Original Text */}
-                                <div className={`text-sm mb-2 pb-2 border-b ${isMe ? "border-blue-400/50" : "border-slate-100"}`}>
-                                    {msg.text}
-                                </div>
+                    return (
+                        <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[80%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+                                {!isMe && (
+                                    <span className="text-xs text-slate-500 ml-1">
+                                        {msg.senderName}
+                                    </span>
+                                )}
+                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${isMe
+                                    ? "bg-blue-500 text-white rounded-tr-sm"
+                                    : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
+                                    }`}>
+                                    {/* Top Line: Original Text */}
+                                    <div className={`text-sm mb-2 pb-2 border-b ${isMe ? "border-blue-400/50" : "border-slate-100"}`}>
+                                        {msg.text}
+                                    </div>
 
-                                {/* Bottom Line: Translated Text (Clickable) */}
-                                <div className={`text-base font-medium ${isMe ? "text-blue-50" : "text-slate-900"}`}>
-                                    {isMe ? (
-                                        <div className="text-white">
-                                            {renderClickableText(msg.translatedText, msg.id)}
+                                    {/* Bottom Line: Translated Text (Clickable) */}
+                                    <div className={`text-base font-medium ${isMe ? "text-blue-50" : "text-slate-900"}`}>
+                                        {isMe ? (
+                                            <div className="text-white">
+                                                {renderClickableText(msg.translatedText, msg.id)}
+                                            </div>
+                                        ) : (
+                                            renderClickableText(msg.translatedText, msg.id)
+                                        )}
+                                    </div>
+
+                                    {/* Learning Line: Target Language Translation (if exists) */}
+                                    {msg.learningTranslation && (
+                                        <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
+                                            <div className="flex items-center gap-1 mb-1">
+                                                <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                                                    Learning
+                                                </span>
+                                            </div>
+                                            {renderClickableText(msg.learningTranslation, msg.id)}
                                         </div>
-                                    ) : (
-                                        renderClickableText(msg.translatedText, msg.id)
                                     )}
                                 </div>
-
-                                {/* Learning Line: Target Language Translation (if exists) */}
-                                {msg.learningTranslation && (
-                                    <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
-                                        <div className="flex items-center gap-1 mb-1">
-                                            <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
-                                                Learning
-                                            </span>
-                                        </div>
-                                        {renderClickableText(msg.learningTranslation, msg.id)}
-                                    </div>
-                                )}
+                                <span className="text-xs text-slate-400 px-1">
+                                    {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                </span>
                             </div>
-                            <span className="text-xs text-slate-400 px-1">
-                                {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                            </span>
                         </div>
-                    </div>
-                );
-            })}
-            <div ref={messagesEndRef} />
-        </div>
+                    );
+                })}
+                <div ref={messagesEndRef} />
+            </div>
 
-        {/* Input */}
-        <div className="bg-white border-t border-slate-200 p-4">
-            <form onSubmit={handleSendMessage} className="flex gap-2 max-w-3xl mx-auto">
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-slate-100 text-slate-900 placeholder:text-slate-500 border-0 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    disabled={isSending}
-                />
-                <button
-                    type="submit"
-                    disabled={!inputText.trim() || isSending}
-                    className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md shadow-blue-200"
-                >
-                    {isSending ? (
-                        <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
-                        <Send className="w-5 h-5" />
-                    )}
-                </button>
-            </form>
+            {/* Input */}
+            <div className="bg-white border-t border-slate-200 p-4">
+                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-3xl mx-auto">
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-slate-100 text-slate-900 placeholder:text-slate-500 border-0 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        disabled={isSending}
+                    />
+                    <button
+                        type="submit"
+                        disabled={!inputText.trim() || isSending}
+                        className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md shadow-blue-200"
+                    >
+                        {isSending ? (
+                            <RefreshCw className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Send className="w-5 h-5" />
+                        )}
+                    </button>
+                </form>
+            </div>
         </div>
-    </div>
-);
+    );
 }
