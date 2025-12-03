@@ -166,35 +166,49 @@ export function LiveChat({
                 // Top: Original Text (e.g. English)
                 // Bottom: Translated Text in MY Native Lang (e.g. Korean)
 
-                // If the message is NOT from me:
-                if (user && msg.senderId !== user.uid) {
-                    // 1. Check if the message needs translation to my native language (for understanding)
-                    if (msg.targetLang !== nativeLang) {
-                        try {
-                            const cachedTranslation = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
-                            if (cachedTranslation) {
-                                msg.translatedText = cachedTranslation;
-                            } else {
-                                const translated = await translateText(msg.text, nativeLang);
-                                msg.translatedText = translated;
-                                localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
-                            }
-                        } catch (e) {
-                            console.error("Auto-translation failed", e);
-                        }
-                    }
+                // Logic to handle translations for ALL messages (both mine and others)
+                // Goal:
+                // 1. msg.translatedText -> Should always be in my Native Language (for understanding)
+                // 2. msg.learningTranslation -> Should always be in my Target Language (for learning)
 
-                    // 2. Check if we also need translation to the User's Target Language (for learning)
-                    if (targetLang !== nativeLang && targetLang !== msg.originalLang) {
+                const originalDbTranslatedText = msg.translatedText;
+
+                // 1. Ensure Main Translation is in Native Language
+                if (msg.targetLang === nativeLang) {
+                    // DB already has Native Language
+                    // msg.translatedText is correct
+                } else {
+                    // DB has different language (e.g. Sender's Target Lang)
+                    // We need to translate to Native Language
+                    try {
+                        const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
+                        if (cachedNative) {
+                            msg.translatedText = cachedNative;
+                        } else {
+                            const translated = await translateText(msg.text, nativeLang);
+                            msg.translatedText = translated;
+                            localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
+                        }
+                    } catch (e) {
+                        console.error("Native translation failed", e);
+                    }
+                }
+
+                // 2. Ensure Learning Translation is in Target Language
+                if (targetLang !== nativeLang) {
+                    // Check if the DB's original translation is already what we want
+                    if (msg.targetLang === targetLang) {
+                        msg.learningTranslation = originalDbTranslatedText;
+                    } else {
+                        // Need to fetch/translate to Target Language
                         try {
-                            const cachedLearningTrans = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
-                            if (cachedLearningTrans) {
-                                msg.learningTranslation = cachedLearningTrans;
+                            const cachedLearning = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
+                            if (cachedLearning) {
+                                msg.learningTranslation = cachedLearning;
                             } else {
-                                // We translate the ORIGINAL text to the TARGET language
-                                const learningTranslated = await translateText(msg.text, targetLang);
-                                msg.learningTranslation = learningTranslated;
-                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, learningTranslated);
+                                const translated = await translateText(msg.text, targetLang);
+                                msg.learningTranslation = translated;
+                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
                             }
                         } catch (e) {
                             console.error("Learning translation failed", e);
