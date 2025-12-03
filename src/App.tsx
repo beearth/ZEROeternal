@@ -47,6 +47,23 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { LiveChat } from "./components/LiveChat";
 
+// ...
+
+{/* <Route
+            path="/live-chat"
+            element={
+              <LiveChat
+                user={user}
+                userVocabulary={userVocabulary}
+                onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white", word: string) => handleUpdateWordStatus(word, status)}
+                onResetWordStatus={handleResetWordStatus}
+                nativeLang={nativeLang}
+                onSaveSentence={handleSaveSentence}
+                onSaveImportant={handleSaveImportant}
+              />
+            }
+          /> */}
+
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
