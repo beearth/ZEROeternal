@@ -121,6 +121,12 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
     const wordKey = menuOpenWord.toLowerCase();
     const vocabEntry = userVocabulary[wordKey];
 
+    // Find item data if available (for Important stack)
+    let itemData: WordData | undefined;
+    if (isWordDataArray) {
+      itemData = (items as WordData[]).find(item => item.word.toLowerCase() === wordKey);
+    }
+
     switch (direction) {
       case "top": // 삭제
         if (onDeleteWord) {
@@ -133,21 +139,26 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         window.speechSynthesis.speak(utterance);
         break;
       case "left": // 상세보기
-        if (vocabEntry) {
-          setSelectedWord({
-            word: menuOpenWord,
-            koreanMeaning: vocabEntry.koreanMeaning,
-            status: vocabEntry.status,
-          });
-        }
+        const meaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
+        const status = vocabEntry?.status || itemData?.status || "white";
+
+        setSelectedWord({
+          word: menuOpenWord,
+          koreanMeaning: meaning,
+          status: status,
+        });
         break;
       case "right": // 중요 저장
-        if (onSaveImportant && vocabEntry) {
+        if (onSaveImportant) {
+          // Use existing data if available
+          const currentMeaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
+          const currentStatus = vocabEntry?.status || itemData?.status || "white";
+
           onSaveImportant({
             id: Date.now().toString(),
             word: menuOpenWord,
-            koreanMeaning: vocabEntry.koreanMeaning,
-            status: vocabEntry.status === "white" ? "red" : vocabEntry.status,
+            koreanMeaning: currentMeaning,
+            status: currentStatus === "white" ? "red" : currentStatus,
             messageId: "manual",
             sentence: "",
             timestamp: new Date()
