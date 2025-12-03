@@ -86,6 +86,7 @@ export function LiveChat({
     const [inputText, setInputText] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [targetLang, setTargetLang] = useState("en"); // Default target language
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -139,9 +140,20 @@ export function LiveChat({
     }, [radialMenu.showRadialMenu]);
 
     // Scroll to bottom
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+        messagesEndRef.current?.scrollIntoView({ behavior });
     };
+
+    useEffect(() => {
+        if (messages.length > 0) {
+            if (isInitialLoad) {
+                scrollToBottom("auto");
+                setIsInitialLoad(false);
+            } else {
+                scrollToBottom("smooth");
+            }
+        }
+    }, [messages, isInitialLoad]);
 
     useEffect(() => {
         const q = query(collection(db, "chats"), orderBy("timestamp", "asc"));
@@ -432,8 +444,6 @@ export function LiveChat({
                     window.speechSynthesis.speak(utterance);
                 }
                 break;
-            default:
-                break;
         }
 
         setRadialMenu({
@@ -441,217 +451,206 @@ export function LiveChat({
             menuCenter: null,
             selectedWordData: null,
         });
-    }, [radialMenu, onUpdateWordStatus, userVocabulary, onSaveSentence]);
+    }, [radialMenu, onSaveSentence, onSaveImportant, onUpdateWordStatus, userVocabulary]);
 
-    // Render clickable words
-    const renderClickableText = (text: string, messageId: string) => {
-        let parts: string[] = [];
+    // Helper to render text with clickable words
+    const renderClickableText = (text: string | undefined, messageId: string) => {
+        if (!text) return null;
 
-        // Use Intl.Segmenter for intelligent word segmentation
-        if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-            const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
-            const segments = segmenter.segment(text);
-            for (const { segment } of segments) {
-                parts.push(segment);
-            }
-        } else {
-            // Fallback
-            parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
-        }
+        // Split by spaces but keep punctuation
+        const parts = text.split(/(\s+)/);
 
-        return parts.map((part, index) => {
-            if (/^[\s\n.,?!;:()\[\]{}"'`]+$/.test(part)) {
-                return <span key={index}>{part}</span>;
-            }
+        return (
+            <div className="flex flex-wrap items-center gap-y-1">
+                {parts.map((part, index) => {
+                    if (!part.trim()) return <span key={index}>{part}</span>;
 
-            if (!isMeaningfulWord(part)) {
-                return <span key={index}>{part}</span>;
-            }
+                    const clean = cleanMarkdown(part);
+                    const wordKey = clean.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0].toLowerCase();
+                    const uniqueKey = `${messageId}-${wordKey}`;
 
-            const finalWord = cleanMarkdown(part).trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-            const wordKey = finalWord.toLowerCase();
-            const uniqueKey = `${messageId}-${wordKey}`;
+                    // Determine status
+                    const globalEntry = userVocabulary[wordKey];
+                    const status = globalEntry
+                        ? globalEntry.status
+                        : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
 
-            const globalEntry = userVocabulary[wordKey];
-            const state = globalEntry
-                ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3)
-                : (wordStates[uniqueKey] || 0);
+                    let bgClass = "hover:bg-slate-200";
+                    let textClass = "text-slate-800";
 
-            let bgClass = "";
-            let textClass = "";
+                    if (status === "red") {
+                        bgClass = "bg-red-100 hover:bg-red-200";
+                        textClass = "text-red-700 font-medium";
+                    } else if (status === "yellow") {
+                        bgClass = "bg-yellow-100 hover:bg-yellow-200";
+                        textClass = "text-yellow-700 font-medium";
+                    } else if (status === "green") {
+                        bgClass = "bg-green-100 hover:bg-green-200";
+                        textClass = "text-green-700 font-medium";
+                    }
 
-            if (state === 1) { bgClass = "bg-red-200"; textClass = "text-red-900"; }
-            else if (state === 2) { bgClass = "bg-yellow-200"; textClass = "text-yellow-900"; }
-            else if (state === 3) { bgClass = "bg-green-200"; textClass = "text-green-900"; }
-            else { bgClass = "hover:bg-slate-100"; }
-
-            return (
-                <WordSpan
-                    key={index}
-                    part={part}
-                    messageId={messageId}
-                    fullSentence={text}
-                    bgClass={bgClass}
-                    textClass={textClass}
-                    onClick={() => handleWordClick(part, messageId, text)}
-                    onLongPress={(e) => handleLongPress(e, part, messageId, text)}
-                />
-            );
-        });
+                    return (
+                        <WordSpan
+                            key={index}
+                            part={part}
+                            messageId={messageId}
+                            fullSentence={text}
+                            bgClass={bgClass}
+                            textClass={textClass}
+                            onClick={() => handleWordClick(part, messageId, text)}
+                            onLongPress={(e) => handleLongPress(e, part, messageId, text)}
+                        />
+                    );
+                })}
+            </div>
+        );
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50">
+        <div className="flex flex-col h-screen bg-slate-50 relative">
             {/* Radial Menu */}
             {radialMenu.showRadialMenu && radialMenu.menuCenter && (
                 <RadialMenu
-                    center={radialMenu.menuCenter}
-                    isOpen={radialMenu.showRadialMenu}
-                    onClose={() => setRadialMenu({ showRadialMenu: false, menuCenter: null, selectedWordData: null })}
+                    centerX={radialMenu.menuCenter.x}
+                    centerY={radialMenu.menuCenter.y}
                     onSelect={handleRadialSelect}
-                    selectedWord={radialMenu.selectedWordData?.word || ""}
-                    showDelete={false}
-                    variant="chat"
+                    onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
                 />
             )}
 
             {/* Word Detail Modal */}
-            <WordDetailModal
-                open={!!selectedDetailWord}
-                onOpenChange={(open) => !open && setSelectedDetailWord(null)}
-                word={selectedDetailWord?.word || ""}
-                koreanMeaning={selectedDetailWord?.koreanMeaning || ""}
-                status={selectedDetailWord?.status || "white"}
-                onGenerateStudyTips={generateStudyTips}
-                onUpdateWordStatus={(word, newStatus) => {
-                    if (selectedDetailWord) {
-                        onUpdateWordStatus(
-                            `${selectedDetailWord.messageId}-${word}`,
-                            newStatus,
-                            word,
-                            selectedDetailWord.messageId,
-                            selectedDetailWord.fullSentence
-                        );
-                        // Update local state to reflect change immediately in modal
-                        setSelectedDetailWord(prev => prev ? { ...prev, status: newStatus } : null);
-                    }
-                }}
-            />
+            {selectedDetailWord && (
+                <WordDetailModal
+                    word={selectedDetailWord.word}
+                    koreanMeaning={selectedDetailWord.koreanMeaning}
+                    status={selectedDetailWord.status}
+                    onClose={() => setSelectedDetailWord(null)}
+                    onGenerateTips={async () => {
+                        try {
+                            const tips = await generateStudyTips(selectedDetailWord.word);
+                            return tips;
+                        } catch (error) {
+                            console.error("Failed to generate tips", error);
+                            return "팁 생성 실패";
+                        }
+                    }}
+                />
+            )}
 
             {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+            <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between shadow-sm z-10">
                 <div className="flex items-center gap-3">
                     <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-600" />
                     </button>
                     <div>
-                        <h1 className="font-bold text-slate-800">Live AI Chat</h1>
-                        <p className="text-xs text-slate-500">Real-time Translation & Stacking</p>
+                        <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <Bot className="w-5 h-5 text-blue-500" />
+                            Live Chat
+                        </h1>
+                        <p className="text-xs text-slate-500">
+                            Native: {nativeLang.toUpperCase()} | Target: {targetLang.toUpperCase()}
+                        </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex gap-2">
                     <select
                         value={targetLang}
                         onChange={(e) => setTargetLang(e.target.value)}
-                        className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="text-sm border border-slate-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="en">English</option>
+                        <option value="ko">Korean</option>
                         <option value="ja">Japanese</option>
                         <option value="zh">Chinese</option>
                         <option value="es">Spanish</option>
                         <option value="fr">French</option>
-                        <option value="hi">Hindi</option>
+                        <option value="de">German</option>
                     </select>
                 </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => {
                     const isMe = msg.senderId === user?.uid;
-
                     return (
-                        <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[80%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+                        <div
+                            key={msg.id}
+                            className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                        >
+                            <div className={`flex flex-col max-w-[85%] ${isMe ? "items-end" : "items-start"}`}>
                                 {!isMe && (
-                                    <span className="text-xs text-slate-500 ml-1">
+                                    <span className="text-xs text-slate-500 mb-1 ml-1">
                                         {msg.senderName}
                                     </span>
                                 )}
-                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${isMe
-                                    ? "bg-blue-500 text-white rounded-tr-sm"
-                                    : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
-                                    }`}>
-                                    {/* Top Line: Original Text - Removed to avoid redundancy/3rd language display */}
-                                    {/* <div className={`text-sm mb-2 pb-2 border-b ${isMe ? "border-blue-400/50" : "border-slate-100"}`}>
-                                        {msg.text}
-                                    </div> */}
+                                <div className="flex items-end gap-2">
+                                    <div
+                                        className={`p-4 rounded-2xl shadow-sm ${isMe
+                                                ? "bg-blue-600 text-white rounded-tr-none"
+                                                : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                                            }`}
+                                    >
+                                        {/* 1. Native Translation (Primary) */}
+                                        <div className="text-[15px] leading-relaxed font-medium">
+                                            {renderClickableText(msg.nativeTranslation || msg.text, msg.id)}
+                                        </div>
 
-                                    {/* Bottom Line: Translated Text (Clickable) - This acts as the Main/Native display */}
-                                    <div className={`text-base font-medium ${isMe ? "text-blue-50" : "text-slate-900"}`}>
-                                        {isMe ? (
-                                            <div className="text-white">
-                                                {/* Always show Native Translation (or fallback to text) */}
-                                                {renderClickableText(msg.nativeTranslation || msg.text, msg.id)}
+                                        {/* 2. Learning Translation (Secondary) */}
+                                        {msg.learningTranslation ? (
+                                            <div className={`text-sm mt-3 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-50" : "border-slate-100 text-slate-600"}`}>
+                                                <div className="flex items-center gap-1 mb-1 opacity-70">
+                                                    <span className="text-[10px] uppercase tracking-wider font-bold">
+                                                        Learning
+                                                    </span>
+                                                </div>
+                                                {renderClickableText(msg.learningTranslation, msg.id)}
                                             </div>
                                         ) : (
-                                            renderClickableText(msg.nativeTranslation || msg.text, msg.id)
+                                            targetLang !== nativeLang && (
+                                                <div className={`text-xs mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-200" : "border-slate-100 text-slate-400"}`}>
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            try {
+                                                                toast.info("번역 시도 중...");
+                                                                const translated = await translateText(msg.text, targetLang);
+                                                                // Update local state
+                                                                setMessages(prev => prev.map(m =>
+                                                                    m.id === msg.id ? { ...m, learningTranslation: translated } : m
+                                                                ));
+                                                                // Cache it
+                                                                localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
+                                                                toast.success("번역 완료!");
+                                                            } catch (error) {
+                                                                console.error("Manual translation failed", error);
+                                                                toast.error("번역 실패. API 키나 할당량을 확인하세요.");
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-1 hover:underline opacity-70 hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <RefreshCw className="w-3 h-3" />
+                                                        <span>번역 다시 시도</span>
+                                                    </button>
+                                                </div>
+                                            )
                                         )}
                                     </div>
-
-                                    {/* Learning Line: Target Language Translation (if exists) */}
-                                    {msg.learningTranslation ? (
-                                        <div className={`text-sm mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-100" : "border-slate-100 text-slate-600"}`}>
-                                            <div className="flex items-center gap-1 mb-1">
-                                                <span className="text-[10px] uppercase tracking-wider opacity-70 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
-                                                    Learning
-                                                </span>
-                                            </div>
-                                            {renderClickableText(msg.learningTranslation, msg.id)}
-                                        </div>
-                                    ) : (
-                                        targetLang !== nativeLang && (
-                                            <div className={`text-xs mt-2 pt-2 border-t ${isMe ? "border-blue-400/30 text-blue-200" : "border-slate-100 text-slate-400"}`}>
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        try {
-                                                            toast.info("번역 시도 중...");
-                                                            const translated = await translateText(msg.text, targetLang);
-                                                            // Update local state
-                                                            setMessages(prev => prev.map(m =>
-                                                                m.id === msg.id ? { ...m, learningTranslation: translated } : m
-                                                            ));
-                                                            // Cache it
-                                                            localStorage.setItem(`trans_${msg.id}_${targetLang}`, translated);
-                                                            toast.success("번역 완료!");
-                                                        } catch (error) {
-                                                            console.error("Manual translation failed", error);
-                                                            toast.error("번역 실패. API 키나 할당량을 확인하세요.");
-                                                        }
-                                                    }}
-                                                    className="flex items-center gap-1 hover:underline opacity-70 hover:opacity-100 transition-opacity"
-                                                >
-                                                    <RefreshCw className="w-3 h-3" />
-                                                    <span>번역 다시 시도</span>
-                                                </button>
-                                            </div>
-                                        )
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1 px-1">
-                                    <span className="text-xs text-slate-400">
-                                        {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                                    </span>
-                                    {isMe && (
-                                        <button
-                                            onClick={() => handleDeleteMessage(msg.id)}
-                                            className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-slate-100 transition-colors"
-                                            title="메시지 삭제"
-                                        >
-                                            <Trash2 className="w-3 h-3" />
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-1 px-1">
+                                        <span className="text-xs text-slate-400">
+                                            {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                        </span>
+                                        {isMe && (
+                                            <button
+                                                onClick={() => handleDeleteMessage(msg.id)}
+                                                className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                                title="메시지 삭제"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
