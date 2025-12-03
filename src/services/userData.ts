@@ -9,7 +9,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import type { WordData } from "../components/ChatMessage";
+import type { WordData } from "../types";
 
 // 사용자 단어장 저장
 export const saveUserVocabulary = async (
@@ -44,7 +44,7 @@ export const getUserVocabulary = async (userId: string) => {
   try {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       const data = userSnap.data();
       return {
@@ -97,7 +97,7 @@ export const getUserStacks = async (userId: string) => {
   try {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       const data = userSnap.data();
       const stacks = data.stacks || {
@@ -107,7 +107,7 @@ export const getUserStacks = async (userId: string) => {
         important: [],
         sentences: [],
       };
-      
+
       // 기존 데이터가 WordData[] 형태일 수 있으므로 변환
       return {
         stacks: {
@@ -183,7 +183,7 @@ export const getUserConversations = async (userId: string) => {
   try {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       const data = userSnap.data();
       return {

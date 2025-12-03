@@ -35,7 +35,7 @@ export function ToeicWordList({
   // 메뉴가 열린 단어 추적
   const [menuOpenWord, setMenuOpenWord] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
 
   const [deletingWords, setDeletingWords] = useState<Set<string>>(new Set());
@@ -123,9 +123,7 @@ export function ToeicWordList({
 
     switch (direction) {
       case "top": // 삭제
-        if (onDeleteWord) {
-          onDeleteWord(menuOpenWord);
-        }
+        handleDeleteWord(menuOpenWord);
         break;
       case "bottom": // 듣기
         handleTTS(menuOpenWord);
@@ -148,7 +146,7 @@ export function ToeicWordList({
             status: entry.status === "white" ? "red" : entry.status,
             messageId: "manual",
             sentence: "",
-            timestamp: new Date()
+            timestamp: new Date(),
           });
           toast.success("중요 단어장에 저장되었습니다.");
         }
@@ -351,15 +349,17 @@ export function ToeicWordList({
       )}
 
       {/* 단어 상세 모달 */}
-      {selectedWord && (
-        <WordDetailModal
-          word={selectedWord.word}
-          koreanMeaning={selectedWord.koreanMeaning}
-          status={selectedWord.status}
-          onClose={() => setSelectedWord(null)}
-          onGenerateStudyTips={onGenerateStudyTips}
-        />
-      )}
+      <WordDetailModal
+        open={!!selectedWord}
+        onOpenChange={(open) => {
+          if (!open) setSelectedWord(null);
+        }}
+        word={selectedWord?.word || ""}
+        koreanMeaning={selectedWord?.koreanMeaning || ""}
+        status={selectedWord?.status || "white"}
+        onClose={() => setSelectedWord(null)}
+        onGenerateStudyTips={onGenerateStudyTips}
+      />
     </div >
   );
 }

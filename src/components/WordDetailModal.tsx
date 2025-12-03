@@ -19,6 +19,7 @@ interface WordDetailModalProps {
   onGenerateStudyTips: (wordText: string, status: "red" | "yellow" | "green" | "white") => Promise<string>;
   onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white") => void;
   onDeleteWord?: (word: string) => void;
+  onClose?: () => void;
 }
 
 export function WordDetailModal({

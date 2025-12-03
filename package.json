@@ -1,5 +1,5 @@
 {
-      "name": "재미나이 앱 복제",
+      "name": "fun-age-app-clone",
       "version": "0.1.0",
       "private": true,
       "dependencies": {
@@ -58,6 +58,7 @@
             "autoprefixer": "^10.4.22",
             "postcss": "^8.5.6",
             "tailwindcss": "^4.1.17",
+            "typescript": "^5.9.3",
             "vite": "6.3.5"
       },
       "scripts": {

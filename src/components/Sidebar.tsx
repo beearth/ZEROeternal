@@ -249,6 +249,24 @@ export function Sidebar({
                 </span>
               )}
             </button>
+
+            {/* Live Chat */}
+            <button
+              onClick={() => navigate("/live-chat")}
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/live-chat")
+                ? "bg-[#2a2b2c]"
+                : "hover:bg-[#2a2b2c]/50"
+                }`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="w-5 h-5 text-indigo-400" />
+                </div>
+                <span className="text-indigo-400 font-medium truncate">
+                  Live AI Chat
+                </span>
+              </div>
+            </button>
           </div>
         </div>
 

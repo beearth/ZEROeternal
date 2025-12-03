@@ -45,6 +45,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // ... (imports remain the same, remove unused ones if any)
 
+import { LiveChat } from "./components/LiveChat";
+
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export default function App() {
   >({});
 
   // Debounce를 위한 ref
-  const saveVocabularyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveVocabularyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 초기 로드 플래그 (스택 재계산 방지)
   const isInitialLoad = useRef(true);
@@ -253,6 +255,7 @@ export default function App() {
   const loadUserData = async (userId: string) => {
     try {
       // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
+      isInitialLoad.current = true; // 스택 재계산 방지 리셋
       setUserVocabulary({});
       setRedStack([]);
       setYellowStack([]);
@@ -265,7 +268,11 @@ export default function App() {
 
       // 스택 불러오기
       const stacksResult = await getUserStacks(userId);
-      if (!stacksResult.error && stacksResult.stacks) {
+      if (stacksResult.error) {
+        throw new Error("스택 불러오기 실패: " + stacksResult.error);
+      }
+
+      if (stacksResult.stacks) {
         // Red, Yellow, Green Stack은 string[] 타입이므로 그대로 사용
         // 만약 기존 데이터가 WordData[] 형태라면 변환 필요
         const redData = stacksResult.stacks.red || [];
@@ -304,13 +311,15 @@ export default function App() {
           setCurrentConversationId(loadedConversations[0].id);
         }
       }
-    } catch (error) {
-      console.error("사용자 데이터 로딩 실패:", error);
-      toast.error("데이터를 불러오는 중 오류가 발생했습니다.");
-    } finally {
-      // 모든 데이터 로딩 완료 (성공하든 실패하든)
+
+      // 모든 데이터 로딩 성공 시에만 true로 설정
       setIsDataLoaded(true);
       console.log("✅ 모든 사용자 데이터 로딩 완료");
+
+    } catch (error) {
+      console.error("사용자 데이터 로딩 실패:", error);
+      toast.error("데이터를 불러오는 중 오류가 발생했습니다. 새로고침 해주세요.");
+      // 실패 시 isDataLoaded를 true로 설정하지 않음으로써 자동 저장을 방지
     }
   };
 
@@ -1011,6 +1020,20 @@ export default function App() {
                 onDeleteWord={handleResetWordStatus}
                 onSaveImportant={handleSaveImportant}
                 isLoading={isToeicLoading}
+              />
+            }
+          />
+          <Route
+            path="/live-chat"
+            element={
+              <LiveChat
+                user={user}
+                userVocabulary={userVocabulary}
+                onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white", word: string) => handleUpdateWordStatus(word, status)}
+                onResetWordStatus={handleResetWordStatus}
+                nativeLang={nativeLang}
+                onSaveSentence={handleSaveSentence}
+                onSaveImportant={handleSaveImportant}
               />
             }
           />

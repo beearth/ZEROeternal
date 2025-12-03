@@ -13,7 +13,7 @@ export function useLongPress({
   delay = 500,
   threshold = 10,
 }: UseLongPressOptions) {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const isLongPressRef = useRef(false);
   const hasMovedRef = useRef(false);
@@ -24,7 +24,7 @@ export function useLongPress({
       // 기본 동작 방지
       event.preventDefault();
       event.stopPropagation();
-      
+
       startPosRef.current = { x: event.clientX, y: event.clientY };
       isLongPressRef.current = false;
       hasMovedRef.current = false;
@@ -67,7 +67,7 @@ export function useLongPress({
     (event: React.MouseEvent | React.PointerEvent, isActualClick: boolean = false) => {
       const wasLongPress = isLongPressRef.current;
       const hadMoved = hasMovedRef.current;
-      
+
       clear();
 
       // 실제 클릭(포인터 다운 + 포인터 업)이고 롱프레스가 아니었고 움직임이 없었을 때만 onClick 실행

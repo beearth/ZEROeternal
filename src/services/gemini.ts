@@ -188,7 +188,7 @@ export async function getKoreanMeaning(word: string): Promise<string> {
   try {
     // 할당량이 더 여유로운 Flash 모델 사용 (일반 채팅용)
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-    const prompt = `다음 영어 단어의 한글 뜻을 한 단어 또는 짧은 구로만 답변해주세요. 다른 설명 없이 뜻만 답변하세요: "${word}"`;
+    const prompt = `다음 단어(또는 구)의 한국어 뜻을 한 단어 또는 짧은 구로만 답변해주세요. 입력된 단어의 언어가 무엇이든 상관없이 한국어 뜻만 답변하세요. 다른 설명은 절대 하지 마세요: "${word}"`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -245,9 +245,9 @@ export async function generateStudyTips(
       white: "미분류 단어 (아직 학습 상태가 정해지지 않은 단어)",
     };
 
-    const prompt = `나는 현재 영단어 "${wordText}"를 ${statusDescriptions[status]} 상태로 분류했습니다. 
-
-이 단어를 가장 효과적으로 학습하고 마스터할 수 있는 3가지 맞춤 학습 전략을 한국어로 제시해 주세요. 각 전략은 구체적이고 실용적이어야 하며, 번호를 매겨서 명확하게 구분해주세요.`;
+    const prompt = `나는 현재 단어 "${wordText}"를 ${statusDescriptions[status]} 상태로 분류했습니다. 
+    
+이 단어를 가장 효과적으로 학습하고 마스터할 수 있는 3가지 맞춤 학습 전략을 한국어로 제시해 주세요. 단어의 언어(영어, 중국어, 일본어 등)에 맞는 적절한 학습법을 제안해야 합니다. 각 전략은 구체적이고 실용적이어야 하며, 번호를 매겨서 명확하게 구분해주세요.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -273,7 +273,7 @@ export async function generatePersonalizedTips(
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    const prompt = `토익 학습을 위한 개인 코치입니다. 단어 '${wordText}'를 '${status}' 상태에 두고 있습니다. 이 단어를 마스터하기 위한 **실용적인 학습 전략 3가지**를 간결한 Markdown 목록 형태로 제시해주세요.`;
+    const prompt = `언어 학습을 위한 개인 코치입니다. 단어 '${wordText}'를 '${status}' 상태에 두고 있습니다. 이 단어를 마스터하기 위한 **실용적인 학습 전략 3가지**를 간결한 Markdown 목록 형태로 제시해주세요. 단어의 언어 특성을 고려하여 조언해주세요.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -299,5 +299,23 @@ export async function generateText(prompt: string): Promise<string> {
   } catch (error: any) {
     console.error('텍스트 생성 실패:', error);
     throw new Error(`텍스트 생성 중 오류가 발생했습니다: ${error.message}`);
+  }
+}
+
+export async function translateText(text: string, targetLang: string): Promise<string> {
+  if (!genAI) {
+    throw new Error('Gemini API가 초기화되지 않았습니다.');
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const prompt = `Translate the following text to ${targetLang}. Only provide the translated text without any explanations or additional text:\n\n"${text}"`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  } catch (error: any) {
+    console.error('번역 실패:', error);
+    throw new Error(`번역 중 오류가 발생했습니다: ${error.message}`);
   }
 }

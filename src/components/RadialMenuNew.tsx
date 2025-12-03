@@ -5,6 +5,7 @@ import {
   FileText,
   Volume2,
   X,
+  Bookmark,
 } from "lucide-react";
 
 export type RadialDirection =
@@ -21,6 +22,7 @@ interface RadialMenuProps {
   onSelect: (direction: RadialDirection) => void;
   selectedWord: string;
   showDelete?: boolean;
+  variant?: "default" | "chat";
 }
 
 export function RadialMenu({
@@ -30,6 +32,7 @@ export function RadialMenu({
   onSelect,
   selectedWord,
   showDelete = true,
+  variant = "default",
 }: RadialMenuProps) {
   const [activeDirection, setActiveDirection] =
     useState<RadialDirection>("none");
@@ -84,7 +87,7 @@ export function RadialMenu({
       if (activeDirection !== "none") {
         // If direction is top and showDelete is false, do nothing (just close or stay open?)
         // Let's just close without triggering action
-        if (activeDirection === "top" && !showDelete) {
+        if (activeDirection === "top" && !showDelete && variant !== "chat") {
           onClose();
           return;
         }
@@ -288,36 +291,60 @@ export function RadialMenu({
           positions.bottom
         )}
 
-        {/* Left: Save Sentence */}
-        {renderMenuItem(
-          "left",
-          <FileText size={32} color={activeDirection === "left" ? "white" : "currentColor"} />,
-          "문장 저장",
-          "#6366f1", // indigo-500
-          "#4f46e5", // indigo-600
-          "white",
-          positions.left
+        {/* Left: Detail or Save Sentence */}
+        {variant === "chat" ? (
+          renderMenuItem(
+            "left",
+            <Bookmark size={32} color={activeDirection === "left" ? "white" : "currentColor"} />,
+            "문장 저장",
+            "#10b981", // emerald-500
+            "#059669", // emerald-600
+            "white",
+            positions.left
+          )
+        ) : (
+          renderMenuItem(
+            "left",
+            <FileText size={32} color={activeDirection === "left" ? "white" : "currentColor"} />,
+            "상세보기",
+            "#6366f1", // indigo-500
+            "#4f46e5", // indigo-600
+            "white",
+            positions.left
+          )
         )}
 
 
-        {/* Top: Delete (or Blank) */}
-        {showDelete ? renderMenuItem(
-          "top",
-          <X size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
-          "삭제",
-          "#ef4444", // red-500
-          "#dc2626", // red-600
-          "white",
-          positions.top
-        ) : renderMenuItem(
-          "top",
-          null, // No icon
-          "", // No label
-          "#e2e8f0", // slate-200 (Active background for blank)
-          "#cbd5e1", // slate-300
-          "transparent",
-          positions.top,
-          true // isDisabled
+        {/* Top: Delete or Detail (Chat mode) */}
+        {variant === "chat" ? (
+          renderMenuItem(
+            "top",
+            <FileText size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
+            "상세보기",
+            "#6366f1", // indigo-500
+            "#4f46e5", // indigo-600
+            "white",
+            positions.top
+          )
+        ) : (
+          showDelete ? renderMenuItem(
+            "top",
+            <X size={32} color={activeDirection === "top" ? "white" : "currentColor"} />,
+            "삭제",
+            "#ef4444", // red-500
+            "#dc2626", // red-600
+            "white",
+            positions.top
+          ) : renderMenuItem(
+            "top",
+            null, // No icon
+            "", // No label
+            "#e2e8f0", // slate-200 (Active background for blank)
+            "#cbd5e1", // slate-300
+            "transparent",
+            positions.top,
+            true // isDisabled
+          )
         )}
 
       </div>

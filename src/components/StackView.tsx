@@ -41,7 +41,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   // 메뉴가 열린 단어 추적
   const [menuOpenWord, setMenuOpenWord] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
 
   // 삭제 중인 단어 추적 (애니메이션용)

@@ -3,6 +3,8 @@ import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw } from 
 import { toast } from "sonner";
 import { useLongPress } from "../hooks/useLongPress";
 import { RadialMenu, RadialDirection } from "./RadialMenuNew";
+import { WordDetailModal } from "./WordDetailModal";
+import { generateStudyTips } from "../services/gemini";
 
 import type { WordData } from "../types";
 
@@ -223,6 +225,15 @@ export function ChatMessage({
     selectedWordData: null,
   });
 
+  // Word Detail Modal State
+  const [selectedDetailWord, setSelectedDetailWord] = useState<{
+    word: string;
+    koreanMeaning: string;
+    status: "red" | "yellow" | "green" | "white";
+    messageId: string;
+    fullSentence: string;
+  } | null>(null);
+
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const radialMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -305,7 +316,7 @@ export function ChatMessage({
   }, [wordStates]);
 
   // Debounce refs for word updates
-  const updateTimeouts = useRef<Record<number, NodeJS.Timeout>>({});
+  const updateTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // 단어 클릭 (짧은 탭) - 색상 순환 및 상태 업데이트
   const handleWordClick = useCallback(async (index: number, word: string) => {
@@ -577,6 +588,19 @@ export function ChatMessage({
           toast.error("음성 재생을 지원하지 않는 브라우저입니다.");
         }
         break;
+      case "top":
+        // ⬆️ Top: 상세보기 (Detail)
+        if (finalWord && finalWord.length >= 2) {
+          const entry = userVocabulary?.[finalWord.toLowerCase()];
+          setSelectedDetailWord({
+            word: finalWord,
+            koreanMeaning: entry?.koreanMeaning || "",
+            status: entry?.status || "white",
+            messageId: message.id,
+            fullSentence: message.content
+          });
+        }
+        break;
       default:
         // 다른 방향은 아직 기능 없음 (Placeholder)
         break;
@@ -620,16 +644,29 @@ export function ChatMessage({
       .trim();
   };
 
-  // 의미 있는 단어인지 확인 (영문자, 숫자, 하이픈 포함)
+  // 의미 있는 단어인지 확인 (모든 언어 지원)
   const isMeaningfulWord = (text: string): boolean => {
     const cleaned = cleanMarkdown(text);
-    // 최소 2글자 이상이고, 영문자/숫자로 구성된 단어만 의미 있음
-    return /^[a-zA-Z0-9-]{2,}$/.test(cleaned);
+    // 유니코드 속성 이스케이프를 사용하여 모든 언어의 문자(\p{L})와 숫자(\p{N}) 허용
+    // 힌디어, 아랍어, 태국어 등 포함
+    return /[\p{L}\p{N}]/u.test(cleaned);
   };
 
   const renderWords = (text: string) => {
-    // 줄바꿈, 공백, 문장부호를 경계로 분리
-    const parts = text.split(/([\s\n.,?!;:()\[\]{}"'`]+)/);
+    let parts: string[] = [];
+
+    // Use Intl.Segmenter for intelligent word segmentation (supports CJK, etc.)
+    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+      const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
+      const segments = segmenter.segment(text);
+      for (const { segment } of segments) {
+        parts.push(segment);
+      }
+    } else {
+      // Fallback for older browsers: split by whitespace and punctuation
+      parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+    }
+
     let wordIndex = 0;
 
     return parts.map((part, partIndex) => {
@@ -723,6 +760,7 @@ export function ChatMessage({
           onSelect={handleRadialSelect}
           selectedWord={radialMenu.selectedWordData?.word || ""}
           showDelete={false}
+          variant="chat"
         />
       )}
 
@@ -761,6 +799,29 @@ export function ChatMessage({
           </div>
         )}
       </div>
+
+      {/* Word Detail Modal */}
+      <WordDetailModal
+        open={!!selectedDetailWord}
+        onOpenChange={(open) => !open && setSelectedDetailWord(null)}
+        word={selectedDetailWord?.word || ""}
+        koreanMeaning={selectedDetailWord?.koreanMeaning || ""}
+        status={selectedDetailWord?.status || "white"}
+        onGenerateStudyTips={generateStudyTips}
+        onUpdateWordStatus={(word, newStatus) => {
+          if (selectedDetailWord && onUpdateWordStatus) {
+            onUpdateWordStatus(
+              `${selectedDetailWord.messageId}-${word}`,
+              newStatus,
+              word,
+              selectedDetailWord.messageId,
+              selectedDetailWord.fullSentence
+            );
+            // Update local state to reflect change immediately in modal
+            setSelectedDetailWord(prev => prev ? { ...prev, status: newStatus } : null);
+          }
+        }}
+      />
     </>
   );
 }
