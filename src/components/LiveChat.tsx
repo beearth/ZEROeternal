@@ -148,16 +148,51 @@ export function LiveChat({
     // Subscribe to Firestore chats
     useEffect(() => {
         const q = query(collection(db, "chats"), orderBy("timestamp", "asc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
             const msgs: ChatMessage[] = [];
-            snapshot.forEach((doc) => {
-                msgs.push({ id: doc.id, ...doc.data() } as ChatMessage);
+
+            // Use Promise.all to handle async translations
+            const promises = snapshot.docs.map(async (doc) => {
+                const data = doc.data() as Omit<ChatMessage, 'id'>;
+                const msg: ChatMessage = { id: doc.id, ...data };
+
+                // If message is from others and targetLang matches my nativeLang, use translatedText
+                // But if the message was sent in English and I am Korean, the stored translatedText might be in the sender's target lang (e.g. Spanish)
+                // So we need to check if we need to re-translate for ME.
+
+                // For now, let's assume 'translatedText' in DB is always the target language of the SENDER.
+                // If I am the receiver, I want to see:
+                // Top: Original Text (e.g. English)
+                // Bottom: Translated Text in MY Native Lang (e.g. Korean)
+
+                // If the message is NOT from me:
+                if (user && msg.senderId !== user.uid) {
+                    // Check if the message needs translation to my native language
+                    if (msg.targetLang !== nativeLang) {
+                        try {
+                            const cachedTranslation = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
+                            if (cachedTranslation) {
+                                msg.translatedText = cachedTranslation;
+                            } else {
+                                const translated = await translateText(msg.text, nativeLang);
+                                msg.translatedText = translated;
+                                localStorage.setItem(`trans_${msg.id}_${nativeLang}`, translated);
+                            }
+                        } catch (e) {
+                            console.error("Auto-translation failed", e);
+                        }
+                    }
+                }
+
+                return msg;
             });
-            setMessages(msgs);
+
+            const resolvedMsgs = await Promise.all(promises);
+            setMessages(resolvedMsgs);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [user, nativeLang]);
 
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
