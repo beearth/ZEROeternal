@@ -278,23 +278,76 @@ export default function App() {
       setImportantStack([]);
       setSentenceStack([]);
 
-      // 단어장 불러오기 (새로운 함수 사용)
-      await loadVocabularyFromDB(userId);
-
-      // 스택 불러오기
+      // 1. 단어장(Stacks) 불러오기 - 상태(Status)의 기준점 (Source of Truth)
       const stacksResult = await getUserStacks(userId);
       if (stacksResult.error) {
         throw new Error("스택 불러오기 실패: " + stacksResult.error);
       }
 
-      if (stacksResult.stacks) {
-        // Red, Yellow, Green Stack은 userVocabulary에서 유도되므로 여기서 설정하지 않음 (동기화 문제 해결)
-        // 오직 Important와 Sentences만 별도 저장소에서 불러옴
-        setImportantStack(stacksResult.stacks.important || []);
-        setSentenceStack(stacksResult.stacks.sentences || []);
+      const redList = stacksResult.stacks?.red || [];
+      const yellowList = stacksResult.stacks?.yellow || [];
+      const greenList = stacksResult.stacks?.green || [];
+
+      setImportantStack(stacksResult.stacks?.important || []);
+      setSentenceStack(stacksResult.stacks?.sentences || []);
+
+      // 2. 메타데이터(Vocabulary) 불러오기 - 뜻(Meaning)의 기준점
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+      let dbVocab: Record<string, any> = {};
+      if (userSnap.exists()) {
+        dbVocab = userSnap.data().vocabulary || {};
       }
 
-      // 대화 불러오기
+      // 3. 데이터 병합 (Merge)
+      // 전략: DB에 있는 단어들을 먼저 'white' 상태로 로드(뜻 보존)한 뒤, Stack에 있는 단어들로 상태를 덮어씌움
+      const mergedVocab: Record<string, VocabularyEntry> = {};
+
+      // 3-1. DB Vocab 로드 (Status는 일단 white로 설정)
+      Object.entries(dbVocab).forEach(([key, value]) => {
+        const wordKey = key.toLowerCase();
+        // 기존 데이터 형식 호환성 처리
+        const meaning = typeof value === 'string' ? "" : (value.koreanMeaning || "");
+        const category = typeof value === 'string' ? undefined : value.category;
+
+        mergedVocab[wordKey] = {
+          status: 'white',
+          koreanMeaning: meaning,
+          category: category
+        };
+      });
+
+      // 3-2. Stack 데이터로 Status 덮어쓰기
+      const processStack = (list: any[], status: "red" | "yellow" | "green") => {
+        list.forEach(item => {
+          const wordText = typeof item === 'string' ? item : item.word;
+          const clean = extractCleanWord(wordText);
+          if (!clean) return;
+
+          const key = clean.toLowerCase();
+          const existing = mergedVocab[key];
+
+          mergedVocab[key] = {
+            status: status,
+            koreanMeaning: existing?.koreanMeaning || (typeof item === 'object' ? item.koreanMeaning : "") || "",
+            category: existing?.category
+          };
+        });
+      };
+
+      processStack(redList, "red");
+      processStack(yellowList, "yellow");
+      processStack(greenList, "green");
+
+      // 4. 상태 업데이트
+      setUserVocabulary(mergedVocab);
+
+      // 스택 상태도 업데이트 (화면 표시용)
+      setRedStack(redList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
+      setYellowStack(yellowList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
+      setGreenStack(greenList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
+
+      // 5. 대화 불러오기
       const convResult = await getUserConversations(userId);
       if (!convResult.error && convResult.conversations.length > 0) {
         // Firestore에서 불러온 데이터를 Conversation 형식으로 변환
@@ -314,12 +367,11 @@ export default function App() {
 
       // 모든 데이터 로딩 성공 시에만 true로 설정
       setIsDataLoaded(true);
-      console.log("✅ 모든 사용자 데이터 로딩 완료");
+      console.log("✅ 사용자 데이터 로딩 완료 (Stacks Priority)");
 
     } catch (error) {
       console.error("사용자 데이터 로딩 실패:", error);
       toast.error("데이터를 불러오는 중 오류가 발생했습니다. 새로고침 해주세요.");
-      // 실패 시 isDataLoaded를 true로 설정하지 않음으로써 자동 저장을 방지
     }
   };
 
