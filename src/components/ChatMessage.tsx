@@ -197,6 +197,40 @@ const WordSpan = React.memo(({
   );
 });
 
+// 마크다운 제거 함수
+const cleanMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*/g, "") // ** 제거
+    .replace(/\*/g, "") // * 제거
+    .replace(/`/g, "") // 백틱 제거
+    .replace(/#{1,6}\s/g, "") // 헤더 마크다운 제거
+    .trim();
+};
+
+// 의미 있는 단어인지 확인 (모든 언어 지원)
+const isMeaningfulWord = (text: string): boolean => {
+  const cleaned = cleanMarkdown(text);
+  // 유니코드 속성 이스케이프를 사용하여 모든 언어의 문자(\p{L})와 숫자(\p{N}) 허용
+  return /[\p{L}\p{N}]/u.test(cleaned);
+};
+
+// 텍스트 세그먼트 분리 함수 (일관된 토큰화 보장)
+const getSegments = (text: string) => {
+  let parts: string[] = [];
+  // Use Intl.Segmenter for intelligent word segmentation (supports CJK, etc.)
+  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+    const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
+    const segments = segmenter.segment(text);
+    for (const { segment } of segments) {
+      parts.push(segment);
+    }
+  } else {
+    // Fallback for older browsers
+    parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+  }
+  return parts;
+};
+
 export function ChatMessage({
   message,
   isTyping = false,
@@ -273,12 +307,14 @@ export function ChatMessage({
     if (!isAssistant || isTyping) return;
 
     // 메시지 텍스트를 토큰화해서 전역 단어장과 동기화
-    const parts = message.content.split(/([\s\n.,?!;:()\[\]{}"'`]+)/);
+    // 중요: renderWords와 동일한 getSegments 함수를 사용하여 인덱스 불일치 방지
+    const parts = getSegments(message.content);
     let wordIndex = 0;
     const newWordStates: Record<number, number> = {};
 
     parts.forEach((part) => {
-      if (/^[\s\n.,?!;:()\[\]{}"'`]+$/.test(part)) return;
+      // 공백 등 건너뛰기 로직도 renderWords와 동일해야 함
+      if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) return;
 
       const cleanedWord = cleanMarkdown(part);
       if (!isMeaningfulWord(part)) return;
@@ -291,7 +327,7 @@ export function ChatMessage({
         const state = status === "red" ? 1 : status === "yellow" ? 2 : 3;
         newWordStates[wordIndex] = state;
       } else {
-        // 전역 단어장에 없으면 0(White)으로 명시적 설정 (동기화 보장)
+        // 전역 단어장에 없으면 0(White)으로 명시적 설정
         newWordStates[wordIndex] = 0;
       }
 
@@ -301,10 +337,21 @@ export function ChatMessage({
     // 기존 상태와 병합 (전역 상태를 우선시하여 덮어쓰기)
     setWordStates((prev) => {
       const merged = { ...prev };
+      // 모든 인덱스에 대해 업데이트 (누락된 인덱스가 없도록)
       Object.keys(newWordStates).forEach((key) => {
         const numKey = parseInt(key);
         merged[numKey] = newWordStates[numKey];
       });
+
+      // 더 이상 유효하지 않은 인덱스 제거
+      const maxIndex = wordIndex;
+      Object.keys(merged).forEach((key) => {
+        const numKey = parseInt(key);
+        if (numKey >= maxIndex) {
+          delete merged[numKey];
+        }
+      });
+
       return merged;
     });
   }, [userVocabulary, message.content, isAssistant, isTyping]);
@@ -634,44 +681,13 @@ export function ChatMessage({
     setHighlightWord(null);
   }, []);
 
-  // 마크다운 제거 함수
-  const cleanMarkdown = (text: string): string => {
-    return text
-      .replace(/\*\*/g, "") // ** 제거
-      .replace(/\*/g, "") // * 제거
-      .replace(/`/g, "") // 백틱 제거
-      .replace(/#{1,6}\s/g, "") // 헤더 마크다운 제거
-      .trim();
-  };
-
-  // 의미 있는 단어인지 확인 (모든 언어 지원)
-  const isMeaningfulWord = (text: string): boolean => {
-    const cleaned = cleanMarkdown(text);
-    // 유니코드 속성 이스케이프를 사용하여 모든 언어의 문자(\p{L})와 숫자(\p{N}) 허용
-    // 힌디어, 아랍어, 태국어 등 포함
-    return /[\p{L}\p{N}]/u.test(cleaned);
-  };
-
   const renderWords = (text: string) => {
-    let parts: string[] = [];
-
-    // Use Intl.Segmenter for intelligent word segmentation (supports CJK, etc.)
-    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-      const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
-      const segments = segmenter.segment(text);
-      for (const { segment } of segments) {
-        parts.push(segment);
-      }
-    } else {
-      // Fallback for older browsers: split by whitespace and punctuation
-      parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
-    }
-
+    const parts = getSegments(text);
     let wordIndex = 0;
 
     return parts.map((part, partIndex) => {
       // 공백, 줄바꿈, 문장부호만 있는 경우 그대로 렌더링
-      if (/^[\s\n.,?!;:()\[\]{}"'`]+$/.test(part)) {
+      if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
         return <span key={partIndex}>{part}</span>;
       }
 
