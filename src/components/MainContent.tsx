@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { Menu, X, User, LogOut, Send } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
@@ -61,6 +61,15 @@ export function MainContent({
     onSaveImportant,
     onSaveSentence,
 }: MainContentProps) {
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [currentConversation?.messages, isTyping]);
     return (
         <div className="flex-1 flex flex-col">
             {/* 헤더 */}
@@ -160,6 +169,7 @@ export function MainContent({
                                 isTyping={true}
                             />
                         )}
+                        <div ref={messagesEndRef} />
                     </div>
                 )}
             </div>
