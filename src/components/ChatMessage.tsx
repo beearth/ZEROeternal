@@ -290,20 +290,20 @@ export function ChatMessage({
         const status = globalEntry.status;
         const state = status === "red" ? 1 : status === "yellow" ? 2 : 3;
         newWordStates[wordIndex] = state;
+      } else {
+        // 전역 단어장에 없으면 0(White)으로 명시적 설정 (동기화 보장)
+        newWordStates[wordIndex] = 0;
       }
 
       wordIndex++;
     });
 
-    // 기존 상태와 병합 (사용자가 직접 변경한 것은 유지)
+    // 기존 상태와 병합 (전역 상태를 우선시하여 덮어쓰기)
     setWordStates((prev) => {
       const merged = { ...prev };
       Object.keys(newWordStates).forEach((key) => {
         const numKey = parseInt(key);
-        // 전역 상태가 있고 로컬 상태가 없거나 0이면 전역 상태 사용
-        if (!prev[numKey] || prev[numKey] === 0) {
-          merged[numKey] = newWordStates[numKey];
-        }
+        merged[numKey] = newWordStates[numKey];
       });
       return merged;
     });
