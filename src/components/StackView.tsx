@@ -12,8 +12,8 @@ interface StackViewProps {
   items: WordData[] | string[];
   userVocabulary?: Record<string, VocabularyEntry>;
   onUpdateVocabulary?: (word: string, meaning: string) => void;
-  onGenerateStudyTips?: (wordText: string, status: "red" | "yellow" | "green" | "white") => Promise<string>;
-  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white") => void;
+  onGenerateStudyTips?: (wordText: string, status: "red" | "yellow" | "green" | "white" | "orange") => Promise<string>;
+  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white" | "orange") => void;
   onDeleteWord?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
 }
@@ -35,7 +35,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   const [selectedWord, setSelectedWord] = useState<{
     word: string;
     koreanMeaning: string;
-    status: "red" | "yellow" | "green" | "white";
+    status: "red" | "yellow" | "green" | "white" | "orange";
   } | null>(null);
 
   // 메뉴가 열린 단어 추적
@@ -48,10 +48,11 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   const [deletingWords, setDeletingWords] = useState<Set<string>>(new Set());
 
   // 현재 스택의 상태 결정
-  const getCurrentStatus = (): "red" | "yellow" | "green" => {
+  const getCurrentStatus = (): "red" | "yellow" | "green" | "orange" => {
     if (title === "Red Signal") return "red";
     if (title === "Yellow Signal") return "yellow";
     if (title === "Green Signal") return "green";
+    if (title === "중요 단어장" || title === "Important Words") return "orange";
     return "red"; // default
   };
 
@@ -158,7 +159,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
             id: Date.now().toString(),
             word: menuOpenWord,
             koreanMeaning: currentMeaning,
-            status: currentStatus === "white" ? "red" : currentStatus,
+            status: "orange", // 중요 단어는 주황색으로 저장
             messageId: "manual",
             sentence: "",
             timestamp: new Date()
@@ -194,6 +195,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       case "red": return "text-white border-red-500";
       case "yellow": return "text-black border-yellow-500";
       case "green": return "text-white border-green-500";
+      case "orange": return "text-white border-orange-500";
       default: return "bg-white text-gray-900 border-2 border-gray-200 hover:border-gray-400 shadow-sm";
     }
   };
@@ -203,6 +205,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       case "red": return { backgroundColor: '#ef4444' };
       case "yellow": return { backgroundColor: '#eab308' };
       case "green": return { backgroundColor: '#22c55e' };
+      case "orange": return { backgroundColor: '#f97316' }; // orange-500
       default: return { backgroundColor: '#ffffff' };
     }
   };
@@ -312,7 +315,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                         const wordKey = item.toLowerCase();
                         const vocabEntry = userVocabulary[wordKey];
                         const koreanMeaning = vocabEntry?.koreanMeaning || "";
-                        const status = vocabEntry?.status || currentStatus;
+                        const status = currentStatus;
 
                         const isDeleting = deletingWords.has(item);
                         return (
@@ -340,7 +343,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                         const wordKey = item.word.toLowerCase();
                         const vocabEntry = userVocabulary[wordKey];
                         const koreanMeaning = vocabEntry?.koreanMeaning || item.koreanMeaning || "";
-                        const status = item.status || "red";
+                        const status = "orange";
 
                         const isDeleting = deletingWords.has(item.word);
                         return (

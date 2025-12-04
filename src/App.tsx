@@ -40,29 +40,9 @@ interface Conversation {
 import type { WordData, VocabularyEntry } from "./types";
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-
-
-// ... (imports remain the same, remove unused ones if any)
-
 import { LiveChat } from "./components/LiveChat";
 
-// ...
 
-{/* <Route
-            path="/live-chat"
-            element={
-              <LiveChat
-                user={user}
-                userVocabulary={userVocabulary}
-                onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white", word: string) => handleUpdateWordStatus(word, status)}
-                onResetWordStatus={handleResetWordStatus}
-                nativeLang={nativeLang}
-                onSaveSentence={handleSaveSentence}
-                onSaveImportant={handleSaveImportant}
-              />
-            }
-          /> */}
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -288,7 +268,9 @@ export default function App() {
       const yellowList = stacksResult.stacks?.yellow || [];
       const greenList = stacksResult.stacks?.green || [];
 
-      setImportantStack(stacksResult.stacks?.important || []);
+      const importantList = stacksResult.stacks?.important || [];
+
+      setImportantStack(importantList);
       setSentenceStack(stacksResult.stacks?.sentences || []);
 
       // 2. 메타데이터(Vocabulary) 불러오기 - 뜻(Meaning)의 기준점
@@ -316,15 +298,17 @@ export default function App() {
         const meaning = typeof value === 'string' ? "" : (value.koreanMeaning || "");
         const category = typeof value === 'string' ? undefined : value.category;
 
+        const status = (value.status === 'red' || value.status === 'yellow' || value.status === 'green' || value.status === 'orange') ? value.status : 'white';
+
         mergedVocab[wordKey] = {
-          status: 'white',
+          status: status,
           koreanMeaning: meaning,
           category: category
         };
       });
 
       // 3-2. Stack 데이터로 Status 덮어쓰기
-      const processStack = (list: any[], status: "red" | "yellow" | "green") => {
+      const processStack = (list: any[], status: "red" | "yellow" | "green" | "orange") => {
         list.forEach(item => {
           const wordText = typeof item === 'string' ? item : item.word;
           const clean = extractCleanWord(wordText);
@@ -344,6 +328,7 @@ export default function App() {
       processStack(redList, "red");
       processStack(yellowList, "yellow");
       processStack(greenList, "green");
+      processStack(importantList, "orange"); // Important words are orange
 
       // 4. 상태 업데이트
       // userVocabulary를 업데이트하면 useEffect가 동작하여 setRedStack 등은 자동으로 처리됨
@@ -404,7 +389,21 @@ export default function App() {
     const yellowWords: string[] = [];
     const greenWords: string[] = [];
 
+    // [CRITICAL FIX] Corrupted Data Cleanup
+    // Detect if any keys are raw IDs (e.g. "1764821232073-56-there") instead of words
+    // and remove them to fix the display issue.
+    let hasCorruptedKeys = false;
+    const cleanVocabulary = { ...userVocabulary };
+
     Object.keys(userVocabulary).forEach((wordKey) => {
+      // Check for ID pattern: timestamp-index-word
+      if (/^\d{10,}-\d+-/.test(wordKey)) {
+        console.warn(`Found corrupted key: ${wordKey}, removing...`);
+        delete cleanVocabulary[wordKey];
+        hasCorruptedKeys = true;
+        return; // Skip adding to stacks
+      }
+
       const entry = userVocabulary[wordKey];
       switch (entry.status) {
         case "red":
@@ -419,10 +418,21 @@ export default function App() {
       }
     });
 
+    // If we found corrupted keys, update the state and DB immediately
+    if (hasCorruptedKeys) {
+      console.log("Cleaning up corrupted vocabulary keys...");
+      setUserVocabulary(cleanVocabulary);
+      if (user) {
+        saveVocabularyToDB(user.uid, cleanVocabulary);
+      }
+      // Return early to let the next render handle the stacks with clean data
+      return;
+    }
+
     setRedStack(redWords);
     setYellowStack(yellowWords);
     setGreenStack(greenWords);
-  }, [userVocabulary]);
+  }, [userVocabulary, user]);
 
   // 스택을 Firebase에 저장 (개별 필드 저장으로 변경하여 Race Condition 방지)
 
@@ -633,21 +643,43 @@ export default function App() {
     });
   };
 
-  // 단어 상태 업데이트 핸들러 (전역 동기화 + Firestore 저장)
+  // 단어 상태 업데이트 핸들러 (Red/Yellow/Green/White/Orange)
+  // StackView에서는 (word, status)로 호출
+  // ChatMessage에서는 (wordId, status, word, messageId, sentence, koreanMeaning, isReturningToRed)로 호출
   const handleUpdateWordStatus = useCallback(async (
-    word: string,
-    newStatus: "red" | "yellow" | "green" | "white",
-    koreanMeaning: string = ""
+    wordOrId: string,
+    newStatus: "red" | "yellow" | "green" | "white" | "orange",
+    wordParam?: string,
+    messageId?: string,
+    sentence?: string,
+    koreanMeaningParam?: string,
+    isReturningToRed: boolean = false
   ) => {
+    // wordParam이 있으면 ChatMessage에서 호출된 것 (wordOrId는 ID)
+    // wordParam이 없으면 StackView에서 호출된 것 (wordOrId는 Word)
+    const word = wordParam || wordOrId;
+    const koreanMeaning = koreanMeaningParam || "";
+
     console.log("Updating status for:", word, "to", newStatus);
 
     // 1. 먼저 입력된 단어를 그대로 키로 변환해 시도 (TOEIC 리스트 등에서 정확한 키를 보낼 때)
     let wordKey = word.toLowerCase().trim();
     let cleanWord = word.trim();
 
+    // [FALLBACK] If word looks like an ID (timestamp-index-word), extract the word part
+    // This handles cases where ChatMessage might fail to pass the wordParam correctly
+    if (/^\d{10,}-\d+-.+/.test(word)) {
+      const match = word.match(/^\d{10,}-\d+-(.+)$/);
+      if (match && match[1]) {
+        console.warn("Detected ID passed as word, extracting word part:", match[1]);
+        cleanWord = match[1];
+        wordKey = cleanWord.toLowerCase().trim();
+      }
+    }
+
     // 2. 만약 키가 존재하지 않으면, 마크다운/특수문자 제거 후 다시 시도 (채팅에서 드래그로 선택했을 때)
     if (!userVocabulary[wordKey]) {
-      cleanWord = extractCleanWord(word);
+      cleanWord = extractCleanWord(cleanWord); // Use cleanWord here
       wordKey = cleanWord.toLowerCase().trim();
     }
 
@@ -692,11 +724,6 @@ export default function App() {
         },
       };
 
-      // 2. 로그인 상태라면 Firestore에 즉시 저장
-      if (user) {
-        saveVocabularyToDB(user.uid, updatedVocabulary);
-      }
-
       return updatedVocabulary;
     });
   }, [user, userVocabulary]);
@@ -715,7 +742,7 @@ export default function App() {
   };
 
   // 학습 팁 생성 핸들러
-  const handleGenerateStudyTips = useCallback(async (word: string, status: "red" | "yellow" | "green" | "white") => {
+  const handleGenerateStudyTips = useCallback(async (word: string, status: "red" | "yellow" | "green" | "white" | "orange") => {
     return await generateStudyTips(word, status);
   }, []);
 
@@ -764,6 +791,26 @@ export default function App() {
     setImportantStack((prev) => {
       if (prev.find((w) => w.id === word.id)) return prev;
       return [...prev, wordWithMeaning];
+    });
+
+    // 전역 단어장에도 'orange' 상태로 업데이트 (채팅창 반영을 위해)
+    const wordKey = word.word.toLowerCase().trim();
+    setUserVocabulary((prev) => {
+      const existingEntry = prev[wordKey];
+      const updatedVocabulary = {
+        ...prev,
+        [wordKey]: {
+          ...existingEntry,
+          status: "orange" as "red" | "yellow" | "green" | "white" | "orange",
+          koreanMeaning: finalMeaning || existingEntry?.koreanMeaning || "",
+        },
+      };
+
+      if (user) {
+        saveVocabularyToDB(user.uid, updatedVocabulary);
+      }
+
+      return updatedVocabulary;
     });
 
     // 이미 호출한 곳에서 토스트를 띄우고 있지만, 여기서 데이터가 업데이트됨을 보장함

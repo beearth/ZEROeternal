@@ -15,9 +15,9 @@ interface WordDetailModalProps {
   onOpenChange: (open: boolean) => void;
   word: string;
   koreanMeaning: string;
-  status: "red" | "yellow" | "green" | "white";
-  onGenerateStudyTips: (wordText: string, status: "red" | "yellow" | "green" | "white") => Promise<string>;
-  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white") => void;
+  status: "red" | "yellow" | "green" | "white" | "orange";
+  onGenerateStudyTips: (wordText: string, status: "red" | "yellow" | "green" | "white" | "orange") => Promise<string>;
+  onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white" | "orange") => void;
   onDeleteWord?: (word: string) => void;
   onClose?: () => void;
 }
@@ -69,6 +69,7 @@ export function WordDetailModal({
     yellow: "복습 필요",
     green: "학습 완료",
     white: "미분류",
+    orange: "중요 단어",
   };
 
   const statusColors = {
@@ -76,17 +77,20 @@ export function WordDetailModal({
     yellow: "text-yellow-400",
     green: "text-green-400",
     white: "text-white",
+    orange: "text-orange-400",
   };
 
   // 다음 상태로 이동하는 함수
   const handleMoveToNextStatus = () => {
-    let nextStatus: "red" | "yellow" | "green" | "white";
+    let nextStatus: "red" | "yellow" | "green" | "white" | "orange";
     if (status === "red") {
       nextStatus = "yellow";
     } else if (status === "yellow") {
       nextStatus = "green";
     } else if (status === "green") {
       nextStatus = "white";
+    } else if (status === "orange") {
+      nextStatus = "red"; // 중요 단어 -> 학습 시작
     } else {
       nextStatus = "red";
     }
@@ -98,6 +102,7 @@ export function WordDetailModal({
         yellow: "Yellow Stack",
         green: "Green Stack",
         white: "White Stack",
+        orange: "Important Stack",
       };
       toast.success(`단어 "${word}"이(가) ${statusNames[nextStatus]}으로 이동되었습니다.`);
       onOpenChange(false);
@@ -141,6 +146,14 @@ export function WordDetailModal({
         description: "이 단어를 마스터 완료 상태로 이동합니다",
         color: "#22c55e",
         icon: "🟢",
+        showButton: true
+      };
+    } else if (status === "orange") {
+      return {
+        label: "🔴 Red Stack으로 이동 (학습 시작)",
+        description: "중요 단어를 학습 리스트에 추가합니다",
+        color: "#ef4444",
+        icon: "🔴",
         showButton: true
       };
     } else {

@@ -230,7 +230,7 @@ export async function getKoreanMeaning(word: string): Promise<string> {
 // 단어의 맞춤 학습 전략을 생성하는 함수
 export async function generateStudyTips(
   wordText: string,
-  status: "red" | "yellow" | "green" | "white"
+  status: "red" | "yellow" | "green" | "white" | "orange"
 ): Promise<string> {
   if (!genAI) {
     throw new Error('Gemini API가 초기화되지 않았습니다.');
@@ -245,6 +245,7 @@ export async function generateStudyTips(
       yellow: "학습 중인 단어 (어느 정도 알고 있지만 완전히 마스터하지 못한 단어)",
       green: "마스터한 단어 (완전히 익힌 단어)",
       white: "미분류 단어 (아직 학습 상태가 정해지지 않은 단어)",
+      orange: "중요 단어 (특별히 기억해야 할 중요한 단어)",
     };
 
     const prompt = `나는 현재 단어 "${wordText}"를 ${statusDescriptions[status]} 상태로 분류했습니다. 
