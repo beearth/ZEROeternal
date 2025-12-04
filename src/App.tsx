@@ -632,18 +632,19 @@ export default function App() {
     // 한글 뜻 처리 로직
     let finalKoreanMeaning = koreanMeaning;
 
-    // 1. 처음 단어장에 추가될 때 (Red, Yellow, Green 모두) 번역 가져오기
-    if (!prevEntry && !finalKoreanMeaning) {
+    // 1. 기존 단어라면 기존 뜻을 우선 사용 (단, 입력된 뜻이 있으면 그것을 사용)
+    if (isExistingWord && !finalKoreanMeaning) {
+      finalKoreanMeaning = prevEntry.koreanMeaning || "";
+    }
+
+    // 2. 여전히 뜻이 비어있다면 API로 가져오기 (새 단어이거나, 기존 단어인데 뜻이 없는 경우)
+    if (!finalKoreanMeaning) {
       try {
         finalKoreanMeaning = await getKoreanMeaning(cleanWord);
       } catch (error: any) {
         console.error(`❌ 단어 "${cleanWord}"의 한글 뜻 가져오기 실패:`, error);
         finalKoreanMeaning = "";
       }
-    }
-    // 2. 기존 단어인 경우 기존 한글 뜻 유지
-    else if (isExistingWord) {
-      finalKoreanMeaning = finalKoreanMeaning || prevEntry.koreanMeaning || "";
     }
 
     // 1. 전역 단어장 업데이트
