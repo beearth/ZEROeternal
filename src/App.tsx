@@ -708,11 +708,34 @@ export default function App() {
   };
 
   // 중요 단어 저장 핸들러
-  const handleSaveImportant = (word: WordData) => {
+  const handleSaveImportant = async (word: WordData) => {
+    let finalMeaning = word.koreanMeaning;
+
+    // 1. 뜻이 없으면 전역 단어장에서 찾아봄
+    if (!finalMeaning) {
+      const globalEntry = userVocabulary[word.word.toLowerCase()];
+      if (globalEntry?.koreanMeaning) {
+        finalMeaning = globalEntry.koreanMeaning;
+      }
+    }
+
+    // 2. 여전히 뜻이 없으면 API로 가져옴
+    if (!finalMeaning) {
+      try {
+        finalMeaning = await getKoreanMeaning(word.word);
+      } catch (error) {
+        console.error("중요 단어 뜻 가져오기 실패:", error);
+      }
+    }
+
+    const wordWithMeaning = { ...word, koreanMeaning: finalMeaning || "" };
+
     setImportantStack((prev) => {
       if (prev.find((w) => w.id === word.id)) return prev;
-      return [...prev, word];
+      return [...prev, wordWithMeaning];
     });
+
+    // 이미 호출한 곳에서 토스트를 띄우고 있지만, 여기서 데이터가 업데이트됨을 보장함
   };
 
   // 문장 저장 핸들러
