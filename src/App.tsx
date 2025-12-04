@@ -295,8 +295,14 @@ export default function App() {
       const userRef = doc(db, "users", userId);
       const userSnap = await getDoc(userRef);
       let dbVocab: Record<string, any> = {};
+
       if (userSnap.exists()) {
-        dbVocab = userSnap.data().vocabulary || {};
+        const data = userSnap.data();
+        dbVocab = data.vocabulary || {};
+
+        // 언어 설정 불러오기 (누락된 로직 복구)
+        if (data.nativeLang) setNativeLang(data.nativeLang);
+        if (data.targetLang) setTargetLang(data.targetLang);
       }
 
       // 3. 데이터 병합 (Merge)
@@ -340,12 +346,8 @@ export default function App() {
       processStack(greenList, "green");
 
       // 4. 상태 업데이트
+      // userVocabulary를 업데이트하면 useEffect가 동작하여 setRedStack 등은 자동으로 처리됨
       setUserVocabulary(mergedVocab);
-
-      // 스택 상태도 업데이트 (화면 표시용)
-      setRedStack(redList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
-      setYellowStack(yellowList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
-      setGreenStack(greenList.map((item: any) => typeof item === 'string' ? item : extractCleanWord(item.word)));
 
       // 5. 대화 불러오기
       const convResult = await getUserConversations(userId);
@@ -367,7 +369,7 @@ export default function App() {
 
       // 모든 데이터 로딩 성공 시에만 true로 설정
       setIsDataLoaded(true);
-      console.log("✅ 사용자 데이터 로딩 완료 (Stacks Priority)");
+      console.log("✅ 사용자 데이터 로딩 완료 (Stacks Priority & Language Loaded)");
 
     } catch (error) {
       console.error("사용자 데이터 로딩 실패:", error);
