@@ -554,6 +554,7 @@ export function LiveChat({
                     onSelect={handleRadialSelect}
                     onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
                     selectedWord={radialMenu.selectedWordData?.word || ""}
+                    variant="chat"
                 />
             )}
 
