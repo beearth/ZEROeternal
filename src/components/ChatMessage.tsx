@@ -696,22 +696,19 @@ export function ChatMessage({
       const wordKey = finalWord.toLowerCase();
       const globalEntry = userVocabulary?.[wordKey];
 
-      // 전역 상태가 있으면 그것을 우선 사용, 없으면 로컬 상태 사용
+      // 전역 상태가 있으면 그것을 우선 사용
+      // 전역 상태가 없으면:
+      // 1. 사용자가 방금 클릭해서 업데이트 대기 중인 경우 -> 로컬 상태 유지 (반응성)
+      // 2. 그 외의 경우(유령 데이터) -> 0(White)으로 강제 초기화
+      const isPendingUpdate = !!updateTimeouts.current[currentWordIndex];
       const localState = wordStates[currentWordIndex] || 0;
-      const finalState = globalEntry
-        ? globalEntry.status === "red"
-          ? 1
-          : globalEntry.status === "yellow"
-            ? 2
-            : 3
-        : localState;
 
-      // 전역 상태가 있으면 로컬 상태도 동기화
-      if (globalEntry && localState !== finalState) {
-        setWordStates((prev) => ({
-          ...prev,
-          [currentWordIndex]: finalState,
-        }));
+      let finalState = 0;
+
+      if (globalEntry) {
+        finalState = globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3;
+      } else {
+        finalState = isPendingUpdate ? localState : 0;
       }
 
       const wordState = finalState;
