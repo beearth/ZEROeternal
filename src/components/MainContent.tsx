@@ -179,7 +179,7 @@ export function MainContent({
                 <div className="max-w-3xl mx-auto">
                     <ChatInput
                         onSendMessage={onSendMessage}
-                        disabled={isTyping || !targetLang}
+                        disabled={!targetLang}
                     />
                 </div>
             </div>

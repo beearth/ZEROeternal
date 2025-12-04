@@ -31,6 +31,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   return (
     <div className="relative flex items-end gap-3 bg-white border border-slate-200 rounded-2xl p-2 shadow-lg focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100 transition-all">
       <textarea
+        ref={textareaRef}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
