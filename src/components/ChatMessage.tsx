@@ -727,7 +727,14 @@ export function ChatMessage({
       if (isVocabularyEmpty && !isPendingUpdate) {
         finalState = 0;
       } else if (globalEntry) {
-        finalState = globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3;
+        // [CRITICAL FIX] "white" status was previously falling through to 3 (green).
+        // Explicitly handle each status.
+        switch (globalEntry.status) {
+          case "red": finalState = 1; break;
+          case "yellow": finalState = 2; break;
+          case "green": finalState = 3; break;
+          default: finalState = 0; break; // white or others
+        }
       } else {
         finalState = isPendingUpdate ? localState : 0;
       }
