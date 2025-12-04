@@ -151,35 +151,37 @@ export function CommunityFeed() {
         <>
             <div className="flex-1 h-full bg-[#f2f0ea] flex flex-col relative">
                 {/* Sticky Header with Create Button */}
-                <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 bg-[#f2f0ea] border-b border-slate-200 sticky top-0 z-20">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">커뮤니티</h1>
-                        <p className="text-slate-500 mt-1">전 세계 친구들의 일상을 구경해보세요.</p>
-                    </div>
+                <div className="bg-[#f2f0ea] border-b border-slate-200 sticky top-0 z-20">
+                    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-900">커뮤니티</h1>
+                            <p className="text-slate-500 mt-1">전 세계 친구들의 일상을 구경해보세요.</p>
+                        </div>
 
-                    <div className="flex gap-2">
-                        {/* Global Chat Button */}
-                        <Button
-                            onClick={() => navigate('/community/global-chat')}
-                            className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all p-0 flex items-center justify-center"
-                            title="Global Open Chat"
-                        >
-                            <Globe className="h-6 w-6" />
-                        </Button>
+                        <div className="flex gap-2">
+                            {/* Global Chat Button */}
+                            <Button
+                                onClick={() => navigate('/community/global-chat')}
+                                className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all p-0 flex items-center justify-center"
+                                title="Global Open Chat"
+                            >
+                                <Globe className="h-6 w-6" />
+                            </Button>
 
-                        {/* Create Post Button */}
-                        <Button
-                            onClick={() => navigate('/create-post')}
-                            className="w-12 h-12 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 shadow-sm hover:shadow-md transition-all p-0 flex items-center justify-center"
-                        >
-                            <PenSquare className="h-6 w-6" />
-                        </Button>
+                            {/* Create Post Button */}
+                            <Button
+                                onClick={() => navigate('/create-post')}
+                                className="w-12 h-12 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 shadow-sm hover:shadow-md transition-all p-0 flex items-center justify-center"
+                            >
+                                <PenSquare className="h-6 w-6" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto bg-[#f2f0ea]">
-                    <div className="max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
                         {/* Friend Recommendations Section */}
                         <FriendRecommendations />
 
@@ -194,6 +196,7 @@ export function CommunityFeed() {
                                     key={post.id}
                                     {...post}
                                     onChat={post.authorId === CURRENT_USER_ID ? undefined : () => handleChat(post)}
+                                    onClickProfile={() => navigate(`/profile/${post.authorId || 'user1'}`)}
                                     isOwner={post.authorId === CURRENT_USER_ID}
                                     onEdit={() => navigate(`/edit-post/${post.id}`)}
                                     onDelete={() => handleDeletePost(post.id)}

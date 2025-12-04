@@ -17,7 +17,7 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !imageUrl.trim() || !content.trim()) return;
+        if (!title.trim() || !content.trim()) return;
 
         const newPost = {
             id: Date.now().toString(),
@@ -69,24 +69,27 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
     return (
         <div className="flex-1 h-full bg-white flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleCancel}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-slate-600" />
-                    </button>
-                    <h1 className="text-xl font-bold text-slate-900">새 게시글 작성</h1>
-                </div>
+            {/* Header */}
+            <div className="border-b border-slate-200">
+                <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleCancel}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                        </button>
+                        <h1 className="text-xl font-bold text-slate-900">새 게시글 작성</h1>
+                    </div>
 
-                <Button
-                    onClick={handleSubmit}
-                    disabled={!title.trim() || !imageUrl.trim() || !content.trim()}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                >
-                    게시하기
-                </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!title.trim() || !content.trim()}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                    >
+                        게시하기
+                    </Button>
+                </div>
             </div>
 
             {/* Form Content */}
@@ -112,7 +115,7 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                     <div className="space-y-2">
                         <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                             <ImageIcon className="w-4 h-4" />
-                            사진 추가 *
+                            사진 추가
                         </label>
 
                         {/* Tab-like buttons for choosing method */}
@@ -121,8 +124,8 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${!imageUrl || imageUrl.startsWith('data:')
-                                        ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                                     }`}
                             >
                                 파일 업로드
@@ -131,8 +134,8 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${imageUrl && !imageUrl.startsWith('data:')
-                                        ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                                     }`}
                             >
                                 URL 입력
@@ -240,7 +243,7 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                         <Button
                             type="submit"
                             className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                            disabled={!title.trim() || !imageUrl.trim() || !content.trim()}
+                            disabled={!title.trim() || !content.trim()}
                         >
                             게시하기
                         </Button>

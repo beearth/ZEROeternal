@@ -20,9 +20,10 @@ export interface PostCardProps {
     onDelete?: () => void;
     onLike?: () => void;
     isLiked?: boolean;
+    onClickProfile?: () => void;
 }
 
-export function PostCard({ user, image, content, likes, timeAgo, onChat, isOwner = false, onEdit, onDelete, onLike, isLiked = false }: PostCardProps) {
+export function PostCard({ user, image, content, likes, timeAgo, onChat, isOwner = false, onEdit, onDelete, onLike, isLiked = false, onClickProfile }: PostCardProps) {
 
     return (
         <div className="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow duration-200">
@@ -30,18 +31,23 @@ export function PostCard({ user, image, content, likes, timeAgo, onChat, isOwner
                 {/* Header: User Profile & Actions */}
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border border-slate-100">
-                            <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
-                            <AvatarFallback>{user.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                                <span className="font-bold text-[15px] text-slate-900 leading-tight">{user.name}</span>
-                                <span className="text-xs text-slate-400">• {timeAgo}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                                <span>{user.flag}</span>
-                                <span>{user.location}</span>
+                        <div
+                            className="flex items-center gap-3 cursor-pointer group"
+                            onClick={onClickProfile}
+                        >
+                            <Avatar className="h-10 w-10 border border-slate-100 group-hover:border-blue-200 transition-colors">
+                                <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
+                                <AvatarFallback>{user.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-[15px] text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{user.name}</span>
+                                    <span className="text-xs text-slate-400">• {timeAgo}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                    <span>{user.flag}</span>
+                                    <span>{user.location}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

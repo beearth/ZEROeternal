@@ -2,6 +2,7 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface RecommendedFriend {
     id: string;
@@ -43,6 +44,8 @@ const MOCK_FRIENDS: RecommendedFriend[] = [
 ];
 
 export function FriendRecommendations() {
+    const navigate = useNavigate();
+
     return (
         <div className="mb-8">
             <style>{`
@@ -63,10 +66,15 @@ export function FriendRecommendations() {
                         </button>
 
                         <div className="flex flex-col items-center text-center">
-                            <Avatar className="w-16 h-16 mb-3 border-2 border-purple-200 ring-2 ring-white">
-                                <AvatarImage src={friend.avatar} alt={friend.name} />
-                                <AvatarFallback>{friend.name[0]}</AvatarFallback>
-                            </Avatar>
+                            <div
+                                className="cursor-pointer transition-transform hover:scale-105"
+                                onClick={() => navigate(`/profile/${friend.id}`)}
+                            >
+                                <Avatar className="w-16 h-16 mb-3 border-2 border-purple-200 ring-2 ring-white">
+                                    <AvatarImage src={friend.avatar} alt={friend.name} />
+                                    <AvatarFallback>{friend.name[0]}</AvatarFallback>
+                                </Avatar>
+                            </div>
 
                             <h3 className="font-bold text-slate-900 text-sm mb-1 truncate w-full">{friend.name}</h3>
 

@@ -11,6 +11,7 @@ import { CreatePostPage } from "./features/community/CreatePostPage";
 import { EditPostPage } from "./features/community/EditPostPage";
 import { DirectChat } from "./features/community/DirectChat";
 import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
+import { UserProfilePage } from "./features/community/UserProfilePage";
 import {
   sendMessageToGemini,
   ChatMessage as GeminiChatMessage,
@@ -1041,6 +1042,7 @@ export default function App() {
               </div>
             }
           />
+          <Route path="/profile/:userId" element={<UserProfilePage />} />
           <Route path="/create-post" element={
             <div className="flex-1 flex flex-col h-full bg-white relative">
               <CreatePostPage onSubmit={(data) => {
