@@ -96,8 +96,7 @@ export default function App() {
   // Debounce를 위한 ref
   const saveVocabularyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 초기 로드 플래그 (스택 재계산 방지)
-  const isInitialLoad = useRef(true);
+
 
   // 마크다운 제거 함수 (단어 정제용)
   const cleanMarkdown = (text: string): string => {
@@ -272,7 +271,6 @@ export default function App() {
   const loadUserData = async (userId: string) => {
     try {
       // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
-      isInitialLoad.current = true; // 스택 재계산 방지 리셋
       setUserVocabulary({});
       setRedStack([]);
       setYellowStack([]);
@@ -290,23 +288,8 @@ export default function App() {
       }
 
       if (stacksResult.stacks) {
-        // Red, Yellow, Green Stack은 string[] 타입이므로 그대로 사용
-        // 만약 기존 데이터가 WordData[] 형태라면 변환 필요
-        const redData = stacksResult.stacks.red || [];
-        const yellowData = stacksResult.stacks.yellow || [];
-        const greenData = stacksResult.stacks.green || [];
-
-        // WordData[] 형태인 경우 string[]로 변환
-        setRedStack(Array.isArray(redData) && redData.length > 0 && typeof redData[0] === 'object'
-          ? redData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-          : redData);
-        setYellowStack(Array.isArray(yellowData) && yellowData.length > 0 && typeof yellowData[0] === 'object'
-          ? yellowData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-          : yellowData);
-        setGreenStack(Array.isArray(greenData) && greenData.length > 0 && typeof greenData[0] === 'object'
-          ? greenData.map((w: any) => typeof w === 'string' ? w : extractCleanWord(w.word || w.text || ''))
-          : greenData);
-
+        // Red, Yellow, Green Stack은 userVocabulary에서 유도되므로 여기서 설정하지 않음 (동기화 문제 해결)
+        // 오직 Important와 Sentences만 별도 저장소에서 불러옴
         setImportantStack(stacksResult.stacks.important || []);
         setSentenceStack(stacksResult.stacks.sentences || []);
       }
@@ -361,14 +344,8 @@ export default function App() {
     };
   }, [userVocabulary, user]);
 
-  // userVocabulary 변경 시 스택 재계산 (단, 초기 로드 시에는 제외)
+  // userVocabulary 변경 시 스택 재계산 (항상 실행하여 동기화 보장)
   useEffect(() => {
-    // 초기 로드 시에는 스택을 재계산하지 않음 (Firestore에서 불러온 값 유지)
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
-      return;
-    }
-
     const redWords: string[] = [];
     const yellowWords: string[] = [];
     const greenWords: string[] = [];
