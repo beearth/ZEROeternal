@@ -118,6 +118,9 @@ export function LiveChat({
         fullSentence: string;
     } | null>(null);
 
+    // Track failed translations to prevent infinite retries in the same session
+    const failedTranslations = useRef(new Set<string>());
+
     // Close Radial Menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent | PointerEvent) => {
@@ -160,8 +163,9 @@ export function LiveChat({
         const unsubscribe = onSnapshot(q, async (snapshot) => {
             // Use Promise.all to handle async translations
             const totalDocs = snapshot.docs.length;
-            // REDUCE API CALLS: Only translate the last 2 messages automatically to avoid 429 Quota Exceeded
-            const startIndexToTranslate = Math.max(0, totalDocs - 2);
+            // CRITICAL OPTIMIZATION: Only translate the VERY LAST message automatically.
+            // This drastically reduces API calls to prevent 429 Quota Exceeded errors.
+            const startIndexToTranslate = Math.max(0, totalDocs - 1);
 
             const promises = snapshot.docs.map(async (doc, index) => {
                 const data = doc.data() as Omit<ChatMessage, 'id'>;
@@ -174,6 +178,7 @@ export function LiveChat({
 
                 let nativeTx = "";
                 const cachedNative = localStorage.getItem(`trans_${msg.id}_${nativeLang}`);
+                const nativeFailKey = `${msg.id}_${nativeLang}`;
 
                 if (cachedNative) {
                     nativeTx = cachedNative;
@@ -182,7 +187,7 @@ export function LiveChat({
                         nativeTx = msg.text;
                     } else if (msg.targetLang === nativeLang && msg.translatedText && msg.translatedText !== msg.text) {
                         nativeTx = msg.translatedText;
-                    } else if (allowApiCall) {
+                    } else if (allowApiCall && !failedTranslations.current.has(nativeFailKey)) {
                         try {
                             const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(msg.text);
                             if (nativeLang === 'ko' && hasKorean) {
@@ -193,6 +198,7 @@ export function LiveChat({
                             }
                         } catch (e) {
                             console.error("Native translation failed", e);
+                            failedTranslations.current.add(nativeFailKey); // Mark as failed to avoid retry
                             nativeTx = msg.text;
                         }
                     } else {
@@ -207,6 +213,7 @@ export function LiveChat({
                 // ---------------------------------------------------------
 
                 let learningTx = "";
+                const learningFailKey = `${msg.id}_${targetLang}`;
 
                 if (targetLang !== nativeLang) {
                     const cachedLearning = localStorage.getItem(`trans_${msg.id}_${targetLang}`);
@@ -220,12 +227,13 @@ export function LiveChat({
 
                         if (isDbTranslated) {
                             learningTx = msg.translatedText!;
-                        } else if (allowApiCall) {
+                        } else if (allowApiCall && !failedTranslations.current.has(learningFailKey)) {
                             try {
                                 learningTx = await translateText(msg.text, targetLang);
                                 localStorage.setItem(`trans_${msg.id}_${targetLang}`, learningTx);
                             } catch (e: any) {
                                 console.error("Learning translation failed", e);
+                                failedTranslations.current.add(learningFailKey); // Mark as failed
                             }
                         }
                     }
@@ -588,8 +596,8 @@ export function LiveChat({
                                 <div className="flex items-end gap-2">
                                     <div
                                         className={`p-4 rounded-2xl shadow-sm ${isMe
-                                                ? "bg-blue-600 text-white rounded-tr-none"
-                                                : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                                            ? "bg-blue-600 text-white rounded-tr-none"
+                                            : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
                                             }`}
                                     >
                                         {/* 1. Native Translation (Primary) */}
