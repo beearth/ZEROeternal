@@ -721,7 +721,12 @@ export function ChatMessage({
 
       let finalState = 0;
 
-      if (globalEntry) {
+      // [긴급 수정] 전역 단어장이 비어있으면 무조건 초기화 (유령 데이터 방지 최우선)
+      const isVocabularyEmpty = Object.keys(userVocabulary).length === 0;
+
+      if (isVocabularyEmpty && !isPendingUpdate) {
+        finalState = 0;
+      } else if (globalEntry) {
         finalState = globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3;
       } else {
         finalState = isPendingUpdate ? localState : 0;
