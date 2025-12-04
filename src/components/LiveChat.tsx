@@ -166,6 +166,7 @@ export function LiveChat({
             // CRITICAL OPTIMIZATION: Only translate the VERY LAST message automatically.
             // This drastically reduces API calls to prevent 429 Quota Exceeded errors.
             const startIndexToTranslate = Math.max(0, totalDocs - 1);
+            // const startIndexToTranslate = totalDocs + 1; // Effectively disable auto-translation
 
             const promises = snapshot.docs.map(async (doc, index) => {
                 const data = doc.data() as Omit<ChatMessage, 'id'>;
@@ -221,8 +222,6 @@ export function LiveChat({
                     if (cachedLearning) {
                         learningTx = cachedLearning;
                     } else {
-                        // Check DB - BUT verify if it's actually translated
-                        // If translation failed during send, translatedText might be same as text
                         const isDbTranslated = msg.targetLang === targetLang && msg.translatedText && msg.translatedText !== msg.text;
 
                         if (isDbTranslated) {

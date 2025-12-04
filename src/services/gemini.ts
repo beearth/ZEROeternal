@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // 환경 변수에서 API 키 가져오기 (앞뒤 공백 및 따옴표 제거)
+// 환경 변수에서 API 키 가져오기 (앞뒤 공백 및 따옴표 제거)
 const getApiKey = () => {
   const key = import.meta.env.VITE_GEMINI_API_KEY;
   if (!key) return '';
@@ -21,8 +22,8 @@ const API_KEY = getApiKey();
 
 if (!API_KEY) {
   console.error('⚠️ VITE_GEMINI_API_KEY가 설정되지 않았습니다.');
-  console.error('📝 .env 파일에 VITE_GEMINI_API_KEY=여기에_API_키_입력 형식으로 설정해주세요.');
-  console.error('🔄 개발 서버를 재시작했는지 확인해주세요. (npm run dev)');
+} else {
+  console.log("Using Hardcoded API Key ending in: " + API_KEY.slice(-4));
 }
 
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
@@ -66,6 +67,7 @@ export async function listAvailableModels() {
 // 디버깅용: API 키가 로드되었는지 확인 (처음 10자만 표시)
 if (API_KEY) {
   console.log('✅ Gemini API 키가 로드되었습니다:', API_KEY.substring(0, 10) + '...');
+  console.log('🔑 현재 사용 중인 키 (확인용):', API_KEY.substring(0, 15) + '...');
   console.log('🔍 API 키 길이:', API_KEY.length);
   console.log('🔍 API 키 시작 문자:', API_KEY.charAt(0));
   console.log('🔍 API 키 끝 문자:', API_KEY.charAt(API_KEY.length - 1));
