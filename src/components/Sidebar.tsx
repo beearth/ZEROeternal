@@ -95,7 +95,7 @@ export function Sidebar({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} />
-              <h2 className="text-[#E3E3E3] font-semibold">🔴🟡🟢 SIGNAL VOCA</h2>
+              <h2 className="font-bold text-xl bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 text-transparent bg-clip-text">SIGNAL VOCA</h2>
             </div>
             <button
               onClick={onClose}

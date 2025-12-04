@@ -184,12 +184,24 @@ export function LiveChat({
                 if (cachedNative) {
                     nativeTx = cachedNative;
                 } else {
-                    if (msg.originalLang === nativeLang && msg.senderId === user?.uid) {
+                    // Check if the message is from me and supposedly in my native language
+                    const isMyMessage = msg.senderId === user?.uid;
+                    const isNativeLangMatch = msg.originalLang === nativeLang;
+
+                    // Validation: Does the text actually look like the native language?
+                    // (Currently only implemented for Korean)
+                    let looksLikeNative = true;
+                    if (nativeLang === 'ko') {
+                        looksLikeNative = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(msg.text);
+                    }
+
+                    if (isMyMessage && isNativeLangMatch && looksLikeNative) {
                         nativeTx = msg.text;
                     } else if (msg.targetLang === nativeLang && msg.translatedText && msg.translatedText !== msg.text) {
                         nativeTx = msg.translatedText;
                     } else if (allowApiCall && !failedTranslations.current.has(nativeFailKey)) {
                         try {
+                            // Double check for Korean to avoid unnecessary API calls if we missed it above
                             const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(msg.text);
                             if (nativeLang === 'ko' && hasKorean) {
                                 nativeTx = msg.text;
@@ -518,29 +530,23 @@ export function LiveChat({
             {/* Radial Menu */}
             {radialMenu.showRadialMenu && radialMenu.menuCenter && (
                 <RadialMenu
-                    centerX={radialMenu.menuCenter.x}
-                    centerY={radialMenu.menuCenter.y}
+                    center={radialMenu.menuCenter}
+                    isOpen={radialMenu.showRadialMenu}
                     onSelect={handleRadialSelect}
                     onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
+                    selectedWord={radialMenu.selectedWordData?.word || ""}
                 />
             )}
 
             {/* Word Detail Modal */}
             {selectedDetailWord && (
                 <WordDetailModal
+                    open={!!selectedDetailWord}
+                    onOpenChange={(open) => !open && setSelectedDetailWord(null)}
                     word={selectedDetailWord.word}
                     koreanMeaning={selectedDetailWord.koreanMeaning}
                     status={selectedDetailWord.status}
-                    onClose={() => setSelectedDetailWord(null)}
-                    onGenerateTips={async () => {
-                        try {
-                            const tips = await generateStudyTips(selectedDetailWord.word);
-                            return tips;
-                        } catch (error) {
-                            console.error("Failed to generate tips", error);
-                            return "팁 생성 실패";
-                        }
-                    }}
+                    onGenerateStudyTips={generateStudyTips}
                 />
             )}
 
