@@ -476,15 +476,34 @@ export function LiveChat({
     const renderClickableText = (text: string | undefined, messageId: string) => {
         if (!text) return null;
 
-        // Split by spaces but keep punctuation
-        const parts = text.split(/(\s+)/);
+        let parts: string[] = [];
+
+        // Use Intl.Segmenter for intelligent word segmentation (supports CJK, etc.)
+        if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+            const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
+            const segments = segmenter.segment(text);
+            for (const { segment } of segments) {
+                parts.push(segment);
+            }
+        } else {
+            // Fallback for older browsers: split by whitespace and punctuation
+            parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+        }
 
         return (
             <div className="flex flex-wrap items-center gap-y-1">
                 {parts.map((part, index) => {
-                    if (!part.trim()) return <span key={index}>{part}</span>;
+                    // If it's just whitespace or punctuation, render as is
+                    if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
+                        return <span key={index}>{part}</span>;
+                    }
 
                     const clean = cleanMarkdown(part);
+                    // If not a meaningful word (e.g. just symbols), render as is
+                    if (!isMeaningfulWord(part)) {
+                        return <span key={index}>{part}</span>;
+                    }
+
                     const wordKey = clean.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0].toLowerCase();
                     const uniqueKey = `${messageId}-${wordKey}`;
 
