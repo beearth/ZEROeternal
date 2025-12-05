@@ -246,7 +246,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-6 py-4 flex items-center gap-4">
           <button
             onClick={onToggleSidebar}
-            className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors md:hidden"
+            className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5 text-[#E3E3E3]" />
           </button>
