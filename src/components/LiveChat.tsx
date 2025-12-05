@@ -547,7 +547,7 @@ export function LiveChat({
     };
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50 relative">
+        <div className="flex flex-col h-full bg-slate-50 relative">
             {/* Radial Menu */}
             {radialMenu.showRadialMenu && radialMenu.menuCenter && (
                 <RadialMenu

@@ -206,7 +206,7 @@ export function ToeicWordList({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1e1f20] text-[#E3E3E3] relative">
+    <div className="flex flex-col h-full bg-[#1e1f20] text-[#E3E3E3] relative">
       {/* 로딩 오버레이 */}
       {isLoading && (
         <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center">

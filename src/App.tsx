@@ -964,7 +964,7 @@ export default function App() {
         onLogout={logout}
       />
 
-      <div className="flex h-screen bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden">
+      <div className="flex h-[100dvh] bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden">
         {/* 사이드바 */}
         <Sidebar
           conversations={conversations}
