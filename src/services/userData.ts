@@ -31,7 +31,7 @@ export const saveUserVocabulary = async (
         vocabulary,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }, { merge: true });
       return { success: true, error: null };
     } catch (createError: any) {
       return { success: false, error: createError.message };
@@ -84,7 +84,7 @@ export const saveUserStacks = async (
         stacks,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }, { merge: true });
       return { success: true, error: null };
     } catch (createError: any) {
       return { success: false, error: createError.message };
@@ -203,7 +203,7 @@ export const saveUserConversations = async (
         conversations,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }, { merge: true });
       return { success: true, error: null };
     } catch (createError: any) {
       return { success: false, error: createError.message };
