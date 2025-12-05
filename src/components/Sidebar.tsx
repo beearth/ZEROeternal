@@ -105,7 +105,10 @@ export function Sidebar({
             </button>
           </div>
           <button
-            onClick={onNewConversation}
+            onClick={() => {
+              onNewConversation();
+              navigate("/");
+            }}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
           >
             <Plus className="w-5 h-5" />
