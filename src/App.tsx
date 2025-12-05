@@ -393,14 +393,16 @@ export default function App() {
     // Detect if any keys are raw IDs (e.g. "1764821232073-56-there") instead of words
     // and remove them to fix the display issue.
     let hasCorruptedKeys = false;
+    let corruptedCount = 0;
     const cleanVocabulary = { ...userVocabulary };
 
     Object.keys(userVocabulary).forEach((wordKey) => {
       // Check for ID pattern: timestamp-index-word
       if (/^\d{10,}-\d+-/.test(wordKey)) {
-        console.warn(`Found corrupted key: ${wordKey}, removing...`);
+        // console.warn(`Found corrupted key: ${wordKey}, removing...`); // Reduced noise
         delete cleanVocabulary[wordKey];
         hasCorruptedKeys = true;
+        corruptedCount++;
         return; // Skip adding to stacks
       }
 
@@ -420,7 +422,7 @@ export default function App() {
 
     // If we found corrupted keys, update the state and DB immediately
     if (hasCorruptedKeys) {
-      console.log("Cleaning up corrupted vocabulary keys...");
+      console.log(`Cleaning up ${corruptedCount} corrupted vocabulary keys...`);
       setUserVocabulary(cleanVocabulary);
       if (user) {
         saveVocabularyToDB(user.uid, cleanVocabulary);

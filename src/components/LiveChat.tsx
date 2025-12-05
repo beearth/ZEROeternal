@@ -257,7 +257,21 @@ export function LiveChat({
             });
 
             const resolvedMsgs = await Promise.all(promises);
-            setMessages(resolvedMsgs);
+
+            // Deduplicate messages: Remove consecutive duplicates from the same sender
+            const uniqueMsgs: ChatMessage[] = [];
+            resolvedMsgs.forEach((msg) => {
+                if (uniqueMsgs.length > 0) {
+                    const lastMsg = uniqueMsgs[uniqueMsgs.length - 1];
+                    // If same sender and same text, skip (likely a double-send or glitch)
+                    if (lastMsg.senderId === msg.senderId && lastMsg.text === msg.text) {
+                        return;
+                    }
+                }
+                uniqueMsgs.push(msg);
+            });
+
+            setMessages(uniqueMsgs);
         });
 
         return () => unsubscribe();
