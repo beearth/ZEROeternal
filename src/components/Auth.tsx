@@ -38,6 +38,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   const handleGoogleAuth = async () => {
     setLoading(true);
     const result = await signInWithGoogle();
+    // 리다이렉트 방식이므로 여기서 로딩을 끄지 않아도 되지만, 에러 발생 시를 위해 끔
     setLoading(false);
 
     if (result.error) {
@@ -50,8 +51,8 @@ export function Auth({ onAuthSuccess }: AuthProps) {
         toast.error(result.error);
       }
     } else {
-      toast.success("로그인 성공!");
-      onAuthSuccess();
+      // 리다이렉트 시작
+      toast.info("Google 로그인 페이지로 이동합니다...");
     }
   };
 

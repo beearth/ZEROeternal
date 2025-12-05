@@ -1035,6 +1035,7 @@ export default function App() {
                 onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
                 onDeleteWord={(word) => handleResetWordStatus(word)}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1062,6 +1063,7 @@ export default function App() {
                 onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
                 onDeleteWord={(word) => handleResetWordStatus(word)}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1089,6 +1091,7 @@ export default function App() {
                 onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
                 onDeleteWord={(word) => handleResetWordStatus(word)}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1118,6 +1121,7 @@ export default function App() {
                   setImportantStack((prev) => prev.filter((item) => item.word !== word));
                 }}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1132,6 +1136,7 @@ export default function App() {
                   setSentenceStack((prev) => prev.filter((item) => item !== sentence));
                 }}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1146,6 +1151,7 @@ export default function App() {
                 onDeleteWord={handleResetWordStatus}
                 onSaveImportant={handleSaveImportant}
                 isLoading={isToeicLoading}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
@@ -1155,11 +1161,12 @@ export default function App() {
               <LiveChat
                 user={user}
                 userVocabulary={userVocabulary}
-                onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white", word: string) => handleUpdateWordStatus(word, status)}
+                onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white" | "orange", word: string) => handleUpdateWordStatus(word, status)}
                 onResetWordStatus={handleResetWordStatus}
                 nativeLang={nativeLang}
                 onSaveSentence={handleSaveSentence}
                 onSaveImportant={handleSaveImportant}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />

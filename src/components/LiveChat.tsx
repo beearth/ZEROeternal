@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Send, ArrowLeft, RefreshCw, Bot, User, Trash2 } from "lucide-react";
+import { Send, ArrowLeft, RefreshCw, Bot, User, Trash2, Menu } from "lucide-react";
 import { toast } from "sonner";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -17,7 +17,7 @@ interface LiveChatProps {
     userVocabulary: Record<string, VocabularyEntry>;
     onUpdateWordStatus: (
         wordId: string,
-        newStatus: "red" | "yellow" | "green" | "white",
+        newStatus: "red" | "yellow" | "green" | "white" | "orange",
         word: string,
         messageId: string,
         sentence: string,
@@ -28,6 +28,7 @@ interface LiveChatProps {
     nativeLang: string;
     onSaveSentence?: (sentence: string) => void;
     onSaveImportant?: (word: WordData) => void;
+    onToggleSidebar: () => void;
 }
 
 interface ChatMessage {
@@ -77,10 +78,11 @@ export function LiveChat({
     onResetWordStatus,
     nativeLang,
     onSaveSentence,
-    onSaveImportant
+    onSaveImportant,
+    onToggleSidebar
 }: LiveChatProps) {
     const navigate = useNavigate();
-    const onBack = () => navigate("/");
+    // const onBack = () => navigate("/"); // No longer used for the main button
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState("");
@@ -113,7 +115,7 @@ export function LiveChat({
     const [selectedDetailWord, setSelectedDetailWord] = useState<{
         word: string;
         koreanMeaning: string;
-        status: "red" | "yellow" | "green" | "white";
+        status: "red" | "yellow" | "green" | "white" | "orange";
         messageId: string;
         fullSentence: string;
     } | null>(null);
@@ -573,8 +575,8 @@ export function LiveChat({
             {/* Header */}
             <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between shadow-sm z-10">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    <button onClick={onToggleSidebar} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <Menu className="w-5 h-5 text-slate-600" />
                     </button>
                     <div>
                         <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">

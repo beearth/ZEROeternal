@@ -5,7 +5,7 @@ import {
   onAuthStateChanged,
   User,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
 } from "firebase/auth";
 import { auth } from "../firebase";
 
@@ -33,14 +33,16 @@ export const signUpWithEmail = async (email: string, password: string) => {
 export const signInWithGoogle = async () => {
   try {
     const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
-    return { user: userCredential.user, error: null };
+    // 팝업 대신 리다이렉트 사용 (모바일 웹뷰/Custom Tabs 호환성 위해)
+    await signInWithRedirect(auth, provider);
+    // 리다이렉트가 시작되면 이 줄 이후는 실행되지 않거나 페이지가 언로드됨
+    return { user: null, error: null };
   } catch (error: any) {
     // configuration-not-found 에러는 Firebase Console 설정 문제
     if (error.code === 'auth/configuration-not-found') {
-      return { 
-        user: null, 
-        error: 'Google 로그인이 설정되지 않았습니다. Firebase Console에서 Google 로그인을 활성화해주세요.' 
+      return {
+        user: null,
+        error: 'Google 로그인이 설정되지 않았습니다. Firebase Console에서 Google 로그인을 활성화해주세요.'
       };
     }
     return { user: null, error: error.message };

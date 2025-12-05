@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Plus, Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
@@ -10,16 +10,17 @@ interface ToeicWordListProps {
   userVocabulary: Record<string, VocabularyEntry>;
   onUpdateWordStatus: (
     word: string,
-    newStatus: "red" | "yellow" | "green" | "white"
+    newStatus: "red" | "yellow" | "green" | "white" | "orange"
   ) => void;
   onGenerateStudyTips: (
     word: string,
-    status: "red" | "yellow" | "green" | "white"
+    status: "red" | "yellow" | "green" | "white" | "orange"
   ) => Promise<string>;
   onLoadMore: () => Promise<void>;
   onDeleteWord?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
   isLoading: boolean;
+  onToggleSidebar: () => void;
 }
 
 export function ToeicWordList({
@@ -30,6 +31,7 @@ export function ToeicWordList({
   onDeleteWord,
   onSaveImportant,
   isLoading,
+  onToggleSidebar,
 }: ToeicWordListProps) {
   const navigate = useNavigate();
   // 메뉴가 열린 단어 추적
@@ -42,7 +44,7 @@ export function ToeicWordList({
   const [selectedWord, setSelectedWord] = useState<{
     word: string;
     koreanMeaning: string;
-    status: "red" | "yellow" | "green" | "white";
+    status: "red" | "yellow" | "green" | "white" | "orange";
   } | null>(null);
 
   const toeicWords = Object.entries(userVocabulary).filter(
@@ -226,10 +228,10 @@ export function ToeicWordList({
       <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate("/")}
+            onClick={onToggleSidebar}
             className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-[#E3E3E3]" />
+            <Menu className="w-5 h-5 text-[#E3E3E3]" />
           </button>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ArrowLeft, X, Trash2, FileText, Star, Volume2 } from "lucide-react";
+import { ArrowLeft, X, Trash2, FileText, Star, Volume2, Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
@@ -16,9 +16,10 @@ interface StackViewProps {
   onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white" | "orange") => void;
   onDeleteWord?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
+  onToggleSidebar: () => void;
 }
 
-export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant }: StackViewProps) {
+export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant, onToggleSidebar }: StackViewProps) {
   const navigate = useNavigate();
   // Red, Yellow, Green Stack은 string[] 타입, Important는 WordData[], Sentences는 string[]
   const isStringArray = items.length > 0 && typeof items[0] === "string";
@@ -244,10 +245,10 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         {/* 헤더 */}
         <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-6 py-4 flex items-center gap-4">
           <button
-            onClick={() => navigate("/")}
+            onClick={onToggleSidebar}
             className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-[#E3E3E3]" />
+            <Menu className="w-5 h-5 text-[#E3E3E3]" />
           </button>
           <div className="flex items-center gap-3">
             <div
