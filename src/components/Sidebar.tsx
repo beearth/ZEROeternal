@@ -124,7 +124,10 @@ export function Sidebar({
           <div className="space-y-1">
             {/* Red Stack */}
             <button
-              onClick={() => navigate("/stack/red")}
+              onClick={() => {
+                navigate("/stack/red");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/red") ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
                 }`}
             >
@@ -145,7 +148,10 @@ export function Sidebar({
 
             {/* Yellow Stack */}
             <button
-              onClick={() => navigate("/stack/yellow")}
+              onClick={() => {
+                navigate("/stack/yellow");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/yellow")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -168,7 +174,10 @@ export function Sidebar({
 
             {/* Green Stack */}
             <button
-              onClick={() => navigate("/stack/green")}
+              onClick={() => {
+                navigate("/stack/green");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/green")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -191,7 +200,10 @@ export function Sidebar({
 
             {/* TOEIC 4000 */}
             <button
-              onClick={() => navigate("/toeic-4000")}
+              onClick={() => {
+                navigate("/toeic-4000");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/toeic-4000")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -209,7 +221,10 @@ export function Sidebar({
 
             {/* Important Stack */}
             <button
-              onClick={() => navigate("/stack/important")}
+              onClick={() => {
+                navigate("/stack/important");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/important")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -232,7 +247,10 @@ export function Sidebar({
 
             {/* Sentence Stack */}
             <button
-              onClick={() => navigate("/stack/sentence")}
+              onClick={() => {
+                navigate("/stack/sentence");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/sentence")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -255,7 +273,10 @@ export function Sidebar({
 
             {/* Live Chat */}
             <button
-              onClick={() => navigate("/live-chat")}
+              onClick={() => {
+                navigate("/live-chat");
+                onClose();
+              }}
               className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/live-chat")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
@@ -285,6 +306,7 @@ export function Sidebar({
               onClick={() => {
                 onSelectConversation(conversation.id);
                 navigate("/");
+                onClose();
               }}
             >
               <div
