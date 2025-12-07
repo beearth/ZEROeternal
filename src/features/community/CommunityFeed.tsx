@@ -149,7 +149,7 @@ export function CommunityFeed() {
 
     return (
         <>
-            <div className="flex-1 h-full bg-[#f2f0ea] flex flex-col relative">
+            <div className="w-full h-full bg-[#f2f0ea] flex flex-col relative">
                 {/* Sticky Header with Create Button */}
                 <div className="bg-[#f2f0ea] border-b border-slate-200 sticky top-0 z-20">
                     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">

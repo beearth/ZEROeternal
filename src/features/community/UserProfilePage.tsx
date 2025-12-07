@@ -348,6 +348,14 @@ export function UserProfilePage() {
                             {...post}
                             onLike={() => { }}
                             onChat={() => navigate(`/chat/${userId}`)}
+                            isOwner={userId === 'current_user' || userId === 'user1'} // Check if viewing own profile
+                            onEdit={() => navigate(`/edit-post/${post.id}`)}
+                            onDelete={() => {
+                                // Delete post logic - for now just log
+                                console.log('Delete post:', post.id);
+                                // In real app, this would delete from database
+                            }}
+                            onClickProfile={() => navigate(`/profile/${post.authorId}`)}
                         />
                     ))}
                     {MOCK_USER_POSTS.filter(post => post.authorId === user.id).length === 0 && (
