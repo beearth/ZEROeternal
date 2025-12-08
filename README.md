@@ -2,6 +2,8 @@
 
 Google Gemini API를 활용한 문맥 기반 영어 단어 학습 플랫폼입니다.
 
+**🌐 Live Demo:** [https://signal-voca-93bb9.web.app/](https://signal-voca-93bb9.web.app/)
+
 사용자가 문장 속 단어를 탭하여 학습 상태(🔴/🟡/🟢)를 직관적으로 관리하고 스택을 쌓을 수 있습니다.
 
 ## 🚀 주요 기능
