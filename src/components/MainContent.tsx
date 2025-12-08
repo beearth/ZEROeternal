@@ -33,7 +33,7 @@ interface MainContentProps {
     userVocabulary: Record<string, VocabularyEntry>;
     onUpdateWordStatus: (
         wordId: string,
-        newStatus: "red" | "yellow" | "green" | "white",
+        newStatus: "red" | "yellow" | "green" | "white" | "orange",
         word: string,
         messageId: string,
         sentence: string,
