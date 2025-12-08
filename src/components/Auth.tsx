@@ -21,38 +21,61 @@ export function Auth({ onAuthSuccess }: AuthProps) {
     }
 
     setLoading(true);
-    const result = isLogin
-      ? await signInWithEmail(email, password)
-      : await signUpWithEmail(email, password);
 
-    setLoading(false);
+    // 10초 타임아웃 설정
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("응답 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.")), 10000)
+    );
 
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success(isLogin ? "로그인 성공!" : "회원가입 성공!");
-      onAuthSuccess();
+    try {
+      const authPromise = isLogin
+        ? signInWithEmail(email, password)
+        : signUpWithEmail(email, password);
+
+      const result: any = await Promise.race([authPromise, timeoutPromise]);
+
+      if (result.error) {
+        toast.error(result.error);
+        setLoading(false);
+      } else {
+        toast.success(isLogin ? "로그인 성공!" : "회원가입 성공!");
+        // 성공 시 로딩 상태 유지 (App.tsx에서 화면 전환될 때까지)
+        // 단, 너무 오래 걸리면 풀어줌
+        setTimeout(() => setLoading(false), 2000);
+        onAuthSuccess();
+      }
+    } catch (error: any) {
+      toast.error(error.message || "인증 중 오류가 발생했습니다.");
+      setLoading(false);
     }
   };
 
   const handleGoogleAuth = async () => {
     setLoading(true);
-    const result = await signInWithGoogle();
-    // 리다이렉트 방식이므로 여기서 로딩을 끄지 않아도 되지만, 에러 발생 시를 위해 끔
-    setLoading(false);
+    try {
+      const result = await signInWithGoogle();
 
-    if (result.error) {
-      // configuration-not-found 에러는 사용자에게 친절한 메시지 표시
-      if (result.error.includes('configuration-not-found') || result.error.includes('설정되지 않았습니다')) {
-        toast.error("Google 로그인을 사용할 수 없습니다. 이메일로 로그인해주세요.", {
-          duration: 4000,
-        });
+      if (result.error) {
+        setLoading(false);
+        if (result.error === '로그인이 취소되었습니다.') {
+          toast.info("로그인이 취소되었습니다.");
+        } else if (result.error.includes('configuration-not-found') || result.error.includes('설정되지 않았습니다')) {
+          toast.error("Google 로그인을 사용할 수 없습니다. 이메일로 로그인해주세요.", {
+            duration: 4000,
+          });
+        } else {
+          toast.error(result.error);
+        }
       } else {
-        toast.error(result.error);
+        toast.success("로그인 성공!");
+        onAuthSuccess();
+        // 팝업 로그인은 즉시 완료되므로 여기서 로딩을 끌 필요는 없지만(App.tsx가 리렌더링됨),
+        // 만약 리렌더링이 늦어질 경우를 대비해 안전하게 둠
       }
-    } else {
-      // 리다이렉트 시작
-      toast.info("Google 로그인 페이지로 이동합니다...");
+    } catch (error: any) {
+      setLoading(false);
+      toast.error("Google 로그인 중 오류가 발생했습니다.");
+      console.error(error);
     }
   };
 

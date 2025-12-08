@@ -6,6 +6,7 @@ import {
   User,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
 } from "firebase/auth";
 import { auth } from "../firebase";
 
@@ -33,11 +34,14 @@ export const signUpWithEmail = async (email: string, password: string) => {
 export const signInWithGoogle = async () => {
   try {
     const provider = new GoogleAuthProvider();
-    // 팝업 대신 리다이렉트 사용 (모바일 웹뷰/Custom Tabs 호환성 위해)
-    await signInWithRedirect(auth, provider);
-    // 리다이렉트가 시작되면 이 줄 이후는 실행되지 않거나 페이지가 언로드됨
-    return { user: null, error: null };
+    // 팝업 방식 사용 (리다이렉트 방식의 멈춤 현상 해결을 위해 변경)
+    const result = await signInWithPopup(auth, provider);
+    return { user: result.user, error: null };
   } catch (error: any) {
+    // 팝업이 사용자에 의해 닫힌 경우
+    if (error.code === 'auth/popup-closed-by-user') {
+      return { user: null, error: '로그인이 취소되었습니다.' };
+    }
     // configuration-not-found 에러는 Firebase Console 설정 문제
     if (error.code === 'auth/configuration-not-found') {
       return {
