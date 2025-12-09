@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ArrowLeft, X, Trash2, FileText, Star, Volume2, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
@@ -27,10 +27,6 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
   // Sentences인지 확인 (문장은 여러 단어로 구성되어 있음)
   const isSentenceStack = title === "Sentences";
-
-  // 한글 뜻이 없는 단어들을 추적하고 자동으로 가져오기
-  const [meanings, setMeanings] = useState<Record<string, string>>({});
-  const [loadingMeanings, setLoadingMeanings] = useState<Set<string>>(new Set());
 
   // 단어 상세 모달 상태
   const [selectedWord, setSelectedWord] = useState<{

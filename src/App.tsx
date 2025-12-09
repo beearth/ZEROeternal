@@ -40,7 +40,13 @@ interface Conversation {
 import type { WordData, VocabularyEntry } from "./types";
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LiveChat } from "./components/LiveChat";
+
+import { CommunityFeed } from "./features/community/CommunityFeed";
+import { CreatePostPage } from "./features/community/CreatePostPage";
+import { EditPostPage } from "./features/community/EditPostPage";
+import { UserProfilePage } from "./features/community/UserProfilePage";
+import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
+import { DirectChat } from "./features/community/DirectChat";
 
 
 
@@ -1157,10 +1163,16 @@ export default function App() {
               />
             }
           />
+
+          {/* Community Routes */}
+          <Route path="/community" element={<CommunityFeed />} />
+          <Route path="/create-post" element={<CreatePostPage onSubmit={() => { }} />} />
+          <Route path="/edit-post/:postId" element={<EditPostPage />} />
+          <Route path="/profile/:userId" element={<UserProfilePage />} />
           <Route
-            path="/live-chat"
+            path="/community/global-chat"
             element={
-              <LiveChat
+              <GlobalChatRoom
                 user={user}
                 userVocabulary={userVocabulary}
                 onUpdateWordStatus={(_id: string, status: "red" | "yellow" | "green" | "white" | "orange", word: string) => handleUpdateWordStatus(word, status)}
@@ -1168,10 +1180,10 @@ export default function App() {
                 nativeLang={nativeLang}
                 onSaveSentence={handleSaveSentence}
                 onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
             }
           />
+          <Route path="/chat/:userId" element={<DirectChat />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

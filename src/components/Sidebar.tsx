@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText } from "lucide-react";
+import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText, Users } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -271,23 +271,25 @@ export function Sidebar({
               )}
             </button>
 
-            {/* Live Chat */}
+
+
+            {/* Community */}
             <button
               onClick={() => {
-                navigate("/live-chat");
+                navigate("/community");
                 onClose();
               }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/live-chat")
+              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/community")
                 ? "bg-[#2a2b2c]"
                 : "hover:bg-[#2a2b2c]/50"
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                  <MessageSquare className="w-5 h-5 text-indigo-400" />
+                <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-pink-400" />
                 </div>
-                <span className="text-indigo-400 font-medium truncate">
-                  Live AI Chat
+                <span className="text-pink-400 font-medium truncate">
+                  Community
                 </span>
               </div>
             </button>
