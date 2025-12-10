@@ -1,0 +1,173 @@
+2025-12-10T01:23:02.467Z vite:config bundled config file loaded in 38.97ms
+2025-12-10T01:23:02.484Z vite:config using resolved config: {
+  plugins: [
+    'vite:build-metadata',
+    'vite:watch-package-data',
+    'vite:pre-alias',
+    'alias',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'vite:react-virtual-preamble',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:build-html',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:force-systemjs-wrap-complete',
+    'commonjs',
+    'vite:data-uri',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'vite:build-import-analysis',
+    'vite:esbuild-transpile',
+    'vite:reporter',
+    'vite:load-fallback'
+  ],
+  resolve: {
+    mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+    conditions: [],
+    extensions: [ '.js', '.jsx', '.ts', '.tsx', '.json' ],
+    dedupe: [],
+    preserveSymlinks: false,
+    alias: [ [Object], [Object], [Object] ]
+  },
+  build: {
+    target: 'esnext',
+    cssTarget: 'esnext',
+    outDir: 'build',
+    assetsDir: 'assets',
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
+    sourcemap: false,
+    rollupOptions: { onwarn: [Function: onwarn] },
+    minify: false,
+    terserOptions: {},
+    write: true,
+    emptyOutDir: null,
+    copyPublicDir: true,
+    manifest: false,
+    lib: false,
+    ssr: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+    watch: null,
+    commonjsOptions: { include: [Array], extensions: [Array] },
+    dynamicImportVarsOptions: { warnOnError: true, exclude: [Array] },
+    modulePreload: { polyfill: true },
+    cssMinify: false
+  },
+  server: {
+    preTransformRequests: true,
+    port: 3000,
+    open: true,
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      allow: [Array],
+      deny: [Array],
+      cachedChecks: undefined
+    }
+  },
+  esbuild: { jsxDev: false, jsx: 'automatic', jsxImportSource: undefined },
+  optimizeDeps: {
+    holdUntilCrawlEnd: true,
+    esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' },
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ]
+  },
+  configFile: 'C:/Users/심도진/Desktop/signalvoca/vite.config.ts',
+  configFileDependencies: [ 'C:/Users/심도진/Desktop/signalvoca/vite.config.ts' ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    build: {}
+  },
+  root: 'C:/Users/심도진/Desktop/signalvoca',
+  base: '/',
+  decodedBase: '/',
+  rawBase: '/',
+  publicDir: 'C:/Users/심도진/Desktop/signalvoca/public',
+  cacheDir: 'C:/Users/심도진/Desktop/signalvoca/node_modules/.vite',
+  command: 'build',
+  mode: 'production',
+  ssr: {
+    target: 'node',
+    optimizeDeps: { noDiscovery: true, esbuildOptions: [Object] }
+  },
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: true,
+  css: { lightningcss: undefined },
+  preview: {
+    port: undefined,
+    strictPort: undefined,
+    host: undefined,
+    https: undefined,
+    open: true,
+    proxy: undefined,
+    cors: undefined,
+    headers: undefined
+  },
+  envDir: 'C:/Users/심도진/Desktop/signalvoca',
+  env: {
+    VITE_GEMINI_API_KEY: 'AIzaSyATaFqHpOj_jg7SQDydFbACOSsHxKyltLI',
+    BASE_URL: '/',
+    MODE: 'production',
+    DEV: false,
+    PROD: true
+  },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(1) {
+    'fnpd_C:/Users/심도진/Desktop/signalvoca' => {
+      dir: 'C:/Users/심도진/Desktop/signalvoca',
+      data: [Object],
+      hasSideEffects: [Function: hasSideEffects],
+      webResolvedImports: {},
+      nodeResolvedImports: {},
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  createResolver: [Function: createResolver],
+  worker: { format: 'iife', plugins: '() => plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: { importGlobRestoreExtension: false, hmrPartialAccept: false },
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: getSortedPluginHooks]
+}
+[36mvite v5.4.11 [32mbuilding for production...[36m[39m
+transforming...
+2025-12-10T01:23:03.034Z vite:resolve [32m0.91ms[39m [36mtailwindcss[39m -> [2mC:/Users/심도진/Desktop/signalvoca/node_modules/tailwindcss/index.css[22m
+[32m✓[39m 1706 modules transformed.

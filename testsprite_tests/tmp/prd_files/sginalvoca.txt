@@ -1,0 +1,51 @@
+﻿Signal Voca 앱 구조 설명서
+Signal Voca는 React, TypeScript, Tailwind CSS 및 Firebase를 기반으로 구축된 AI 기반 언어 학습 애플리케이션입니다.
+1. 기술 스택
+·	Frontend:React, TypeScript, Tailwind CSS
+·	Backend:Firebase (Firestore, Authentication)
+·	AI:Google Gemini API
+2. 프로젝트 구조
+src/ ├── components/ # 재사용 가능한 UI 컴포넌트 │ ├── MainContent.tsx # 메인 채팅 영역 및 단어 학습 기능 │ ├── Sidebar.tsx # 사이드바 메뉴 및 스택 관리 │ ├── WordCard.tsx # 단어 카드 컴포넌트 │ └── ... ├── services/ # 외부 서비스 연동 로직 │ ├── firebase.ts # Firebase 초기화 및 설정 │ ├── firestore.ts # Firestore 데이터베이스 연동 함수 │ └── gemini.ts # Gemini API 호출 함수 ├── types/ # TypeScript 타입 정의 │ └── index.ts # WordData, MessageProps 등 타입 정의 ├── App.tsx # 메인 애플리케이션 컴포넌트 └── index.css # Tailwind CSS 설정 및 전역 스타일
+
+3. 주요 컴포넌트 및 기능
+·	App.tsx:
+o	애플리케이션의 진입점입니다.
+o	사이드바 및 메인 컨텐츠 영역을 레이아웃합니다.
+o	Firebase 인증 상태를 관리하고 사용자 정보를 유지합니다.
+o	Firestore에서 사용자 단어 데이터(userVocabulary)를 실시간으로 동기화합니다.
+o	handleUpdateWordStatus함수를 통해 단어 상태 변경 및 Firestore 업데이트를 처리합니다.
+·	Sidebar.tsx:
+o	사용자 프로필, 새 대화 버튼, 단어 스택 (Red, Yellow, Green), 토익 단어장, 중요 단어장, 문장 보관소 메뉴를 표시합니다.
+o	각 스택 및 메뉴 클릭 시 해당 컨텐츠를 메인 영역에 표시하도록 상태를 관리합니다.
+·	MainContent.tsx:
+o	채팅 메시지 목록을 표시하고 사용자 입력을 처리합니다.
+o	Gemini API와 연동하여 AI 응답을 생성하고 표시합니다.
+o	AI 응답 내 단어를 클릭하여 상태를 변경하고 학습 스택에 추가하는 기능을 제공합니다.
+o	단어 클릭 시 WordCard컴포넌트를 팝업으로 표시하여 상세 정보 및 기능을 제공합니다.
+·	WordCard.tsx:
+o	단어, 뜻, 발음, 예문 등 상세 정보를 표시합니다.
+o	단어 상태 변경 (Red, Yellow, Green, None), 중요 단어 설정, 발음 듣기, 문장 저장 기능을 제공합니다.
+o	래디얼 메뉴 인터페이스를 통해 직관적인 사용자 경험을 제공합니다.
+·	services/firebase.ts:
+o	Firebase 앱을 초기화하고 Auth 및 Firestore 인스턴스를 내보냅니다.
+·	services/firestore.ts:
+o	Firestore에 단어 데이터를 저장, 업데이트, 가져오는 함수들을 제공합니다.
+o	saveWord, updateWordStatus, toggleImportant, saveSentence, getUserVocabulary등의 함수를 포함합니다.
+·	services/gemini.ts:
+o	Gemini API를 호출하여 텍스트 생성 및 단어 분석 결과를 가져오는 함수들을 제공합니다.
+o	getGeminiResponse, analyzeWordWithGemini함수를 포함합니다.
+4. 데이터 흐름
+1.	사용자 입력:사용자가 채팅 메시지를 입력하거나 단어를 클릭합니다.
+2.	상태 관리:React 상태 (useState, useReducer)를 통해 UI 상태 및 데이터 변경을 관리합니다.
+3.	서비스 호출:
+o	채팅 메시지 입력 시 gemini.ts를 통해 Gemini API를 호출하여 응답을 받습니다.
+o	단어 상태 변경 시 firestore.ts를 통해 Firestore에 데이터를 저장하거나 업데이트합니다.
+4.	데이터 동기화:App.tsx에서 onSnapshot을 사용하여 Firestore 데이터 변경 사항을 실시간으로 감지하고 UI에 반영합니다.
+5.	UI 업데이트:상태 변경 및 데이터 동기화에 따라 컴포넌트가 리렌더링되어 UI가 업데이트됩니다.
+5. 주요 기능
+·	AI 채팅:Gemini API를 활용하여 자연스러운 대화 및 언어 학습 지원을 제공합니다.
+·	단어 학습:AI 응답 내 단어를 클릭하여 학습 스택에 추가하고 상태를 관리합니다.
+·	래디얼 메뉴:직관적인 인터페이스를 통해 단어 상태 변경, 중요 단어 설정, 발음 듣기, 문장 저장 기능을 간편하게 사용할 수 있습니다.
+·	실시간 데이터 동기화:Firestore를 통해 단어 학습 데이터를 실시간으로 저장하고 동기화합니다.
+·	다양한 학습 모드:토익 단어장, 중요 단어장, 문장 보관소 등 다양한 학습 모드를 제공합니다.
+

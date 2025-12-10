@@ -41,12 +41,12 @@ import type { WordData, VocabularyEntry } from "./types";
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { CommunityFeed } from "./features/community/CommunityFeed";
-import { CreatePostPage } from "./features/community/CreatePostPage";
-import { EditPostPage } from "./features/community/EditPostPage";
-import { UserProfilePage } from "./features/community/UserProfilePage";
-import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
-import { DirectChat } from "./features/community/DirectChat";
+// import { CommunityFeed } from "./features/community/CommunityFeed";
+// import { CreatePostPage } from "./features/community/CreatePostPage";
+// import { EditPostPage } from "./features/community/EditPostPage";
+// import { UserProfilePage } from "./features/community/UserProfilePage";
+// import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
+// import { DirectChat } from "./features/community/DirectChat";
 
 
 
@@ -1165,12 +1165,11 @@ export default function App() {
           />
 
           {/* Community Routes */}
-          {/* Community Routes */}
-          <Route path="/community" element={<CommunityFeed user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
-          <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} />
-          <Route path="/edit-post/:postId" element={<EditPostPage />} />
-          <Route path="/profile/:userId" element={<UserProfilePage user={user} />} />
-          <Route
+          {/* <Route path="/community" element={<CommunityFeed user={user} />} /> */}
+          {/* <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} /> */}
+          {/* <Route path="/edit-post/:postId" element={<EditPostPage />} /> */}
+          {/* <Route path="/profile/:userId" element={<UserProfilePage />} /> */}
+          {/* <Route
             path="/community/global-chat"
             element={
               <GlobalChatRoom
@@ -1183,8 +1182,8 @@ export default function App() {
                 onSaveImportant={handleSaveImportant}
               />
             }
-          />
-          <Route path="/chat/:userId" element={<DirectChat />} />
+          /> */}
+          {/* <Route path="/chat/:userId" element={<DirectChat />} /> */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -1,13 +1,17 @@
-2025-12-10T00:20:35.465Z vite:config config file loaded in 34.54ms
-2025-12-10T00:20:35.467Z vite:env loading env files: [
+
+> fun-age-app-clone@0.1.0 build
+> vite build --debug
+
+2025-12-09T09:17:35.012Z vite:config config file loaded in 41.21ms
+2025-12-09T09:17:35.014Z vite:env loading env files: [
   'C:/Users/심도진/Desktop/signalvoca/.env',
   'C:/Users/심도진/Desktop/signalvoca/.env.local',
   'C:/Users/심도진/Desktop/signalvoca/.env.production',
   'C:/Users/심도진/Desktop/signalvoca/.env.production.local'
 ]
-2025-12-10T00:20:35.468Z vite:env env files loaded in 0.70ms
-2025-12-10T00:20:35.468Z vite:env using resolved env: { VITE_GEMINI_API_KEY: 'AIzaSyATaFqHpOj_jg7SQDydFbACOSsHxKyltLI' }
-2025-12-10T00:20:35.483Z vite:config using resolved config: {
+2025-12-09T09:17:35.015Z vite:env env files loaded in 0.79ms
+2025-12-09T09:17:35.015Z vite:env using resolved env: { VITE_GEMINI_API_KEY: 'AIzaSyATaFqHpOj_jg7SQDydFbACOSsHxKyltLI' }
+2025-12-09T09:17:35.031Z vite:config using resolved config: {
   plugins: [
     'vite:build-metadata',
     'vite:watch-package-data',
@@ -373,7 +377,7 @@
     recoverable: false,
     moduleRunnerTransform: false
   },
-  webSocketToken: '56ILN8RCSYKG',
+  webSocketToken: '6o1k3-XO5hzh',
   getSortedPlugins: [Function: getSortedPlugins],
   getSortedPluginHooks: [Function: getSortedPluginHooks],
   createResolver: [Function: createResolver],
@@ -383,5 +387,5 @@
 }
 [36mvite v6.3.5 [32mbuilding for production...[36m[39m
 transforming...
-2025-12-10T00:20:35.963Z vite:resolve [32m0.78ms[39m [36mtailwindcss[39m -> [2mC:/Users/심도진/Desktop/signalvoca/node_modules/tailwindcss/index.css[22m
+2025-12-09T09:17:35.530Z vite:resolve [32m1.04ms[39m [36mtailwindcss[39m -> [2mC:/Users/심도진/Desktop/signalvoca/node_modules/tailwindcss/index.css[22m
 [32m✓[39m 1728 modules transformed.

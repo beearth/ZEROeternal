@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "project": "Signal Voca",
+    "date": "2025-12-05",
+    "prepared_by": "Software Development Manager"
+  },
+  "product_overview": "Signal Voca is an AI-based language learning application built with React, TypeScript, Tailwind CSS, Firebase, and Google Gemini API. It supports TOEIC vocabulary management and interactive AI chat for effective language acquisition, integrated with real-time data sync and community features.",
+  "core_goals": [
+    "Provide an interactive AI chat interface for language learning and translation using Google Gemini API.",
+    "Enable users to efficiently manage TOEIC vocabulary with state categorization (Red, Yellow, Green, Important) and sentence storage.",
+    "Support a seamless authentication system using Firebase Authentication (Google Login).",
+    "Facilitate real-time synchronization and persistent storage of user vocabulary data and learning progress using Firebase Firestore.",
+    "Offer a community platform including posts, comments, likes, user profiles, and global and direct chat functionalities for learner engagement.",
+    "Deliver intuitive UI/UX with components like radial menus for easy vocabulary status updates and a clear sidebar navigation for learning stacks and chat history.",
+    "Support onboarding for personalized language selection and content type to tailor the learning experience."
+  ],
+  "key_features": [
+    "AI Chat interface leveraging Gemini API for natural language interaction and personalized translations.",
+    "Comprehensive vocabulary management with TOEIC word lists grouped into stacks including Red, Yellow, Green, Important, and Sentence storage.",
+    "Firebase Authentication integration enabling secure user login primarily via Google Auth.",
+    "Community features including social posts, comments, likes, user profiles, real-time global chat, and 1:1 direct chat rooms.",
+    "Radial menu UI in WordCard component for easy setting of word statuses and important flags, play pronunciation audio, and save example sentences.",
+    "Sidebar component offering navigation to user profile, new conversation initiation, vocabulary stacks and TOEIC word lists with real-time counts.",
+    "Onboarding modal facilitating initial language and content preferences setup.",
+    "Real-time data synchronization through Firestore on vocabulary updates and chat interactions."
+  ],
+  "user_flow_summary": [
+    "User accesses the app and logs in via Firebase Authentication (Google login).",
+    "User goes through onboarding to select language preferences and content type.",
+    "Main interface displays sidebar with navigation options and word stack counts, and main content showing AI chat or vocabulary list as per user selection.",
+    "User interacts with AI chat by inputting messages, receiving Gemini API powered responses with clickable vocabulary words.",
+    "Clicking a word opens WordCard popup for details, allowing status changes, marking important, playing pronunciations, and saving example sentences.",
+    "Vocabulary stacks update in real-time with changes reflected immediately via Firestore synchronization.",
+    "Users can navigate to community feed, create or edit posts, engage in global or direct chats with other users.",
+    "Users can manage their learning progress by switching between different vocabulary stacks such as TOEIC words, important words, and saved sentences."
+  ],
+  "validation_criteria": [
+    "Successful user authentication with Firebase using Google login.",
+    "Real-time Firestore synchronization of user vocabulary data with immediate UI updates on data change.",
+    "Correct generation of AI chat responses from Gemini API matching user input context.",
+    "Functionality of clickable vocabulary words within AI responses opening detailed WordCard popups.",
+    "WordCard radial menu correctly updates word status, important flag, and supports pronunciation playback and sentence saving.",
+    "Community features including posting, commenting, liking, and user profile editing work as intended with proper data persistence.",
+    "Real-time messaging functionality in global and direct chats works with messages sent and received promptly.",
+    "Onboarding modal captures and respects user language and content preferences from the start.",
+    "Sidebar navigation accurately reflects user vocabulary stacks and conversation histories with correct counts displayed."
+  ],
+  "code_summary": {
+    "tech_stack": [
+      "TypeScript",
+      "React",
+      "Vite",
+      "Firebase",
+      "Tailwind CSS",
+      "Radix UI",
+      "Gemini API"
+    ],
+    "features": [
+      {
+        "name": "Authentication",
+        "description": "User authentication using Firebase Auth (Google Login)",
+        "files": [
+          "src/services/auth.ts",
+          "src/components/Auth.tsx",
+          "src/App.tsx"
+        ]
+      },
+      {
+        "name": "Vocabulary Management",
+        "description": "Manage TOEIC words and user stacks (Red, Yellow, Green, Important, Sentences)",
+        "files": [
+          "src/components/ToeicWordList.tsx",
+          "src/components/StackView.tsx",
+          "src/services/userData.ts",
+          "src/types.ts"
+        ]
+      },
+      {
+        "name": "AI Chat",
+        "description": "Chat interface with Gemini AI for language learning and translation",
+        "files": [
+          "src/components/ChatMessage.tsx",
+          "src/components/ChatInput.tsx",
+          "src/services/gemini.ts",
+          "src/components/MainContent.tsx"
+        ]
+      },
+      {
+        "name": "Community",
+        "description": "Social features including posts, comments, likes, and user profiles",
+        "files": [
+          "src/features/community/CommunityFeed.tsx",
+          "src/features/community/CreatePostPage.tsx",
+          "src/features/community/EditPostPage.tsx",
+          "src/features/community/UserProfilePage.tsx",
+          "src/features/community/PostCard.tsx",
+          "src/features/community/CreatePostModal.tsx"
+        ]
+      },
+      {
+        "name": "Global Chat",
+        "description": "Real-time global chat room for all users",
+        "files": [
+          "src/features/community/GlobalChatRoom.tsx"
+        ]
+      },
+      {
+        "name": "Direct Chat",
+        "description": "1:1 chat between users",
+        "files": [
+          "src/features/community/DirectChat.tsx"
+        ]
+      },
+      {
+        "name": "Sidebar",
+        "description": "Navigation sidebar with conversation history and stack counts",
+        "files": [
+          "src/components/Sidebar.tsx"
+        ]
+      },
+      {
+        "name": "Onboarding",
+        "description": "Initial setup for language selection and content type",
+        "files": [
+          "src/components/OnboardingModal.tsx"
+        ]
+      }
+    ]
+  }
+}

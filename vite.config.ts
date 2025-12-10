@@ -1,6 +1,6 @@
 
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import react from '@vitejs/plugin-react';
 import path from 'path';
 
 import { fileURLToPath } from "url";
@@ -19,6 +19,16 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
+    sourcemap: false,
+    minify: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+        },
+      },
+    },
   },
   server: {
     port: 3000,

@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText, Users } from "lucide-react";
+import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText, Users, User } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -293,72 +293,76 @@ export function Sidebar({
                 </span>
               </div>
             </button>
-          </div>
-        </div>
+
+
+          </div >
+        </div >
 
         {/* 대화 목록 */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {conversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId && isActive("/")
-                ? "bg-[#2a2b2c] border border-[#3a3b3c]"
-                : "hover:bg-[#2a2b2c]/50 border border-transparent"
-                }`}
-              onClick={() => {
-                onSelectConversation(conversation.id);
-                navigate("/");
-                onClose();
-              }}
-            >
+        < div className="flex-1 overflow-y-auto p-3 space-y-2" >
+          {
+            conversations.map((conversation) => (
               <div
-                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId && isActive("/")
-                  ? "bg-gradient-to-br from-blue-500 to-purple-600"
-                  : "bg-[#2a2b2c]"
+                key={conversation.id}
+                className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId && isActive("/")
+                  ? "bg-[#2a2b2c] border border-[#3a3b3c]"
+                  : "hover:bg-[#2a2b2c]/50 border border-transparent"
                   }`}
+                onClick={() => {
+                  onSelectConversation(conversation.id);
+                  navigate("/");
+                  onClose();
+                }}
               >
-                <MessageSquare
-                  className={`w-5 h-5 ${conversation.id === currentConversationId && isActive("/")
-                    ? "text-white"
-                    : "text-[#9ca3af]"
-                    }`}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`truncate ${conversation.id === currentConversationId && isActive("/")
-                    ? "text-[#E3E3E3]"
-                    : "text-[#E3E3E3]"
+                <div
+                  className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId && isActive("/")
+                    ? "bg-gradient-to-br from-blue-500 to-purple-600"
+                    : "bg-[#2a2b2c]"
                     }`}
                 >
-                  {conversation.title}
-                </p>
-                <p className="text-xs text-[#9ca3af] mt-1">
-                  {conversation.messages.length > 0
-                    ? `메시지 ${conversation.messages.length}개`
-                    : "메시지 없음"}
-                </p>
+                  <MessageSquare
+                    className={`w-5 h-5 ${conversation.id === currentConversationId && isActive("/")
+                      ? "text-white"
+                      : "text-[#9ca3af]"
+                      }`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`truncate ${conversation.id === currentConversationId && isActive("/")
+                      ? "text-[#E3E3E3]"
+                      : "text-[#E3E3E3]"
+                      }`}
+                  >
+                    {conversation.title}
+                  </p>
+                  <p className="text-xs text-[#9ca3af] mt-1">
+                    {conversation.messages.length > 0
+                      ? `메시지 ${conversation.messages.length}개`
+                      : "메시지 없음"}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConversation(conversation.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#3a3b3c] rounded-lg transition-all"
+                >
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                </button>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteConversation(conversation.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#3a3b3c] rounded-lg transition-all"
-              >
-                <Trash2 className="w-4 h-4 text-red-400" />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))
+          }
+        </div >
 
         {/* 푸터 */}
-        <div className="p-4 border-t border-[#2a2b2c]">
+        < div className="p-4 border-t border-[#2a2b2c]" >
           <div className="text-xs text-[#9ca3af] text-center">
             AI 채팅 어시스턴트 v1.0
           </div>
-        </div>
-      </aside>
+        </div >
+      </aside >
     </>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Settings, LogOut, RefreshCw, MoreHorizontal } from "lucide-react";
+import { Settings, LogOut, RefreshCw, MoreHorizontal, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface SettingsMenuProps {
     onLogout: () => void;
@@ -9,6 +10,7 @@ interface SettingsMenuProps {
 export function SettingsMenu({ onLogout, onResetLanguage }: SettingsMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -50,6 +52,17 @@ export function SettingsMenu({ onLogout, onResetLanguage }: SettingsMenuProps) {
                     >
                         <RefreshCw className="w-4 h-4" />
                         <span>언어 설정 초기화</span>
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            navigate("/profile/current_user");
+                            setIsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors text-sm"
+                    >
+                        <User className="w-4 h-4" />
+                        <span>내 프로필</span>
                     </button>
 
                     <div className="my-1 border-t border-slate-100" />

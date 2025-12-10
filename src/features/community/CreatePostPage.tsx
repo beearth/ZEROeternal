@@ -5,11 +5,15 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 
+import { User } from 'firebase/auth';
+import { toast } from 'sonner';
+
 export interface CreatePostPageProps {
     onSubmit: (data: { title: string; image: string; content: string }) => void;
+    user: User | null;
 }
 
-export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
+export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [imageUrl, setImageUrl] = useState('');
@@ -17,46 +21,62 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !content.trim()) return;
+        console.log('Submitting post...', { title, content, user });
+        if (!title.trim() || !content.trim()) {
+            console.log('Title or content missing');
+            return;
+        }
 
-        const newPost = {
-            id: Date.now().toString(),
-            authorId: 'current_user',
-            title: title,
-            user: {
-                name: "Seoul_Lover",
-                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-                location: "Korea, Seoul",
-                flag: "🇰🇷"
-            },
-            image: imageUrl,
-            content: content,
-            likes: 0,
-            timeAgo: "방금"
-        };
+        try {
+            const newPost = {
+                id: Date.now().toString(),
+                authorId: user?.uid || 'anonymous',
+                title: title,
+                user: {
+                    name: user?.displayName || "Anonymous",
+                    avatar: user?.photoURL || "https://via.placeholder.com/100",
+                    location: "Korea, Seoul", // This could be dynamic if we had user location data
+                    flag: "🇰🇷"
+                },
+                image: imageUrl,
+                content: content,
+                likes: 0,
+                timeAgo: "방금",
+                likedBy: []
+            };
 
-        // Load existing posts from localStorage
-        const savedPosts = localStorage.getItem('communityPosts');
-        const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
+            // Load existing posts from localStorage
+            const savedPosts = localStorage.getItem('communityPosts');
+            const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
 
-        // Add new post at the beginning
-        const updatedPosts = [newPost, ...existingPosts];
+            // Add new post at the beginning
+            const updatedPosts = [newPost, ...existingPosts];
 
-        // Save to localStorage
-        localStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
+            // Save to localStorage
+            localStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
 
-        // Call onSubmit callback
-        onSubmit({
-            title: title,
-            image: imageUrl,
-            content: content
-        });
+            // Call onSubmit callback
+            onSubmit({
+                title: title,
+                image: imageUrl,
+                content: content
+            });
 
-        // Reset and navigate back
-        setTitle('');
-        setImageUrl('');
-        setContent('');
-        navigate('/community');
+            toast.success("게시글이 작성되었습니다!");
+
+            // Reset and navigate back
+            setTitle('');
+            setImageUrl('');
+            setContent('');
+            navigate('/community');
+        } catch (error: any) {
+            console.error("게시글 저장 실패:", error);
+            if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
+                toast.error("저장 용량이 부족합니다. 이미지 크기를 줄이거나 기존 게시글을 삭제해주세요.");
+            } else {
+                toast.error("게시글을 저장하는 중 오류가 발생했습니다.");
+            }
+        }
     };
 
     const handleCancel = () => {

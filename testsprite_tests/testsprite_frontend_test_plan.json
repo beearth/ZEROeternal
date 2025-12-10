@@ -1,0 +1,492 @@
+[
+  {
+    "id": "TC001",
+    "title": "Successful Google Login via Firebase Authentication",
+    "description": "Verify that a user can log in successfully using Firebase Authentication with a valid Google account.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page."
+      },
+      {
+        "type": "action",
+        "description": "Click the 'Login with Google' button."
+      },
+      {
+        "type": "action",
+        "description": "Complete the Google account authentication flow with valid credentials."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the user is successfully authenticated and redirected to the main interface."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the user's profile information is correctly loaded."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Google Login Failure with Invalid Credentials",
+    "description": "Verify the system handles failed login attempts appropriately when Google authentication fails or is cancelled.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page."
+      },
+      {
+        "type": "action",
+        "description": "Click the 'Login with Google' button."
+      },
+      {
+        "type": "action",
+        "description": "Cancel the Google authentication window or enter invalid credentials."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that login fails and user remains on login page."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that a meaningful error message or notification is displayed to the user."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Successful Onboarding Modal Language and Content Preference Selection",
+    "description": "Verify onboarding modal correctly captures user language and content type preferences and stores them.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login successfully and open the onboarding modal on first launch."
+      },
+      {
+        "type": "action",
+        "description": "Select a language preference."
+      },
+      {
+        "type": "action",
+        "description": "Select content type preferences."
+      },
+      {
+        "type": "action",
+        "description": "Submit the onboarding form."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the selected preferences are saved and reflected in subsequent sessions."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that onboarding modal does not reappear on future logins."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "AI Chat Interface Responds with Contextual Gemini API Responses",
+    "description": "Verify that the AI chat interface correctly sends user inputs to Gemini API and displays appropriate, contextual AI-generated responses with clickable vocabulary words.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and navigate to the AI Chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Input a valid message/question relevant to language learning."
+      },
+      {
+        "type": "action",
+        "description": "Send the message."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that a response is received from Gemini API."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the response text matches the input context and is grammatically correct."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that vocabulary words in the response are clickable to open the WordCard popup."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "WordCard Popup Opens and Displays Correct Details",
+    "description": "Verify clicking vocabulary words in AI chat responses opens the WordCard popup showing word details correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send an AI chat message containing vocabulary words."
+      },
+      {
+        "type": "action",
+        "description": "Click on a vocabulary word in the AI chat response."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the WordCard popup opens with the correct word."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the popup displays the word definition, status, pronunciation button, and sentence storage options."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Radial Menu Updates Word Status and Important Flag Correctly",
+    "description": "Verify the radial menu in WordCard component updates the selected word's state (Red, Yellow, Green, Important) correctly and persists changes.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a WordCard popup."
+      },
+      {
+        "type": "action",
+        "description": "Use the radial menu to change the word's status to each possible category and toggle the important flag."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the changes are immediately reflected in the UI."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that changes persist after closing and reopening the WordCard popup."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that real-time Firestore sync updates other active sessions with the changes."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Pronunciation Audio Plays Correctly from WordCard",
+    "description": "Verify the pronunciation audio feature in the WordCard plays the correct audio for the selected word.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a WordCard popup."
+      },
+      {
+        "type": "action",
+        "description": "Click the play pronunciation button."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the corresponding pronunciation audio plays with clear sound."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure controls allow stopping or replaying the audio."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Saving Example Sentences in WordCard",
+    "description": "Verify that users can enter and save example sentences related to a vocabulary word and that the sentences persist and appear appropriately.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a WordCard popup."
+      },
+      {
+        "type": "action",
+        "description": "Input a valid example sentence and save it."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sentence is displayed under the word's sentence storage section."
+      },
+      {
+        "type": "assertion",
+        "description": "Close and reopen the WordCard popup and confirm the sentence persists."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Vocabulary Stacks Update and Synchronize in Real-Time",
+    "description": "Verify that updates to vocabulary word status or added sentences reflect immediately in the vocabulary stacks and sync through Firebase Firestore across multiple devices.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "On device A, open a WordCard and update word status or add example sentences."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the vocabulary stack counts in sidebar on device A update accordingly."
+      },
+      {
+        "type": "action",
+        "description": "On device B logged in with same user, verify the stack counts and word data update in real-time without refresh."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Sidebar Navigation Shows Correct Vocabulary Stacks and Conversation History",
+    "description": "Verify the sidebar component accurately displays current vocabulary stacks with real-time word counts and conversation histories.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and navigate to main interface."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that sidebar displays navigation items including profiles, conversations, vocabulary stacks, and their real-time counts."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that selecting an item navigates to the correct view or conversation."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Community Post Creation, Editing, and Persistence",
+    "description": "Verify that users can create new posts, edit existing ones, and that changes persist and display correctly in the community feed.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to community feed and click to create a new post."
+      },
+      {
+        "type": "action",
+        "description": "Input valid post content and submit."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new post appears in the community feed with correct content and user info."
+      },
+      {
+        "type": "action",
+        "description": "Select the created post and edit its content."
+      },
+      {
+        "type": "action",
+        "description": "Submit the edited post."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the edited content is updated and visible in the feed."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Community Post Commenting and Liking Functionality",
+    "description": "Verify that users can comment on posts, like posts, and that these interactions are reflected correctly and persisted.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a community post."
+      },
+      {
+        "type": "action",
+        "description": "Add a comment and submit."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the comment appears under the post."
+      },
+      {
+        "type": "action",
+        "description": "Click the like button on the post."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the like count increments and the like state is persistent."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "User Profile Editing and Data Persistence",
+    "description": "Verify that a user can edit their profile information and that changes persist and reflect correctly across the application.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the user profile page."
+      },
+      {
+        "type": "action",
+        "description": "Edit profile details such as display name or avatar."
+      },
+      {
+        "type": "action",
+        "description": "Save the changes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the updated information persists after page refresh and is displayed correctly in community posts and chat."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Real-Time Global Chat Message Send and Receive",
+    "description": "Verify that users can send messages in the global chat room and receive messages from others in real-time.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the global chat room."
+      },
+      {
+        "type": "action",
+        "description": "Type and send a chat message."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the message appears instantly in the chat."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm messages sent by other users appear in real-time."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "1:1 Direct Chat Message Exchange and Synchronization",
+    "description": "Verify that direct chat between two users functions correctly with sending, receiving, and real-time synchronization of messages.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a 1:1 direct chat with another user."
+      },
+      {
+        "type": "action",
+        "description": "Send a message."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the message is displayed in the chat window immediately."
+      },
+      {
+        "type": "assertion",
+        "description": "On the other user's device, confirm the message is received and displayed in real-time."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Error Handling for AI Chat Response Failure",
+    "description": "Verify that when the Gemini API fails to return a response or returns an error, the AI chat interface handles this gracefully.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate Gemini API failure or network error."
+      },
+      {
+        "type": "action",
+        "description": "Send a message in the AI chat interface."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that an error notification or message is shown to the user."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the chat interface remains stable and allows resending messages."
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Vocabulary Stack Filter Edge Cases",
+    "description": "Verify the vocabulary stack filtering handles edge cases such as empty stacks, large numbers of words, and simultaneous updates from multiple sources.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to vocabulary stacks with zero words."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the UI properly indicates empty stacks with no errors."
+      },
+      {
+        "type": "action",
+        "description": "Load a vocabulary stack with a large number of words."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that performance is acceptable and UI displays all items correctly."
+      },
+      {
+        "type": "action",
+        "description": "Perform updates on word statuses from two different devices simultaneously."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that changes synchronize correctly without data loss or conflict."
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Logout and Session Termination",
+    "description": "Verify that user logout terminates session properly and returns user to the login page.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login successfully."
+      },
+      {
+        "type": "action",
+        "description": "Click the logout button."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user session ends and user is redirected to login screen."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify cached user data is cleared and protected resources are inaccessible."
+      }
+    ]
+  }
+]

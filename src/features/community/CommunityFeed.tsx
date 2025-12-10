@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PenSquare, Globe } from 'lucide-react';
+import { PenSquare, Globe, Menu } from 'lucide-react';
 import { PostCard, PostCardProps } from './PostCard';
 import { FriendRecommendations } from './FriendRecommendations';
 import { Button } from "../../components/ui/button";
@@ -48,11 +48,11 @@ const INITIAL_POSTS: ExtendedPostCardProps[] = [
     },
     {
         id: '3',
-        authorId: 'current_user', // This is owned by current user
+        authorId: 'user_kim',
         title: "Spicy Ramen Lunch",
-        likedBy: ['current_user'], // Already liked by current user
+        likedBy: [],
         user: {
-            name: "Seoul_Lover",
+            name: "Kim_Spicy",
             avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
             location: "Korea, Seoul",
             flag: "🇰🇷"
@@ -64,15 +64,16 @@ const INITIAL_POSTS: ExtendedPostCardProps[] = [
     }
 ];
 
-const CURRENT_USER_ID = 'current_user';
-const CURRENT_USER = {
-    name: "Seoul_Lover",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    location: "Korea, Seoul",
-    flag: "�🇷"
-};
+// Removed CURRENT_USER_ID and CURRENT_USER constants as they are replaced by dynamic user data
 
-export function CommunityFeed() {
+import { User } from 'firebase/auth';
+
+interface CommunityFeedProps {
+    user?: User | null;
+    onToggleSidebar?: () => void;
+}
+
+export function CommunityFeed({ user, onToggleSidebar }: CommunityFeedProps) {
     const navigate = useNavigate();
 
     // Load posts from localStorage on mount
@@ -116,25 +117,27 @@ export function CommunityFeed() {
         console.log('Posts deleted and saved to localStorage');
     };
 
+    const currentUserId = user?.uid || 'anonymous';
+
     const handleLike = (postId: string) => {
         const updatedPosts = posts.map(post => {
             if (post.id === postId) {
                 // Ensure likedBy exists
                 const likedBy = post.likedBy || [];
-                const isLiked = likedBy.includes(CURRENT_USER_ID);
+                const isLiked = likedBy.includes(currentUserId);
                 if (isLiked) {
                     // Unlike: remove user and decrease count
                     return {
                         ...post,
                         likes: Math.max(0, post.likes - 1),
-                        likedBy: likedBy.filter(id => id !== CURRENT_USER_ID)
+                        likedBy: likedBy.filter(id => id !== currentUserId)
                     };
                 } else {
                     // Like: add user and increase count
                     return {
                         ...post,
                         likes: post.likes + 1,
-                        likedBy: [...likedBy, CURRENT_USER_ID]
+                        likedBy: [...likedBy, currentUserId]
                     };
                 }
             }
@@ -153,9 +156,18 @@ export function CommunityFeed() {
                 {/* Sticky Header with Create Button */}
                 <div className="bg-[#f2f0ea] border-b border-slate-200 sticky top-0 z-20">
                     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">커뮤니티</h1>
-                            <p className="text-slate-500 mt-1">전 세계 친구들의 일상을 구경해보세요.</p>
+                        <div className="flex items-center gap-3">
+                            {/* Mobile Menu Button */}
+                            <button
+                                onClick={onToggleSidebar}
+                                className="p-2 -ml-2 hover:bg-slate-200 rounded-lg lg:hidden"
+                            >
+                                <Menu className="w-6 h-6 text-slate-600" />
+                            </button>
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900">커뮤니티</h1>
+                                <p className="text-slate-500 mt-1">전 세계 친구들의 일상을 구경해보세요.</p>
+                            </div>
                         </div>
 
                         <div className="flex gap-2">
@@ -195,13 +207,13 @@ export function CommunityFeed() {
                                 <PostCard
                                     key={post.id}
                                     {...post}
-                                    onChat={post.authorId === CURRENT_USER_ID ? undefined : () => handleChat(post)}
+                                    onChat={post.authorId === currentUserId ? undefined : () => handleChat(post)}
                                     onClickProfile={() => navigate(`/profile/${post.authorId || 'user1'}`)}
-                                    isOwner={post.authorId === CURRENT_USER_ID}
+                                    isOwner={post.authorId === currentUserId}
                                     onEdit={() => navigate(`/edit-post/${post.id}`)}
                                     onDelete={() => handleDeletePost(post.id)}
                                     onLike={() => handleLike(post.id)}
-                                    isLiked={(post.likedBy || []).includes(CURRENT_USER_ID)}
+                                    isLiked={(post.likedBy || []).includes(currentUserId)}
                                 />
                             ))}
                         </div>

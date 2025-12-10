@@ -1,0 +1,19 @@
+src/App.tsx(931,6): error TS17008: JSX element 'BrowserRouter' has no corresponding closing tag.
+src/App.tsx(975,8): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/App.tsx(1149,1): error TS1005: '}' expected.
+src/App.tsx(1153,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1154,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1155,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1158,51): error TS1005: '}' expected.
+src/App.tsx(1159,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1161,15): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1163,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1164,43): error TS1005: '}' expected.
+src/App.tsx(1165,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1166,11): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1167,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1167,10): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1169,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/App.tsx(1386,11): error TS17002: Expected corresponding JSX closing tag for 'Routes'.
+src/App.tsx(1388,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/App.tsx(1389,1): error TS1005: '</' expected.

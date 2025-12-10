@@ -5,6 +5,11 @@ import { ArrowLeft, Mail, Globe } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import { PostCard } from './PostCard';
+import { User } from 'firebase/auth';
+
+interface UserProfilePageProps {
+    user?: User | null;
+}
 
 
 // Define User Profile Interface
@@ -26,14 +31,14 @@ interface UserProfile {
 const MOCK_USERS: Record<string, UserProfile> = {
     'user1': {
         id: 'user1',
-        name: 'Seoul_Lover',
+        name: 'Kim_Traveler',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
         joinDate: 'Joined in Mar 2025',
         followers: 128,
         following: 45,
         studying: ['Spanish', 'French'],
         native: ['Korean'],
-        bio: '자기 소개를 적어주세요. 자기 소개를 적어주세요. 자기 소개를 적어주세요. 자기 소개를 적어주세요. 자기 소개를 적어주세요. 자기 소개를 적어주세요.',
+        bio: '여행을 사랑하는 김여행입니다.\nI love traveling!',
         location: 'Seoul, Korea',
         flag: '🇰🇷'
     },
@@ -97,7 +102,7 @@ const MOCK_USER_POSTS = [
         id: 1,
         authorId: 'user1',
         user: {
-            name: 'Seoul_Lover',
+            name: 'Kim_Traveler',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
             location: 'Seoul, Korea',
             flag: '🇰🇷'
@@ -112,7 +117,7 @@ const MOCK_USER_POSTS = [
         id: 2,
         authorId: 'user1',
         user: {
-            name: 'Seoul_Lover',
+            name: 'Kim_Traveler',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
             location: 'Seoul, Korea',
             flag: '🇰🇷'
@@ -155,13 +160,34 @@ const MOCK_USER_POSTS = [
     }
 ];
 
-export function UserProfilePage() {
+export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
     const [isFollowing, setIsFollowing] = useState(false);
 
-    // Select user based on ID, fallback to user1
-    const selectedUser = MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1'];
+    // Determine if we are viewing the current user's profile
+    const isCurrentUser = currentUser && (userId === currentUser.uid || userId === 'current_user');
+
+    // Create a profile object for the current user if available
+    const currentUserProfile: UserProfile | undefined = currentUser ? {
+        id: currentUser.uid,
+        name: currentUser.displayName || 'Anonymous',
+        avatar: currentUser.photoURL || 'https://via.placeholder.com/200',
+        joinDate: `Joined in ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
+        followers: 0,
+        following: 0,
+        studying: ['English'], // Default or fetch from user prefs
+        native: ['Korean'], // Default or fetch
+        bio: 'Hello! I am learning languages.',
+        location: 'Earth',
+        flag: '🌍'
+    } : undefined;
+
+    // Select user based on ID, fallback to mock data
+    // If it's current user, use currentUserProfile, otherwise looks in MOCK_USERS
+    const selectedUser = isCurrentUser && currentUserProfile
+        ? currentUserProfile
+        : (MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1']);
 
     // Bio Editing State
     const [isEditingBio, setIsEditingBio] = useState(false);
@@ -234,15 +260,17 @@ export function UserProfilePage() {
                         {/* Action Buttons & Stats */}
                         <div className="flex flex-col items-end mt-6 gap-4">
                             <div className="flex gap-3">
-                                <Button
-                                    onClick={() => setIsFollowing(!isFollowing)}
-                                    className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
-                                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                                        : 'bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a]'
-                                        }`}
-                                >
-                                    {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
-                                </Button>
+                                {!isCurrentUser && (
+                                    <Button
+                                        onClick={() => setIsFollowing(!isFollowing)}
+                                        className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
+                                            ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                            : 'bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a]'
+                                            }`}
+                                    >
+                                        {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+                                    </Button>
+                                )}
                                 <Button
                                     onClick={() => navigate(`/chat/${userId}`)}
                                     className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
@@ -351,10 +379,18 @@ export function UserProfilePage() {
                     // Filter posts for the current user
                     // Handle both 'current_user' and specific user IDs
                     const userPosts = allPosts.filter((post: any) => {
-                        if (user.id === 'user1' || user.id === 'current_user') {
-                            return post.authorId === 'user1' || post.authorId === 'current_user';
+                        // If viewing our own profile
+                        if (isCurrentUser) {
+                            return post.authorId === currentUser?.uid || post.authorId === 'current_user' || post.authorId === 'anonymous'; // Include 'anonymous' for immediate feedback if id missing
                         }
-                        return post.authorId === user.id;
+
+                        // If viewing user1 (mock), encompass user1 and current_user posts for demo if needed, 
+                        // but strictly we should filter by authorId
+                        if (selectedUser.id === 'user1') {
+                            return post.authorId === 'user1';
+                        }
+
+                        return post.authorId === selectedUser.id;
                     });
 
                     if (userPosts.length === 0) {
