@@ -18,7 +18,7 @@ interface ToeicWordListProps {
   ) => Promise<string>;
   onLoadMore: () => Promise<void>;
   onDeleteWord?: (word: string) => void;
-  onSaveImportant?: (word: WordData) => void;
+  onSaveImportant?: (word: WordData) => boolean | void;
   isLoading: boolean;
   onToggleSidebar: () => void;
 }
@@ -118,7 +118,7 @@ export function ToeicWordList({
   };
 
   // RadialMenu select 핸들러
-  const handleRadialMenuSelect = (direction: RadialDirection) => {
+  const handleRadialMenuSelect = async (direction: RadialDirection) => {
     if (!menuOpenWord) return;
 
     const entry = userVocabulary[menuOpenWord];
@@ -141,7 +141,7 @@ export function ToeicWordList({
         break;
       case "right": // 중요 저장
         if (onSaveImportant && entry) {
-          onSaveImportant({
+          const success = await onSaveImportant({
             id: Date.now().toString(),
             word: menuOpenWord,
             koreanMeaning: entry.koreanMeaning,
@@ -150,7 +150,9 @@ export function ToeicWordList({
             sentence: "",
             timestamp: new Date(),
           });
-          toast.success("중요 단어장에 저장되었습니다.");
+          if (success !== false) {
+            toast.success("중요 단어장에 저장되었습니다.");
+          }
         }
         break;
     }

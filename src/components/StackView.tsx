@@ -15,7 +15,7 @@ interface StackViewProps {
   onGenerateStudyTips?: (wordText: string, status: "red" | "yellow" | "green" | "white" | "orange") => Promise<string>;
   onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white" | "orange") => void;
   onDeleteWord?: (word: string) => void;
-  onSaveImportant?: (word: WordData) => void;
+  onSaveImportant?: (word: WordData) => boolean | void;
   onToggleSidebar: () => void;
 }
 
@@ -113,7 +113,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   };
 
   // RadialMenu select 핸들러
-  const handleRadialMenuSelect = (direction: RadialDirection) => {
+  const handleRadialMenuSelect = async (direction: RadialDirection) => {
     if (!menuOpenWord) return;
 
     const wordKey = menuOpenWord.toLowerCase();
@@ -152,7 +152,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
           const currentMeaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
           const currentStatus = vocabEntry?.status || itemData?.status || "white";
 
-          onSaveImportant({
+          const success = await onSaveImportant({
             id: Date.now().toString(),
             word: menuOpenWord,
             koreanMeaning: currentMeaning,
@@ -161,7 +161,10 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
             sentence: "",
             timestamp: new Date()
           });
-          toast.success("중요 단어장에 저장되었습니다.");
+          
+          if (success !== false) {
+             toast.success("중요 단어장에 저장되었습니다.");
+          }
         }
         break;
     }

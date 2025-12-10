@@ -214,6 +214,7 @@ export function CommunityFeed({ user, onToggleSidebar }: CommunityFeedProps) {
                                     onDelete={() => handleDeletePost(post.id)}
                                     onLike={() => handleLike(post.id)}
                                     isLiked={(post.likedBy || []).includes(currentUserId)}
+                                    currentUser={user ? { name: user.displayName || 'Anonymous', avatar: user.photoURL || '' } : null}
                                 />
                             ))}
                         </div>

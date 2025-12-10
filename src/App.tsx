@@ -796,10 +796,18 @@ export default function App() {
 
     const wordWithMeaning = { ...word, koreanMeaning: finalMeaning || "" };
 
+    let isDuplicate = false;
     setImportantStack((prev) => {
-      if (prev.find((w) => w.id === word.id)) return prev;
+      // Check if word already exists (case-insensitive)
+      if (prev.find((w) => w.word.toLowerCase() === word.word.toLowerCase())) {
+        toast.info("이미 중요 단어장에 있는 단어입니다.");
+        isDuplicate = true;
+        return prev;
+      }
       return [...prev, wordWithMeaning];
     });
+
+    return !isDuplicate;
 
     // 전역 단어장에도 'orange' 상태로 업데이트 (채팅창 반영을 위해)
     const wordKey = word.word.toLowerCase().trim();
