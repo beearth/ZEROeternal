@@ -55,5 +55,27 @@ export const subscribeToMessages = (callback: (messages: any[]) => void) => {
         orderBy("created_at", "asc"),
         limit(100)
     );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                text: data.content,
+                translatedText: data.translated_text,
+                senderId: data.sender_id,
+                senderName: data.sender_name,
+                senderAvatar: data.sender_avatar,
+                timestamp: data.created_at instanceof Timestamp 
+                    ? data.created_at.toDate().toISOString() 
+                    : new Date().toISOString(),
+                originalLang: data.original_lang,
+                targetLang: data.target_lang
+            };
+        });
+        callback(messages);
+    });
+
+    return unsubscribe;
 };
 
