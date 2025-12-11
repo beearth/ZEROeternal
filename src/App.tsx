@@ -1205,7 +1205,7 @@ export default function App() {
               />
             }
           />
-          <Route path="/chat/:userId" element={<DirectChat />} />
+          <Route path="/chat/:userId" element={<DirectChat user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 

@@ -12,16 +12,22 @@ interface DirectMessage {
     timestamp: Date;
 }
 
-export function DirectChat() {
+import { User } from 'firebase/auth';
+
+interface DirectChatProps {
+    user: User | null;
+}
+
+export function DirectChat({ user }: DirectChatProps) {
     const { userId } = useParams<{ userId: string }>();
     const location = useLocation();
     const navigate = useNavigate();
-    const { userName, userAvatar, userFlag, userLocation } = location.state || {};
+    const { userName, userAvatar, userFlag, userLocation } = location.state || {}; // Fallback needed later if state missing
 
     const [messages, setMessages] = useState<DirectMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
 
-    const currentUserId = 'me'; // Mock current user ID
+    const currentUserId = user?.uid || 'anonymous';
 
     const handleSendMessage = () => {
         if (!inputValue.trim()) return;

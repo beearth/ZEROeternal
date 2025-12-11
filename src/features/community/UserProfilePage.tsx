@@ -334,7 +334,14 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                 )}
                                 {!isCurrentUser && (
                                     <Button
-                                        onClick={() => navigate(`/chat/${userId}`)}
+                                        onClick={() => navigate(`/chat/${userId}`, {
+                                            state: {
+                                                userName: postUser.name,
+                                                userAvatar: postUser.avatar,
+                                                userFlag: postUser.flag,
+                                                userLocation: postUser.location
+                                            }
+                                        })}
                                         className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
                                     >
                                         <Mail className="w-6 h-6 stroke-[2.5]" />
