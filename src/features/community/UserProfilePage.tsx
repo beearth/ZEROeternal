@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Mail, Globe, Camera, Pencil, Check, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
@@ -68,6 +68,7 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isFollowing, setIsFollowing] = useState(false);
 
     // Determine if we are viewing the current user's profile
@@ -91,10 +92,37 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     // effectiveUserId for fallback
     const effectiveTargetId = (isCurrentUser && currentUser) ? currentUser.uid : (userId || 'user1');
 
-    // Select user based on ID, fallback to mock data
+    // Retrieve state passed from navigation (e.g. from Chat or PostCard)
+    const stateUser = location.state as {
+        userName?: string;
+        userAvatar?: string;
+        userFlag?: string;
+        userLocation?: string;
+        name?: string; // support both
+        avatar?: string;
+        flag?: string;
+        location?: string;
+    } | null;
+
+    // Construct profile from state if available
+    const stateUserProfile: UserProfile | undefined = stateUser ? {
+        id: userId || 'unknown',
+        name: stateUser.userName || stateUser.name || 'Unknown',
+        avatar: stateUser.userAvatar || stateUser.avatar || 'https://via.placeholder.com/200',
+        joinDate: 'Signal User',
+        followers: 0,
+        following: 0,
+        studying: [],
+        native: [],
+        bio: 'Hello!', // Default bio for visited users
+        location: stateUser.userLocation || stateUser.location || 'Unknown',
+        flag: stateUser.userFlag || stateUser.flag || '🏳️'
+    } : undefined;
+
+    // Select user based on ID, priority: CurrentUser -> State -> Mock
     const selectedUser = isCurrentUser && currentUserProfile
         ? currentUserProfile
-        : (MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1']);
+        : (stateUserProfile || MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1']);
 
     // State for Posts from Firestore
     const [posts, setPosts] = useState<any[]>([]);

@@ -75,7 +75,14 @@ export function DirectChat({ user }: DirectChatProps) {
 
                 <div
                     className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-slate-50 p-2 -ml-2 rounded-lg transition-colors"
-                    onClick={() => navigate(`/profile/${targetUserId}`)}
+                    onClick={() => navigate(`/profile/${targetUserId}`, {
+                        state: {
+                            userName,
+                            userAvatar,
+                            userFlag,
+                            userLocation
+                        }
+                    })}
                 >
                     <Avatar className="h-10 w-10 border border-slate-100">
                         <AvatarImage src={userAvatar} alt={userName || 'User'} className="object-cover" />
@@ -115,7 +122,14 @@ export function DirectChat({ user }: DirectChatProps) {
                                     {!isMe && (
                                         <Avatar
                                             className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity"
-                                            onClick={() => navigate(`/profile/${targetUserId}`)}
+                                            onClick={() => navigate(`/profile/${targetUserId}`, {
+                                                state: {
+                                                    userName,
+                                                    userAvatar,
+                                                    userFlag,
+                                                    userLocation
+                                                }
+                                            })}
                                         >
                                             <AvatarImage src={userAvatar} className="object-cover" />
                                             <AvatarFallback className="text-[10px]">{userName?.[0] || 'U'}</AvatarFallback>
