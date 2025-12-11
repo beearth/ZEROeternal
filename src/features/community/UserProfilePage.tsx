@@ -128,6 +128,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const [tempBio, setTempBio] = useState(bio);
 
     // Update bio state when userId changes
+    // Update bio state when userId changes
     useEffect(() => {
         const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
         const savedName = localStorage.getItem(`user_name_${effectiveTargetId}`);
@@ -136,11 +137,11 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         setBio(savedBio || selectedUser.bio);
         setTempBio(savedBio || selectedUser.bio);
 
-        setEditName(savedName || selectedUser.name);
-        setEditAvatar(savedAvatar || selectedUser.avatar);
+        if (savedName) setEditName(savedName);
+        if (savedAvatar) setEditAvatar(savedAvatar);
 
         setIsEditingProfile(false);
-    }, [userId, currentUser, effectiveTargetId, selectedUser]);
+    }, [effectiveTargetId]);
 
     // Profile Editing State
     const [isEditingProfile, setIsEditingProfile] = useState(false);
