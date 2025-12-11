@@ -11,8 +11,7 @@ import type { VocabularyEntry, WordData } from "../../types";
 import { RadialMenu, RadialDirection } from "../../components/RadialMenuNew";
 import { useLongPress } from "../../hooks/useLongPress";
 import { WordDetailModal } from "../../components/WordDetailModal";
-import { subscribeToMessages, sendMessage } from '../../services/chat';
-import { supabase } from '../../supabase';
+import { subscribeToMessages, sendMessage, deleteMessage } from '../../services/chat';
 
 interface GlobalChatRoomProps {
     user: FirebaseUser | null;
@@ -284,8 +283,7 @@ export function GlobalChatRoom({
     const handleDeleteMessage = async (messageId: string) => {
         if (!window.confirm("메시지를 삭제하시겠습니까? (본인만 가능)")) return;
         try {
-            const { error } = await supabase.from('messages').delete().eq('id', messageId);
-            if (error) throw error;
+            await deleteMessage(messageId);
             toast.success("메시지가 삭제되었습니다.");
             // Subscription will update UI
         } catch (error) {
