@@ -82,7 +82,11 @@ export function MainContent({
                         {isSidebarOpen ? (
                             <X className="w-5 h-5 text-slate-600" />
                         ) : (
-                            <Menu className="w-5 h-5 text-slate-600" />
+                            <div className="flex flex-col gap-[4px] w-5">
+                                <span className="h-0.5 w-full bg-[#ef4444] rounded-full" />
+                                <span className="h-0.5 w-full bg-[#eab308] rounded-full" />
+                                <span className="h-0.5 w-full bg-[#22c55e] rounded-full" />
+                            </div>
                         )}
                     </button>
                     <div>

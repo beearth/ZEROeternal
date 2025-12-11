@@ -1,16 +1,32 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Globe } from 'lucide-react';
+import { ArrowLeft, Mail, Globe, Camera, Pencil, Check, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
-import { PostCard } from './PostCard';
-import { User } from 'firebase/auth';
+import { PostCard, Comment } from './PostCard';
+import { User, updateProfile } from 'firebase/auth';
+import { toast } from "sonner";
+import { supabase } from '../../supabase';
+import { subscribeToPosts, toggleLike, addCommentToPost, deletePost, toggleRepost, deleteCommentFromPost } from '../../services/firestore';
+
+// Helper to convert Data URL to Blob
+const dataURLtoBlob = (dataurl: string) => {
+    const arr = dataurl.split(',');
+    const match = arr[0].match(/:(.*?);/);
+    const mime = match ? match[1] : 'image/jpeg';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+};
 
 interface UserProfilePageProps {
     user?: User | null;
 }
-
 
 // Define User Profile Interface
 interface UserProfile {
@@ -31,134 +47,23 @@ interface UserProfile {
 const MOCK_USERS: Record<string, UserProfile> = {
     'user1': {
         id: 'user1',
-        name: 'Kim_Traveler',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
-        joinDate: 'Joined in Mar 2025',
-        followers: 128,
-        following: 45,
-        studying: ['Spanish', 'French'],
-        native: ['Korean'],
-        bio: '여행을 사랑하는 김여행입니다.\nI love traveling!',
-        location: 'Seoul, Korea',
-        flag: '🇰🇷'
-    },
-    '1': {
-        id: '1',
-        name: 'Study_Master',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop',
-        joinDate: 'Joined in Jan 2025',
-        followers: 542,
-        following: 120,
-        studying: ['English', 'Japanese'],
-        native: ['Korean'],
-        bio: '매일매일 공부하는 습관! 함께해요 🔥\nDaily study habit! Let\'s do it together.',
-        location: 'Busan, Korea',
-        flag: '🇰🇷'
-    },
-    '2': {
-        id: '2',
-        name: 'English_King',
-        avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop',
-        joinDate: 'Joined in Feb 2025',
-        followers: 890,
-        following: 50,
-        studying: ['Korean'],
-        native: ['English'],
-        bio: 'Teaching English in Seoul. Love K-pop!',
-        location: 'New York, USA',
-        flag: '🇺🇸'
-    },
-    '3': {
-        id: '3',
-        name: 'Voca_Queen',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
-        joinDate: 'Joined in Dec 2024',
-        followers: 1200,
-        following: 300,
-        studying: ['Chinese', 'Spanish'],
-        native: ['Korean'],
-        bio: '단어 암기의 여왕 👑\nVoca Queen',
-        location: 'Seoul, Korea',
-        flag: '🇰🇷'
-    },
-    '4': {
-        id: '4',
-        name: 'Daily_Learner',
-        avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200&h=200&fit=crop',
-        joinDate: 'Joined in Mar 2025',
-        followers: 56,
-        following: 100,
+        name: 'Guest_User',
+        avatar: 'https://via.placeholder.com/200',
+        joinDate: 'Joined recently',
+        followers: 0,
+        following: 0,
         studying: ['English'],
         native: ['Korean'],
-        bio: '초보입니다. 잘 부탁드려요!',
-        location: 'Incheon, Korea',
+        bio: 'Welcome!',
+        location: 'Seoul, Korea',
         flag: '🇰🇷'
     }
 };
 
-// Mock Data for User Posts
-const MOCK_USER_POSTS = [
-    {
-        id: 1,
-        authorId: 'user1',
-        user: {
-            name: 'Kim_Traveler',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
-            location: 'Seoul, Korea',
-            flag: '🇰🇷'
-        },
-        image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=600&fit=crop',
-        content: "오늘 날씨가 정말 좋네요! 한강에서 산책하기 딱 좋은 날씨입니다. ☀️\n\nThe weather is so nice today! Perfect for a walk by the Han River.",
-        likes: 45,
-        timeAgo: '2 hours ago',
-        isOwner: true
-    },
-    {
-        id: 2,
-        authorId: 'user1',
-        user: {
-            name: 'Kim_Traveler',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
-            location: 'Seoul, Korea',
-            flag: '🇰🇷'
-        },
-        image: '',
-        content: "새로운 언어를 배우는 건 정말 즐거운 일이에요. 다들 어떤 언어를 공부하고 계신가요?\n\nLearning a new language is truly enjoyable. What languages are you all studying?",
-        likes: 23,
-        timeAgo: '5 hours ago',
-        isOwner: true
-    },
-    {
-        id: 3,
-        authorId: '1',
-        user: {
-            name: 'Study_Master',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-            location: 'Busan, Korea',
-            flag: '🇰🇷'
-        },
-        image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&h=600&fit=crop',
-        content: "오늘도 열심히 공부했습니다! 📚\nStudied hard today as well!",
-        likes: 12,
-        timeAgo: '1 day ago',
-        isOwner: false
-    },
-    {
-        id: 4,
-        authorId: '2',
-        user: {
-            name: 'English_King',
-            avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop',
-            location: 'New York, USA',
-            flag: '🇺🇸'
-        },
-        image: '',
-        content: "K-pop is amazing! Who is your favorite group?",
-        likes: 56,
-        timeAgo: '3 hours ago',
-        isOwner: false
-    }
-];
+const LANGUAGE_FLAGS: Record<string, string> = {
+    'Korean': '🇰🇷', 'English': '🇺🇸', 'Japanese': '🇯🇵', 'Chinese': '🇨🇳',
+    'Spanish': '🇪🇸', 'French': '🇫🇷', 'German': '🇩🇪', 'Russian': '🇷🇺', 'Italian': '🇮🇹'
+};
 
 export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const { userId } = useParams<{ userId: string }>();
@@ -176,42 +81,152 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         joinDate: `Joined in ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
         followers: 0,
         following: 0,
-        studying: ['English'], // Default or fetch from user prefs
+        studying: ['English'],
         native: ['Korean'], // Default or fetch
         bio: 'Hello! I am learning languages.',
         location: 'Earth',
         flag: '🌍'
     } : undefined;
 
+    // effectiveUserId for fallback
+    const effectiveTargetId = (isCurrentUser && currentUser) ? currentUser.uid : (userId || 'user1');
+
     // Select user based on ID, fallback to mock data
-    // If it's current user, use currentUserProfile, otherwise looks in MOCK_USERS
     const selectedUser = isCurrentUser && currentUserProfile
         ? currentUserProfile
         : (MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1']);
 
+    // State for Posts from Firestore
+    const [posts, setPosts] = useState<any[]>([]);
+
+    // Subscribe to Firestore Posts
+    useEffect(() => {
+        const unsubscribe = subscribeToPosts((updatedPosts) => {
+            setPosts(updatedPosts);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Filter posts for this profile
+    const userPosts = posts.filter(post => {
+        if (isCurrentUser) {
+            return post.authorId === currentUser?.uid || post.authorId === 'current_user' || post.authorId === 'anonymous';
+        }
+        if (userId === 'user1' || !userId) {
+            return post.authorId === 'user1';
+        }
+        return post.authorId === userId;
+    });
+
+
     // Bio Editing State
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [bio, setBio] = useState(() => {
-        // Initialize from localStorage or fallback to mock data
-        const savedBio = localStorage.getItem(`user_bio_${selectedUser.id}`);
+        const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
         return savedBio || selectedUser.bio;
     });
     const [tempBio, setTempBio] = useState(bio);
 
     // Update bio state when userId changes
-    React.useEffect(() => {
-        const user = MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1'];
-        const savedBio = localStorage.getItem(`user_bio_${user.id}`);
-        setBio(savedBio || user.bio);
-        setTempBio(savedBio || user.bio);
-        setIsEditingBio(false);
-    }, [userId]);
+    useEffect(() => {
+        const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
+        const savedName = localStorage.getItem(`user_name_${effectiveTargetId}`);
+        const savedAvatar = localStorage.getItem(`user_avatar_${effectiveTargetId}`);
 
-    const user = { ...selectedUser, bio }; // Use state bio
+        setBio(savedBio || selectedUser.bio);
+        setTempBio(savedBio || selectedUser.bio);
+
+        setEditName(savedName || selectedUser.name);
+        setEditAvatar(savedAvatar || selectedUser.avatar);
+
+        setIsEditingProfile(false);
+    }, [userId, currentUser, effectiveTargetId, selectedUser]);
+
+    // Profile Editing State
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editName, setEditName] = useState(selectedUser.name);
+    const [editAvatar, setEditAvatar] = useState(selectedUser.avatar);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEditAvatar(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (isCurrentUser && currentUser) {
+            try {
+                let finalAvatarUrl = editAvatar;
+
+                // 1. If Avatar is Base64, upload to Supabase Storage first
+                if (editAvatar && editAvatar.startsWith('data:')) {
+                    const toastId = toast.loading("이미지 업로드 중...");
+                    const blob = dataURLtoBlob(editAvatar);
+                    const fileName = `avatars/${currentUser.uid}_${Date.now()}.jpg`;
+
+                    // Upload
+                    const { error: uploadError } = await supabase.storage
+                        .from('images')
+                        .upload(fileName, blob, { upsert: true });
+
+                    if (uploadError) {
+                        console.error("Avatar upload failed:", uploadError);
+                        toast.dismiss(toastId);
+                        throw new Error("이미지 업로드 실패");
+                    }
+
+                    // Get Public URL
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('images')
+                        .getPublicUrl(fileName);
+
+                    finalAvatarUrl = publicUrl;
+                    setEditAvatar(publicUrl); // Update state for UI
+                    toast.dismiss(toastId);
+                }
+
+                // 2. Firebase Auth Update (Global)
+                const updates: { displayName?: string; photoURL?: string } = {
+                    displayName: editName,
+                    photoURL: finalAvatarUrl
+                };
+
+                await updateProfile(currentUser, updates);
+
+                // 3. Save to LocalStorage
+                localStorage.setItem(`user_name_${currentUser.uid}`, editName);
+                localStorage.setItem(`user_avatar_${currentUser.uid}`, finalAvatarUrl);
+
+                toast.success("프로필이 성공적으로 업데이트되었습니다!");
+            } catch (error) {
+                console.error("Profile update failed:", error);
+                toast.error("프로필 업데이트 실패: 잠시 후 다시 시도해주세요.");
+            }
+        } else {
+            // Fallback for non-auth users (Mock mode) - store locally
+            try {
+                localStorage.setItem(`user_name_${effectiveTargetId}`, editName);
+                localStorage.setItem(`user_avatar_${effectiveTargetId}`, editAvatar);
+                toast.success("프로필이 (로컬에) 저장되었습니다.");
+            } catch (e) {
+                toast.error("저장 실패: 브라우저 용량이 부족합니다.");
+            }
+        }
+        setIsEditingProfile(false);
+    };
+
+    const currentUserId = currentUser?.uid || 'anonymous';
+    const postUser = { ...selectedUser, bio, name: editName, avatar: editAvatar };
 
     const handleSaveBio = () => {
         setBio(tempBio);
-        localStorage.setItem(`user_bio_${user.id}`, tempBio);
+        localStorage.setItem(`user_bio_${effectiveTargetId}`, tempBio);
         setIsEditingBio(false);
     };
 
@@ -219,6 +234,41 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         setTempBio(bio);
         setIsEditingBio(false);
     };
+
+    // Interaction Handlers
+    const onLikePost = async (post: any) => {
+        const isLiked = (post.likedBy || []).includes(currentUserId);
+        await toggleLike(post.id, currentUserId, isLiked);
+    };
+
+    const onDeletePost = async (postId: string) => {
+        if (window.confirm("정말 이 게시글을 삭제하시겠습니까?")) {
+            await deletePost(postId);
+            toast.success("게시글이 삭제되었습니다.");
+        }
+    };
+
+    const handleDeleteComment = async (postId: string, commentId: string) => {
+        await deleteCommentFromPost(postId, commentId);
+        toast.success("댓글이 삭제되었습니다.");
+    };
+
+    const onAddComment = async (postId: string, text: string) => {
+        const newComment: Comment = {
+            id: Date.now().toString(),
+            authorId: currentUserId,
+            authorName: currentUser?.displayName || '익명',
+            content: text,
+            createdAt: '방금 전'
+        };
+        await addCommentToPost(postId, newComment);
+    };
+
+    const onRepost = async (post: any) => {
+        const isReposted = (post.repostedBy || []).includes(currentUserId);
+        await toggleRepost(post.id, currentUserId, isReposted);
+    };
+
 
     return <div className="flex-1 flex flex-col h-full bg-[#fdfbf6] overflow-y-auto">
         {/* Header */}
@@ -237,23 +287,33 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         <div className="p-4 max-w-3xl mx-auto w-full space-y-6">
             {/* Profile Card */}
             <div className="bg-[#ffe8d6] rounded-[32px] overflow-hidden shadow-sm border border-orange-100 p-6 pt-0 relative">
-                {/* Header Text */}
-                <div className="absolute top-6 left-6 z-10">
-                    {/* Header text removed as it's outside the card in the design, but keeping structure if needed */}
-                </div>
-
                 {/* Banner Area */}
                 <div className="h-32 bg-[#d8b4fe] w-full rounded-2xl border-2 border-[#9333ea] mt-6 relative"></div>
 
                 <div className="px-2 relative">
                     <div className="flex justify-between items-start min-h-[80px]">
                         {/* Avatar - Overlapping Banner */}
-                        <div className="-mt-20 ml-4 relative z-10">
-                            <div className="rounded-full p-1.5 bg-[#a7f3d0] border-[3px] border-black w-36 h-36 flex items-center justify-center overflow-hidden shadow-sm">
+                        <div className="-mt-20 ml-4 relative z-10 group/avatar">
+                            <div className="rounded-full p-1.5 bg-[#a7f3d0] border-[3px] border-black w-36 h-36 flex items-center justify-center overflow-hidden shadow-sm relative">
                                 <Avatar className="w-full h-full bg-transparent rounded-full">
-                                    <AvatarImage src={user.avatar} className="object-cover w-full h-full" />
-                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full">{user.name[0]}</AvatarFallback>
+                                    <AvatarImage src={postUser.avatar} className="object-cover w-full h-full" />
+                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full">{postUser.name[0]}</AvatarFallback>
                                 </Avatar>
+                                {isCurrentUser && isEditingProfile && (
+                                    <div
+                                        className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <Camera className="w-8 h-8 text-white" />
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -271,20 +331,24 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                         {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
                                     </Button>
                                 )}
-                                <Button
-                                    onClick={() => navigate(`/chat/${userId}`)}
-                                    className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
-                                >
-                                    <Mail className="w-6 h-6 stroke-[2.5]" />
-                                </Button>
+                                {!isCurrentUser && (
+                                    <Button
+                                        onClick={() => navigate(`/chat/${userId}`)}
+                                        className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
+                                    >
+                                        <Mail className="w-6 h-6 stroke-[2.5]" />
+                                    </Button>
+                                )}
                             </div>
                             <div className="flex gap-6 pr-2">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 text-base">{user.followers}</span>
+                                    <span className="font-black text-slate-900 text-base">
+                                        {postUser.followers + (isFollowing ? 1 : 0)}
+                                    </span>
                                     <span className="font-bold text-slate-600 text-sm">followers</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 text-base">{user.following}</span>
+                                    <span className="font-black text-slate-900 text-base">{postUser.following}</span>
                                     <span className="font-bold text-slate-600 text-sm">following</span>
                                 </div>
                             </div>
@@ -295,8 +359,31 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
             {/* User Info */}
             <div className="mt-6 ml-4 space-y-1">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">@{user.name}</h2>
-                <p className="text-base text-slate-500 font-bold">{user.joinDate}</p>
+                {isEditingProfile ? (
+                    <div className="flex items-center gap-2">
+                        <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="text-2xl font-black text-slate-900 border-b-2 border-slate-300 focus:border-blue-500 focus:outline-none bg-transparent w-48"
+                        />
+                        <button onClick={handleSaveProfile} className="p-1 hover:bg-green-100 rounded-full text-green-600">
+                            <Check className="w-5 h-5" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">@{postUser.name}</h2>
+                        {isCurrentUser && (
+                            <button
+                                onClick={() => { setIsEditingProfile(true); setEditName(postUser.name); }}
+                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                )}
+                <p className="text-base text-slate-500 font-bold">{postUser.joinDate}</p>
             </div>
 
             {/* Languages */}
@@ -305,8 +392,10 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     <Globe className="w-4 h-4" />
                     <span>STUDYING</span>
                     <div className="flex gap-2">
-                        {user.studying.map(lang => (
-                            <span key={lang} className="w-6 h-6 bg-[#ff8e8e] rounded-sm border-2 border-[#ff4d4d]"></span>
+                        {postUser.studying.map(lang => (
+                            <span key={lang} className="text-2xl filter drop-shadow-sm hover:scale-110 transition-transform cursor-default" title={lang}>
+                                {LANGUAGE_FLAGS[lang] || '🏳️'}
+                            </span>
                         ))}
                     </div>
                 </div>
@@ -314,8 +403,10 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     <Globe className="w-4 h-4" />
                     <span>NATIVE IN</span>
                     <div className="flex gap-2">
-                        {user.native.map(lang => (
-                            <span key={lang} className="w-6 h-6 bg-[#ff8e8e] rounded-sm border-2 border-[#ff4d4d]"></span>
+                        {postUser.native.map(lang => (
+                            <span key={lang} className="text-2xl filter drop-shadow-sm hover:scale-110 transition-transform cursor-default" title={lang}>
+                                {LANGUAGE_FLAGS[lang] || '🏳️'}
+                            </span>
                         ))}
                     </div>
                 </div>
@@ -350,18 +441,20 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                 ) : (
                     <>
                         <p className="text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
-                            {user.bio}
+                            {postUser.bio}
                         </p>
-                        <button
-                            onClick={() => {
-                                setTempBio(user.bio);
-                                setIsEditingBio(true);
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-white/50 hover:bg-white rounded-full text-pink-600 opacity-0 group-hover:opacity-100 transition-all"
-                            title="자기소개 수정"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                        </button>
+                        {isCurrentUser && (
+                            <button
+                                onClick={() => {
+                                    setTempBio(postUser.bio);
+                                    setIsEditingBio(true);
+                                }}
+                                className="absolute top-2 right-2 p-1.5 bg-white/50 hover:bg-white rounded-full text-pink-600 opacity-0 group-hover:opacity-100 transition-all"
+                                title="자기소개 수정"
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                     </>
                 )}
             </div>
@@ -371,56 +464,33 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
             {/* User Feed */}
             <div className="space-y-6">
-                {(() => {
-                    // Load posts from localStorage or fallback to MOCK_USER_POSTS
-                    const savedPosts = localStorage.getItem('communityPosts');
-                    const allPosts = savedPosts ? JSON.parse(savedPosts) : MOCK_USER_POSTS;
-
-                    // Filter posts for the current user
-                    // Handle both 'current_user' and specific user IDs
-                    const userPosts = allPosts.filter((post: any) => {
-                        // If viewing our own profile
-                        if (isCurrentUser) {
-                            return post.authorId === currentUser?.uid || post.authorId === 'current_user' || post.authorId === 'anonymous'; // Include 'anonymous' for immediate feedback if id missing
-                        }
-
-                        // If viewing user1 (mock), encompass user1 and current_user posts for demo if needed, 
-                        // but strictly we should filter by authorId
-                        if (selectedUser.id === 'user1') {
-                            return post.authorId === 'user1';
-                        }
-
-                        return post.authorId === selectedUser.id;
-                    });
-
-                    if (userPosts.length === 0) {
-                        return (
-                            <div className="text-center py-10 text-slate-500">
-                                게시물이 없습니다.
-                            </div>
-                        );
-                    }
-
-                    return userPosts.map((post: any) => (
+                {userPosts.length === 0 ? (
+                    <div className="text-center py-10 text-slate-500">
+                        게시물이 없습니다.
+                    </div>
+                ) : (
+                    userPosts.map((post) => (
                         <PostCard
                             key={post.id}
                             {...post}
-                            onLike={() => { }}
-                            onChat={() => navigate(`/chat/${userId}`)}
-                            isOwner={userId === 'current_user' || userId === 'user1' || post.authorId === 'current_user'}
+                            comments={post.comments}
+                            onLike={() => onLikePost(post)}
+                            onAddComment={(text) => onAddComment(post.id, text)}
+                            onDelete={() => onDeletePost(post.id)}
+                            onRepost={() => onRepost(post)}
+                            isLiked={(post.likedBy || []).includes(currentUserId)}
+                            isReposted={(post.repostedBy || []).includes(currentUserId)}
+                            // Fix ownership check
+                            isOwner={isCurrentUser || post.authorId === currentUserId}
                             onEdit={() => navigate(`/edit-post/${post.id}`)}
-                            onDelete={() => {
-                                // Delete post logic - for now just log
-                                console.log('Delete post:', post.id);
-                                // In real app, this would delete from database
-                            }}
                             onClickProfile={() => navigate(`/profile/${post.authorId}`)}
+                            user={post.user || { name: 'Unknown', avatar: '', flag: '🏳️', location: 'Unknown' }}
+                            currentUserId={currentUserId}
+                            onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
                         />
-                    ));
-                })()}
+                    ))
+                )}
             </div>
         </div>
-    </div>
-
+    </div>;
 }
-

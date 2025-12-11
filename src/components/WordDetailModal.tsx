@@ -20,6 +20,7 @@ interface WordDetailModalProps {
   onUpdateWordStatus?: (word: string, newStatus: "red" | "yellow" | "green" | "white" | "orange") => void;
   onDeleteWord?: (word: string) => void;
   onClose?: () => void;
+  isSentence?: boolean;
 }
 
 export function WordDetailModal({
@@ -31,7 +32,16 @@ export function WordDetailModal({
   onGenerateStudyTips,
   onUpdateWordStatus,
   onDeleteWord,
+  isSentence = false,
 }: WordDetailModalProps) {
+  // Heuristic: If word is long or has many spaces, treat as sentence even if isSentence is false
+  // This handles cases where sentences accidentally get into word stacks
+  const isLikelySentence = word.length > 30 || (word.split(' ').length > 4);
+  const effectiveIsSentence = isSentence || isLikelySentence;
+
+  // Clean the word for display (remove markdown asterisks)
+  const displayWord = word.replace(/\*\*/g, '');
+
   const [studyTips, setStudyTips] = useState<string | null>(null);
   const [isLoadingTips, setIsLoadingTips] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,10 +131,10 @@ export function WordDetailModal({
   // TTS 함수
   const handlePlayPronunciation = () => {
     if (window.speechSynthesis) {
-      const utterance = new SpeechSynthesisUtterance(word);
+      const utterance = new SpeechSynthesisUtterance(displayWord); // Use displayWord
       utterance.lang = "en-US";
       window.speechSynthesis.speak(utterance);
-      toast.success(`"${word}" 발음을 재생합니다.`);
+      toast.success(`"${displayWord}" 발음을 재생합니다.`);
     } else {
       toast.error("음성 재생을 지원하지 않는 브라우저입니다.");
     }
@@ -174,25 +184,27 @@ export function WordDetailModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1e1f20] border-[#2a2b2c] text-[#E3E3E3]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#E3E3E3] flex items-center gap-3">
-            <span className="text-3xl">{word}</span>
+          <DialogTitle className="text-xl font-bold text-[#E3E3E3] flex flex-col gap-1">
+            <span>{displayWord}</span>
             {koreanMeaning && (
               <span className="text-lg font-normal text-[#9ca3af]">
                 {koreanMeaning}
               </span>
             )}
           </DialogTitle>
-          <DialogDescription className="text-[#9ca3af]">
-            <span className={`font-medium ${statusColors[status]}`}>
-              {statusLabels[status]}
-            </span>
-          </DialogDescription>
+          {!effectiveIsSentence && (
+            <DialogDescription className="text-[#9ca3af]">
+              <span className={`font-medium ${statusColors[status]}`}>
+                {statusLabels[status]}
+              </span>
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         <div className="mt-6 space-y-6">
           {/* 액션 버튼 섹션 */}
           <div className="border-t border-[#2a2b2c] pt-6">
-            <h3 className="text-lg font-semibold text-[#E3E3E3] mb-4">단어 관리</h3>
+            <h3 className="text-lg font-semibold text-[#E3E3E3] mb-4">{effectiveIsSentence ? "문장 관리" : "단어 관리"}</h3>
             <div className="space-y-3">
               {/* 발음 듣기 버튼 (항상 표시) */}
               <button
@@ -202,12 +214,12 @@ export function WordDetailModal({
                 <Volume2 className="w-5 h-5 text-blue-400 flex-shrink-0" />
                 <div className="flex flex-col items-start flex-1">
                   <span className="text-sm font-medium text-[#E3E3E3]">🔊 발음 듣기</span>
-                  <span className="text-xs text-[#9ca3af]">단어의 영어 발음을 재생합니다</span>
+                  <span className="text-xs text-[#9ca3af]">{effectiveIsSentence ? "문장의 발음을 재생합니다" : "단어의 영어 발음을 재생합니다"}</span>
                 </div>
               </button>
 
               {/* 다음 스택으로 이동 버튼 (상태에 따라 하나만 표시) */}
-              {onUpdateWordStatus && nextStatusInfo.showButton && (
+              {!effectiveIsSentence && onUpdateWordStatus && nextStatusInfo.showButton && (
                 <button
                   onClick={handleMoveToNextStatus}
                   className="w-full flex items-center gap-3 px-4 py-3 border rounded-lg transition-all hover:scale-[1.02] text-[#E3E3E3]"
@@ -235,8 +247,8 @@ export function WordDetailModal({
                 >
                   <Trash2 className="w-5 h-5 flex-shrink-0" />
                   <div className="flex flex-col items-start flex-1">
-                    <span className="text-sm font-semibold">🗑️ 단어 삭제</span>
-                    <span className="text-xs text-red-400/70">단어를 완전히 삭제합니다</span>
+                    <span className="text-sm font-semibold">🗑️ {effectiveIsSentence ? "문장 삭제" : "단어 삭제"}</span>
+                    <span className="text-xs text-red-400/70">{effectiveIsSentence ? "문장을 완전히 삭제합니다" : "단어를 완전히 삭제합니다"}</span>
                   </div>
                 </button>
               )}

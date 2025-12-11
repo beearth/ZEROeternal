@@ -7,6 +7,7 @@ import { Textarea } from "../../components/ui/textarea";
 
 import { User } from 'firebase/auth';
 import { toast } from 'sonner';
+import { createPost } from '../../services/firestore';
 
 export interface CreatePostPageProps {
     onSubmit: (data: { title: string; image: string; content: string }) => void;
@@ -19,50 +20,59 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
     const [imageUrl, setImageUrl] = useState('');
     const [content, setContent] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Submitting post...', { title, content, user });
-        if (!title.trim() || !content.trim()) {
-            console.log('Title or content missing');
+        console.log('Submitting post...', { content, user });
+        if (!content.trim()) {
+            console.log('Content missing');
             return;
         }
 
+        // Auto-generate title from content
+        const generatedTitle = content.length > 20 ? content.substring(0, 20) + "..." : content;
+
+        // Show loading state
+        const loadingToast = toast.loading("게시글을 업로드하고 있습니다...");
+
         try {
-            const newPost = {
-                id: Date.now().toString(),
-                authorId: user?.uid || 'anonymous',
-                title: title,
-                user: {
-                    name: user?.displayName || "Anonymous",
-                    avatar: user?.photoURL || "https://via.placeholder.com/100",
-                    location: "Korea, Seoul", // This could be dynamic if we had user location data
-                    flag: "🇰🇷"
-                },
-                image: imageUrl,
+            // Resolve User Info
+            const currentUid = user?.uid || 'anonymous';
+            if (currentUid === 'anonymous') {
+                // Warn if likely to fail permissions
+                console.warn("User is anonymous. Write might fail if Firestore rules require auth.");
+            }
+
+            const localName = localStorage.getItem(`user_name_${currentUid}`);
+            const localAvatar = localStorage.getItem(`user_avatar_${currentUid}`);
+            const avatarToSave = (localAvatar && localAvatar.length > 200)
+                ? "stored_locally"
+                : (localAvatar || user?.photoURL || "https://github.com/shadcn.png");
+
+            const postData = {
+                authorId: currentUid,
                 content: content,
-                likes: 0,
-                timeAgo: "방금",
-                likedBy: []
+                user: {
+                    name: localName || user?.displayName || "Anonymous",
+                    avatar: avatarToSave,
+                    location: "Korea, Seoul",
+                    flag: "🇰🇷",
+                    targetLang: "EN"
+                },
+                image: imageUrl
             };
 
-            // Load existing posts from localStorage
-            const savedPosts = localStorage.getItem('communityPosts');
-            const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
-
-            // Add new post at the beginning
-            const updatedPosts = [newPost, ...existingPosts];
-
-            // Save to localStorage
-            localStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
+            // Save to Firestore (Uploads image if needed)
+            await createPost(postData, imageUrl);
 
             // Call onSubmit callback
             onSubmit({
-                title: title,
+                title: generatedTitle,
                 image: imageUrl,
                 content: content
             });
 
-            toast.success("게시글이 작성되었습니다!");
+            toast.dismiss(loadingToast);
+            toast.success("게시글이 퍼블릭 커뮤니티에 공유되었습니다!");
 
             // Reset and navigate back
             setTitle('');
@@ -71,11 +81,10 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
             navigate('/community');
         } catch (error: any) {
             console.error("게시글 저장 실패:", error);
-            if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
-                toast.error("저장 용량이 부족합니다. 이미지 크기를 줄이거나 기존 게시글을 삭제해주세요.");
-            } else {
-                toast.error("게시글을 저장하는 중 오류가 발생했습니다.");
-            }
+            toast.dismiss(loadingToast);
+            toast.error(`업로드 실패: ${error.message}`);
+            // Explicit Alert for the user to see the exact error
+            alert(`게시글 업로드 중 오류가 발생했습니다.\n\n원인: ${error.message}\n\nFirebase 설정이나 권한을 확인해주세요.`);
         }
     };
 
@@ -104,8 +113,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
 
                     <Button
                         onClick={handleSubmit}
-                        disabled={!title.trim() || !content.trim()}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                        disabled={!content.trim()}
+                        className={`bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 ${(!content.trim()) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         게시하기
                     </Button>
@@ -115,21 +124,7 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto">
                 <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 space-y-6">
-                    {/* Title */}
-                    <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-semibold text-slate-700">
-                            제목 *
-                        </label>
-                        <Input
-                            id="title"
-                            type="text"
-                            value={title}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                            placeholder="게시글 제목을 입력하세요"
-                            className="text-lg"
-                            required
-                        />
-                    </div>
+                    {/* Title Input Removed - Auto-generated from content */}
 
                     {/* Image URL or File Upload */}
                     <div className="space-y-2">
@@ -242,7 +237,7 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                             value={content}
                             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                             placeholder="게시글 내용을 입력하세요...&#10;&#10;여러 줄로 작성할 수 있습니다."
-                            className="min-h-[200px] resize-none"
+                            className="min-h-[200px] resize-none text-slate-900"
                             required
                         />
                         <p className="text-xs text-slate-500">
@@ -262,8 +257,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                            disabled={!title.trim() || !content.trim()}
+                            className={`flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 ${(!content.trim()) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={!content.trim()}
                         >
                             게시하기
                         </Button>

@@ -12,38 +12,11 @@ interface RecommendedFriend {
     studies: number;
 }
 
-const MOCK_FRIENDS: RecommendedFriend[] = [
-    {
-        id: '1',
-        name: 'Study_Master',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-        streak: 12,
-        studies: 45
-    },
-    {
-        id: '2',
-        name: 'English_King',
-        avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop',
-        streak: 5,
-        studies: 23
-    },
-    {
-        id: '3',
-        name: 'Voca_Queen',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-        streak: 30,
-        studies: 120
-    },
-    {
-        id: '4',
-        name: 'Daily_Learner',
-        avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&h=100&fit=crop',
-        streak: 8,
-        studies: 15
-    }
-];
+const MOCK_FRIENDS: RecommendedFriend[] = [];
 
 export function FriendRecommendations() {
+    if (MOCK_FRIENDS.length === 0) return null;
+
     const navigate = useNavigate();
 
 

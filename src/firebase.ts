@@ -4,14 +4,17 @@ import { getFirestore } from "firebase/firestore";
 
 // Firebase 설정
 // 환경 변수가 있으면 사용하고, 없으면 기본값 사용
+// Firebase 설정
+// Firebase 설정
+// Firebase 설정
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.replace(/^["']|["']$/g, '') || "AIzaSyBVKwSbL1woBY0cQGjcgOXVlQ1czEgpFc8",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.replace(/^["']|["']$/g, '') || "signal-voca-93bb9.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID?.replace(/^["']|["']$/g, '') || "signal-voca-93bb9",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET?.replace(/^["']|["']$/g, '') || "signal-voca-93bb9.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID?.replace(/^["']|["']$/g, '') || "705714352680",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID?.replace(/^["']|["']$/g, '') || "1:705714352680:web:5675eaa50ae951f3057b1d",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID?.replace(/^["']|["']$/g, '') || "G-Q55CVDLHLN",
+  apiKey: "AIzaSyCdulV_M0eO-hlZfwABnpxvpbgbJSgNZmY",
+  authDomain: "voca2-df831.firebaseapp.com",
+  projectId: "voca2-df831",
+  storageBucket: "voca2-df831.firebasestorage.app",
+  messagingSenderId: "109533029020",
+  appId: "1:109533029020:web:58690c2c80cf098cd08359",
+  measurementId: "G-6GW28EEWDC"
 };
 
 // Firebase 앱 초기화
@@ -22,6 +25,10 @@ export const auth = getAuth(app);
 
 // Firestore 인스턴스 초기화 및 export
 export const db = getFirestore(app);
+
+// Storage 인스턴스 초기화 및 export (이미지 업로드용)
+import { getStorage } from "firebase/storage";
+export const storage = getStorage(app);
 
 // 기본 앱 인스턴스 export (필요한 경우)
 export default app;

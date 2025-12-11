@@ -28,7 +28,7 @@ Google Gemini API를 활용한 문맥 기반 영어 단어 학습 플랫폼입�
 
 - **AI Model:** Google Gemini API (`gemini-pro-latest`)
 
-- **Deployment:** Vercel
+- **Deployment:** Firebase
 
 ## 🏁 시작하기 (Getting Started)
 

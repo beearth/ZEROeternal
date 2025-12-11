@@ -41,6 +41,7 @@ interface RadialMenuState {
     index: number;
     word: string;
     wordId: string;
+    startOffset: number;
   } | null;
 }
 
@@ -80,6 +81,7 @@ const WordSpan = React.memo(({
   onLongPress,
   onClick,
   setIsHolding,
+  startOffset,
 }: {
   part: string;
   partIndex: number;
@@ -89,14 +91,15 @@ const WordSpan = React.memo(({
   isSelected: boolean;
   isCurrentlyHolding: boolean;
   isHighlighted: boolean;
-  onLongPress: (e: React.PointerEvent, wordIndex: number, word: string) => void;
+  onLongPress: (e: React.PointerEvent, wordIndex: number, word: string, startOffset: number) => void;
   onClick: (index: number, word: string) => void;
   setIsHolding: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+  startOffset: number;
 }) => {
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       setIsHolding((prev) => ({ ...prev, [wordIndex]: true }));
-      onLongPress(e, wordIndex, finalWord);
+      onLongPress(e, wordIndex, finalWord, startOffset);
     },
     onClick: (e) => {
       e.stopPropagation();
@@ -244,6 +247,7 @@ export function ChatMessage({
     status: "red" | "yellow" | "green" | "white" | "orange";
     messageId: string;
     fullSentence: string;
+    wordId: string;
   } | null>(null);
 
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -509,8 +513,12 @@ export function ChatMessage({
   const renderWords = (text: string) => {
     const parts = getSegments(text);
     let wordIndex = 0;
+    let charCursor = 0;
 
     return parts.map((part, partIndex) => {
+      const currentStartOffset = charCursor;
+      charCursor += part.length;
+
       const { isValid, finalWord, wordKey } = processPart(part);
 
       if (!isValid) {
@@ -560,6 +568,7 @@ export function ChatMessage({
           onLongPress={handleLongPress}
           onClick={handleWordClick}
           setIsHolding={setIsHolding}
+          startOffset={currentStartOffset}
         />
       );
     });
@@ -570,7 +579,8 @@ export function ChatMessage({
   const handleLongPress = useCallback((
     e: React.PointerEvent,
     wordIndex: number,
-    word: string
+    word: string,
+    startOffset: number
   ) => {
     if (!isAssistant || isTyping) return;
 
@@ -601,6 +611,7 @@ export function ChatMessage({
         index: wordIndex,
         word: finalWord,
         wordId: `${message.id}-${wordIndex}-${finalWord.toLowerCase()}`,
+        startOffset,
       },
     });
 
@@ -634,15 +645,55 @@ export function ChatMessage({
       case "left":
         // ⬅️ Left: 문장 저장 (Save Sentence)
         if (onSaveSentence && finalWord && finalWord.length >= 2) {
-          // 현재 메시지에서 해당 단어가 포함된 문장 추출 (간단한 구현)
-          // 실제로는 더 정교한 문장 분리 로직이 필요할 수 있음
-          const sentences = message.content.split(/[.?!]\s+/);
-          const containingSentence = sentences.find(s => s.includes(finalWord)) || message.content;
+          // Find the specific sentence containing the clicked word using character offset
+          const fullText = message.content;
+          const targetOffset = selectedWordData.startOffset;
 
-          onSaveSentence(containingSentence.trim());
-          toast.success(`문장이 저장되었습니다.`, {
-            duration: 2000,
-          });
+          // Split by sentence delimiters but capture them to calculate offsets
+          // Delimiters: . ? ! followed by space or newline
+          const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
+          const parts = fullText.split(sentenceRegex);
+
+          let currentPos = 0;
+          let foundSentence = "";
+
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            const partLength = part.length;
+            const endPos = currentPos + partLength;
+
+            // Check if this part is a content part (even index) or contains the word
+            // Note: split with capture group returns [content, delimiter, content, delimiter...]
+            // effectively, we just need to find the chunk that contains our offset.
+            // However, we want to capture the 'content' part, not the 'delimiter' part if possible.
+            // But 'targetOffset' points to the start of the word.
+
+            if (targetOffset >= currentPos && targetOffset < endPos) {
+              // Found the part containing the word
+              // If it's a delimiter part (unlikely for a valid word), pick it or previous?
+              // Valid words shouldn't be in delimiters generally.
+              foundSentence = part;
+
+              // If the part is just numbering (e.g. "1"), and the word was strangely inside it?
+              // Or if the sentence was split into "1" and "The meeting...", logic might look for neighbors.
+              // But with regex `([.?!](?:\s+|$)|(?:\r?\n){2,})`, "1. " splits into "1" and " ".
+              // If word is "1" (meaningful?), it would be in "1".
+              // If word is "The", it is in "The meeting...".
+              break;
+            }
+
+            currentPos += partLength;
+          }
+
+          // Fallback to original find logic if index-based lookup fails or returns empty
+          const targetSentence = foundSentence.trim() || message.content.split(/[.?!]\s+/).find(s => s.includes(finalWord)) || "";
+
+          if (targetSentence) {
+            onSaveSentence(targetSentence.trim());
+            toast.success(`문장이 저장되었습니다.`, {
+              duration: 2000,
+            });
+          }
         }
         break;
       case "right":
@@ -684,7 +735,8 @@ export function ChatMessage({
             koreanMeaning: entry?.koreanMeaning || "",
             status: entry?.status || "white",
             messageId: message.id,
-            fullSentence: message.content
+            fullSentence: message.content,
+            wordId: selectedWordData.wordId,
           });
         }
         break;
@@ -767,6 +819,24 @@ export function ChatMessage({
           koreanMeaning={selectedDetailWord.koreanMeaning}
           status={selectedDetailWord.status}
           onGenerateStudyTips={generateStudyTips}
+          onUpdateWordStatus={(word, newStatus) => {
+            if (onUpdateWordStatus && selectedDetailWord) {
+              onUpdateWordStatus(
+                selectedDetailWord.wordId,
+                newStatus,
+                word,
+                selectedDetailWord.messageId,
+                selectedDetailWord.fullSentence,
+                selectedDetailWord.koreanMeaning,
+                false
+              );
+            }
+          }}
+          onDeleteWord={(word) => {
+            if (onResetWordStatus) {
+              onResetWordStatus(word);
+            }
+          }}
         />
       )}
     </div>

@@ -18,10 +18,18 @@ import {
 } from "./services/gemini";
 import { Toaster, toast } from "sonner";
 import { onAuthStateChange, logout } from "./services/auth";
-import { getUserVocabulary, saveUserVocabulary, getUserStacks, saveUserStacks, saveUserStackField, getUserConversations, saveUserConversations } from "./services/userData";
+import {
+  getUserVocabulary,
+  saveUserVocabulary,
+  getUserStacks,
+  saveUserStacks,
+  saveUserStackField,
+  getUserConversations,
+  saveUserConversations
+} from "./services/userData";
 import type { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 interface Message {
   id: string;
@@ -66,8 +74,9 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
 
   // 언어 상태
-  const [nativeLang, setNativeLang] = useState("ko");
-  const [targetLang, setTargetLang] = useState<string | null>(null);
+  // 언어 상태 (LocalStorage에서 초기화하여 새로고침 시 리셋 방지)
+  const [nativeLang, setNativeLang] = useState(() => localStorage.getItem("signal_native_lang") || "ko");
+  const [targetLang, setTargetLang] = useState<string | null>(() => localStorage.getItem("signal_target_lang"));
   const [isToeicLoading, setIsToeicLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false); // 데이터 로딩 완료 여부
 
@@ -78,6 +87,15 @@ export default function App() {
   const [userVocabulary, setUserVocabulary] = useState<
     Record<string, VocabularyEntry>
   >({});
+
+  // Loop Prevention Refs
+  const lastLoadedVocab = useRef<Record<string, VocabularyEntry> | null>(null);
+  const lastLoadedConvs = useRef<Conversation[] | null>(null);
+  const lastLoadedRed = useRef<string[] | null>(null);
+  const lastLoadedYellow = useRef<string[] | null>(null);
+  const lastLoadedGreen = useRef<string[] | null>(null);
+  const lastLoadedImportant = useRef<WordData[] | null>(null);
+  const lastLoadedSentence = useRef<string[] | null>(null);
 
   // Debounce를 위한 ref
   const saveVocabularyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,9 +189,10 @@ export default function App() {
             word.includes('\n') ||
             word.includes('**') ||
             word.includes('.') ||
-            word.includes('/');
+            word.includes('/') ||
+            word.length > 50; // Filter out sentences/long text
 
-          const isTooLong = word.length > 40;
+          const isTooLong = word.length > 50;
 
           // Keep the word unless it matches the problematic patterns
           if (!hasTimestamp && !hasInvalidChars && !isTooLong) {
@@ -240,6 +259,11 @@ export default function App() {
 
   // 언어 설정 저장
   const saveLanguageSettings = async (native: string, target: string) => {
+    // 1. LocalStorage 저장 (즉시 반영)
+    localStorage.setItem("signal_native_lang", native);
+    localStorage.setItem("signal_target_lang", target);
+
+    // 2. Firestore 저장
     if (user) {
       try {
         const userRef = doc(db, "users", user.uid);
@@ -253,120 +277,7 @@ export default function App() {
     }
   };
 
-  // 사용자 데이터 불러오기
-  const loadUserData = async (userId: string) => {
-    try {
-      // 먼저 모든 데이터 초기화 (이전 사용자 데이터 제거)
-      setUserVocabulary({});
-      setRedStack([]);
-      setYellowStack([]);
-      setGreenStack([]);
-      setImportantStack([]);
-      setSentenceStack([]);
 
-      // 1. 단어장(Stacks) 불러오기 - 상태(Status)의 기준점 (Source of Truth)
-      const stacksResult = await getUserStacks(userId);
-      if (stacksResult.error) {
-        throw new Error("스택 불러오기 실패: " + stacksResult.error);
-      }
-
-      const redList = stacksResult.stacks?.red || [];
-      const yellowList = stacksResult.stacks?.yellow || [];
-      const greenList = stacksResult.stacks?.green || [];
-
-      const importantList = stacksResult.stacks?.important || [];
-
-      setImportantStack(importantList);
-      setSentenceStack(stacksResult.stacks?.sentences || []);
-
-      // 2. 메타데이터(Vocabulary) 불러오기 - 뜻(Meaning)의 기준점
-      const userRef = doc(db, "users", userId);
-      const userSnap = await getDoc(userRef);
-      let dbVocab: Record<string, any> = {};
-
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        dbVocab = data.vocabulary || {};
-
-        // 언어 설정 불러오기 (누락된 로직 복구)
-        if (data.nativeLang) setNativeLang(data.nativeLang);
-        if (data.targetLang) setTargetLang(data.targetLang);
-      }
-
-      // 3. 데이터 병합 (Merge)
-      // 전략: DB에 있는 단어들을 먼저 'white' 상태로 로드(뜻 보존)한 뒤, Stack에 있는 단어들로 상태를 덮어씌움
-      const mergedVocab: Record<string, VocabularyEntry> = {};
-
-      // 3-1. DB Vocab 로드 (Status는 일단 white로 설정)
-      Object.entries(dbVocab).forEach(([key, value]) => {
-        const wordKey = key.toLowerCase();
-        // 기존 데이터 형식 호환성 처리
-        const meaning = typeof value === 'string' ? "" : (value.koreanMeaning || "");
-        const category = typeof value === 'string' ? undefined : value.category;
-
-        const status = (value.status === 'red' || value.status === 'yellow' || value.status === 'green' || value.status === 'orange') ? value.status : 'white';
-
-        mergedVocab[wordKey] = {
-          status: status,
-          koreanMeaning: meaning,
-          category: category
-        };
-      });
-
-      // 3-2. Stack 데이터로 Status 덮어쓰기
-      const processStack = (list: any[], status: "red" | "yellow" | "green" | "orange") => {
-        list.forEach(item => {
-          const wordText = typeof item === 'string' ? item : item.word;
-          const clean = extractCleanWord(wordText);
-          if (!clean) return;
-
-          const key = clean.toLowerCase();
-          const existing = mergedVocab[key];
-
-          mergedVocab[key] = {
-            status: status,
-            koreanMeaning: existing?.koreanMeaning || (typeof item === 'object' ? item.koreanMeaning : "") || "",
-            category: existing?.category
-          };
-        });
-      };
-
-      processStack(redList, "red");
-      processStack(yellowList, "yellow");
-      processStack(greenList, "green");
-      processStack(importantList, "orange"); // Important words are orange
-
-      // 4. 상태 업데이트
-      // userVocabulary를 업데이트하면 useEffect가 동작하여 setRedStack 등은 자동으로 처리됨
-      setUserVocabulary(mergedVocab);
-
-      // 5. 대화 불러오기
-      const convResult = await getUserConversations(userId);
-      if (!convResult.error && convResult.conversations.length > 0) {
-        // Firestore에서 불러온 데이터를 Conversation 형식으로 변환
-        const loadedConversations = convResult.conversations.map((conv: any) => ({
-          ...conv,
-          timestamp: conv.timestamp?.toDate ? conv.timestamp.toDate() : new Date(conv.timestamp),
-          messages: conv.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp),
-          })),
-        }));
-        setConversations(loadedConversations);
-        if (loadedConversations.length > 0) {
-          setCurrentConversationId(loadedConversations[0].id);
-        }
-      }
-
-      // 모든 데이터 로딩 성공 시에만 true로 설정
-      setIsDataLoaded(true);
-      console.log("✅ 사용자 데이터 로딩 완료 (Stacks Priority & Language Loaded)");
-
-    } catch (error) {
-      console.error("사용자 데이터 로딩 실패:", error);
-      toast.error("데이터를 불러오는 중 오류가 발생했습니다. 새로고침 해주세요.");
-    }
-  };
 
   // 전역 단어장을 Firebase에 저장 (사용자별로, Debounce 적용)
   const hasLoadedInitialData = useRef(false);
@@ -374,6 +285,9 @@ export default function App() {
   useEffect(() => {
     // 데이터 로딩이 완료되지 않았으면 저장하지 않음
     if (!isDataLoaded) return;
+
+    // Prevent Echo Save (Loop)
+    if (userVocabulary === lastLoadedVocab.current) return;
 
     if (user) {
       // 로그인 상태이고 데이터가 있을 때만: Firebase에 저장 (Debounce 적용)
@@ -389,88 +303,44 @@ export default function App() {
     };
   }, [userVocabulary, user]);
 
-  // userVocabulary 변경 시 스택 재계산 (항상 실행하여 동기화 보장)
-  useEffect(() => {
-    const redWords: string[] = [];
-    const yellowWords: string[] = [];
-    const greenWords: string[] = [];
 
-    // [CRITICAL FIX] Corrupted Data Cleanup
-    // Detect if any keys are raw IDs (e.g. "1764821232073-56-there") instead of words
-    // and remove them to fix the display issue.
-    let hasCorruptedKeys = false;
-    let corruptedCount = 0;
-    const cleanVocabulary = { ...userVocabulary };
-
-    Object.keys(userVocabulary).forEach((wordKey) => {
-      // Check for ID pattern: timestamp-index-word
-      if (/^\d{10,}-\d+-/.test(wordKey)) {
-        // console.warn(`Found corrupted key: ${wordKey}, removing...`); // Reduced noise
-        delete cleanVocabulary[wordKey];
-        hasCorruptedKeys = true;
-        corruptedCount++;
-        return; // Skip adding to stacks
-      }
-
-      const entry = userVocabulary[wordKey];
-      switch (entry.status) {
-        case "red":
-          redWords.push(wordKey);
-          break;
-        case "yellow":
-          yellowWords.push(wordKey);
-          break;
-        case "green":
-          greenWords.push(wordKey);
-          break;
-      }
-    });
-
-    // If we found corrupted keys, update the state and DB immediately
-    if (hasCorruptedKeys) {
-      console.log(`Cleaning up ${corruptedCount} corrupted vocabulary keys...`);
-      setUserVocabulary(cleanVocabulary);
-      if (user) {
-        saveVocabularyToDB(user.uid, cleanVocabulary);
-      }
-      // Return early to let the next render handle the stacks with clean data
-      return;
-    }
-
-    setRedStack(redWords);
-    setYellowStack(yellowWords);
-    setGreenStack(greenWords);
-  }, [userVocabulary, user]);
 
   // 스택을 Firebase에 저장 (개별 필드 저장으로 변경하여 Race Condition 방지)
+
+
 
   // Red Stack 저장
   useEffect(() => {
     if (!isDataLoaded || !user) return;
+    if (JSON.stringify(redStack) === JSON.stringify(lastLoadedRed.current)) return;
     saveUserStackField(user.uid, "red", redStack);
   }, [redStack, user, isDataLoaded]);
 
   // Yellow Stack 저장
   useEffect(() => {
     if (!isDataLoaded || !user) return;
+    if (JSON.stringify(yellowStack) === JSON.stringify(lastLoadedYellow.current)) return;
     saveUserStackField(user.uid, "yellow", yellowStack);
   }, [yellowStack, user, isDataLoaded]);
 
   // Green Stack 저장
   useEffect(() => {
     if (!isDataLoaded || !user) return;
+    if (JSON.stringify(greenStack) === JSON.stringify(lastLoadedGreen.current)) return;
     saveUserStackField(user.uid, "green", greenStack);
   }, [greenStack, user, isDataLoaded]);
 
   // Important Stack 저장
   useEffect(() => {
     if (!isDataLoaded || !user) return;
+    if (importantStack === lastLoadedImportant.current) return;
     saveUserStackField(user.uid, "important", importantStack);
   }, [importantStack, user, isDataLoaded]);
 
   // Sentence Stack 저장
   useEffect(() => {
     if (!isDataLoaded || !user) return;
+    if (JSON.stringify(sentenceStack) === JSON.stringify(lastLoadedSentence.current)) return;
     console.log('💾 문장 보관소 저장:', sentenceStack.length);
     saveUserStackField(user.uid, "sentences", sentenceStack);
   }, [sentenceStack, user, isDataLoaded]);
@@ -479,10 +349,125 @@ export default function App() {
   useEffect(() => {
     if (!isDataLoaded) return;
 
+    // Prevent Echo Save (Loop)
+    if (conversations === lastLoadedConvs.current) return;
+
     if (user && conversations.length > 0) {
       saveUserConversations(user.uid, conversations);
     }
   }, [conversations, user]);
+
+  // Real-time Firestore Sync
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const userRef = doc(db, "users", user.uid);
+
+    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setUserVocabulary({});
+        setIsDataLoaded(true);
+        setLoading(false);
+        return;
+      }
+
+      const data = snapshot.data();
+      const dbVocab = data.vocabulary || {};
+      const stacks = data.stacks || {};
+
+      if (data.nativeLang) setNativeLang(data.nativeLang);
+      if (data.targetLang) setTargetLang(data.targetLang);
+
+      const mergedVocab: Record<string, VocabularyEntry> = {};
+
+      // 1. Load DB Vocab
+      Object.entries(dbVocab).forEach(([key, value]: [string, any]) => {
+        const wordKey = key.toLowerCase();
+        const meaning = typeof value === 'string' ? "" : (value.koreanMeaning || "");
+        const category = typeof value === 'string' ? undefined : value.category;
+        const status = (['red', 'yellow', 'green', 'orange'].includes(value.status)) ? value.status : 'white';
+        mergedVocab[wordKey] = { status, koreanMeaning: meaning, category };
+      });
+
+      // 2. Merge Stacks
+      const process = (list: any[], status: any) => {
+        (list || []).forEach(item => {
+          const wordText = typeof item === 'string' ? item : item.word;
+          const clean = extractCleanWord(wordText);
+          if (!clean) return;
+          const key = clean.toLowerCase();
+          mergedVocab[key] = {
+            status: status,
+            koreanMeaning: mergedVocab[key]?.koreanMeaning || (typeof item === 'object' ? item.koreanMeaning : "") || "",
+            category: mergedVocab[key]?.category
+          };
+        });
+      };
+
+      process(stacks.red, 'red');
+      process(stacks.yellow, 'yellow');
+      process(stacks.green, 'green');
+      process(stacks.important, 'orange');
+
+      setUserVocabulary(mergedVocab);
+      lastLoadedVocab.current = mergedVocab;
+
+      // Helper to load stack with fallback (migration)
+      const loadStack = (dbList: any[], status: string, setFn: any, refFn: any) => {
+        if (Array.isArray(dbList)) {
+          setFn(dbList);
+          refFn.current = dbList;
+        } else {
+          // Fallback: Derive from vocabulary (for migration)
+          const derived = Object.keys(mergedVocab).filter(k => mergedVocab[k].status === status);
+          setFn(derived);
+          // Force save if we had to derive (so DB gets populated), unless empty
+          refFn.current = derived.length > 0 ? null : [];
+        }
+      };
+
+      loadStack(stacks.red, 'red', setRedStack, lastLoadedRed);
+      loadStack(stacks.yellow, 'yellow', setYellowStack, lastLoadedYellow);
+      loadStack(stacks.green, 'green', setGreenStack, lastLoadedGreen);
+
+      if (Array.isArray(stacks.important)) {
+        setImportantStack(stacks.important);
+        lastLoadedImportant.current = stacks.important;
+      }
+
+      if (Array.isArray(stacks.sentences)) {
+        setSentenceStack(stacks.sentences);
+        lastLoadedSentence.current = stacks.sentences;
+      }
+
+      // Conversations
+      const rawConvs = data.conversations || [];
+      const loadedConvs = rawConvs.map((conv: any) => ({
+        ...conv,
+        timestamp: conv.timestamp?.toDate ? conv.timestamp.toDate() : new Date(conv.timestamp),
+        messages: (conv.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp),
+        }))
+      }));
+
+      setConversations(loadedConvs);
+      lastLoadedConvs.current = loadedConvs;
+
+      if (loadedConvs.length > 0 && !currentConversationId) {
+        setCurrentConversationId("1");
+      }
+
+      setIsDataLoaded(true);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Firebase 인증 상태 감지 및 단어장 동기화
   useEffect(() => {
@@ -491,8 +476,7 @@ export default function App() {
       setLoading(false);
 
       if (currentUser) {
-        // 로그인 시: 사용자 데이터 불러오기 (단어장 포함)
-        loadUserData(currentUser.uid);
+        // 로그인 시: 사용자 변경만 처리, 데이터 로딩은 useEffect가 담당
       } else {
         // 로그아웃 시: 모든 데이터 초기화
         setIsDataLoaded(false); // 로딩 상태 초기화
@@ -691,8 +675,8 @@ export default function App() {
       wordKey = cleanWord.toLowerCase().trim();
     }
 
-    if (!cleanWord || cleanWord.length < 2) {
-      console.warn("유효하지 않은 단어:", word);
+    if (!cleanWord || cleanWord.length < 2 || cleanWord.length > 50) {
+      console.warn("유효하지 않은 단어 (길이 부적절):", word);
       return;
     }
 
@@ -734,6 +718,19 @@ export default function App() {
 
       return updatedVocabulary;
     });
+
+    // Stack Manual Update (to preserve order)
+    if (newStatus !== prevEntry?.status) {
+      const remove = (list: string[]) => list.filter(w => w !== wordKey);
+      setRedStack(prev => remove(prev));
+      setYellowStack(prev => remove(prev));
+      setGreenStack(prev => remove(prev));
+
+      if (newStatus === "red") setRedStack(prev => [...prev, wordKey]);
+      else if (newStatus === "yellow") setYellowStack(prev => [...prev, wordKey]);
+      else if (newStatus === "green") setGreenStack(prev => [...prev, wordKey]);
+    }
+
   }, [user, userVocabulary]);
 
   // 단어 상태 초기화 핸들러 (White/Default로 복원)
@@ -747,6 +744,11 @@ export default function App() {
       if (user) saveVocabularyToDB(user.uid, updated);
       return updated;
     });
+
+    setRedStack(prev => prev.filter(w => w !== wordKey));
+    setYellowStack(prev => prev.filter(w => w !== wordKey));
+    setGreenStack(prev => prev.filter(w => w !== wordKey));
+    setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
   };
 
   // 학습 팁 생성 핸들러
@@ -796,8 +798,25 @@ export default function App() {
 
     const wordWithMeaning = { ...word, koreanMeaning: finalMeaning || "" };
 
+    // 0. 길이 체크 (문장은 중요 단어장에 저장 불가)
+    // 0. 길이 체크 (문장은 중요 단어장에 저장 불가)
+    if (word.word.length > 50) {
+      toast.error("문장은 중요 단어장에 저장할 수 없습니다.");
+      return;
+    }
+
+    // 0.1 중복 체크 (이미 저장된 단어인지 확인)
+    const isDuplicate = importantStack.some(
+      w => w.word.toLowerCase().trim() === word.word.toLowerCase().trim()
+    );
+    if (isDuplicate) {
+      toast.info("이미 중요 단어장에 있는 단어입니다.");
+      return;
+    }
+
     setImportantStack((prev) => {
-      if (prev.find((w) => w.id === word.id)) return prev;
+      // 이중 안전장치
+      if (prev.find((w) => w.word.toLowerCase() === word.word.toLowerCase())) return prev;
       return [...prev, wordWithMeaning];
     });
 
@@ -996,6 +1015,7 @@ export default function App() {
           }}
         />
 
+
         {/* 메인 컨텐츠 영역 */}
         <Routes>
           <Route
@@ -1143,6 +1163,7 @@ export default function App() {
                 onDeleteWord={(sentence) => {
                   setSentenceStack((prev) => prev.filter((item) => item !== sentence));
                 }}
+                onGenerateStudyTips={handleGenerateStudyTips}
                 onSaveImportant={handleSaveImportant}
                 onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />
@@ -1166,7 +1187,7 @@ export default function App() {
 
           {/* Community Routes */}
           {/* Community Routes */}
-          <Route path="/community" element={<CommunityFeed user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
+          <Route path="/community" element={<CommunityFeed user={user} nativeLang={nativeLang} targetLang={targetLang} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
           <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} />
           <Route path="/edit-post/:postId" element={<EditPostPage />} />
           <Route path="/profile/:userId" element={<UserProfilePage user={user} />} />
@@ -1187,6 +1208,8 @@ export default function App() {
           <Route path="/chat/:userId" element={<DirectChat />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+
       </div>
     </BrowserRouter>
   );

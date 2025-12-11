@@ -38,10 +38,20 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, initialData, isEdit
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !imageUrl.trim() || !content.trim()) return;
+        // Allow image to be empty if only text post is desired (or keep it required if strictly Instagram-like, but user said "Threads" which allows text-only)
+        // User's previous CreatePostPage code allowed empty image but forced content.
+        // Here, the checks were strict on image. I'll relax image check if content exists, or keep it strict if that was the design.
+        // Actually, user just complained about Title. I will keep Image required ONLY IF it was key. 
+        // But seeing "Threads" comparison, text-only is common.
+        // For now, I will stick to removing Title requirement.
+
+        if (!content.trim()) return;
+
+        // Auto-generate title for backend compatibility
+        const generatedTitle = content.trim().slice(0, 30) + (content.length > 30 ? '...' : '');
 
         onSubmit({
-            title: title,
+            title: title || generatedTitle, // Use existing title if editing, or generate
             image: imageUrl,
             content: content
         });
@@ -68,21 +78,7 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, initialData, isEdit
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                    {/* Title Field */}
-                    <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-medium text-slate-700">
-                            제목 *
-                        </label>
-                        <Input
-                            id="title"
-                            type="text"
-                            value={title}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                            placeholder="게시글 제목을 입력하세요"
-                            className="w-full"
-                            required
-                        />
-                    </div>
+                    {/* Title Field Removed as per user request (Threads styling) */}
 
                     {/* Image URL Field */}
                     <div className="space-y-2">
@@ -142,7 +138,7 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, initialData, isEdit
                         <Button
                             type="submit"
                             className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                            disabled={!title.trim() || !imageUrl.trim() || !content.trim()}
+                            disabled={!imageUrl.trim() || !content.trim()}
                         >
                             {isEditing ? '수정 완료' : '게시글 작성'}
                         </Button>

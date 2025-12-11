@@ -147,6 +147,10 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         });
         break;
       case "right": // 중요 저장
+        if (isSentenceStack) {
+          toast.error("문장은 단어장에 저장할 수 없습니다.");
+          break;
+        }
         if (onSaveImportant) {
           // Use existing data if available
           const currentMeaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
@@ -290,16 +294,22 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                 {isSentenceStack ? (
                   // Sentences는 기존 리스트 스타일 유지
                   <div className="space-y-4 max-w-3xl mx-auto">
-                    {(items as string[]).map((item, index) => (
-                      <div
-                        key={index}
-                        className="bg-[#1e1f20] border border-[#2a2b2c] rounded-xl p-5 hover:border-[#3a3b3c] transition-colors"
-                      >
-                        <p className="text-[#E3E3E3] whitespace-pre-wrap leading-relaxed">
-                          {item}
-                        </p>
-                      </div>
-                    ))}
+                    {(items as string[]).map((item, index) => {
+                      const isDeleting = deletingWords.has(item);
+                      return (
+                        <div
+                          key={index}
+                          onPointerDown={(e) => handlePointerDown(item, e)}
+                          onPointerUp={handlePointerUp}
+                          onPointerLeave={handlePointerLeave}
+                          className={`bg-[#1e1f20] border border-[#2a2b2c] rounded-xl p-5 hover:border-[#3a3b3c] transition-all cursor-pointer select-none ${isDeleting ? "opacity-0 scale-95" : ""}`}
+                        >
+                          <p className="text-[#E3E3E3] whitespace-pre-wrap leading-relaxed">
+                            {item}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   // Red/Yellow/Green Stack & Important Stack -> Grid Layout
@@ -383,6 +393,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
             onGenerateStudyTips={onGenerateStudyTips}
             onUpdateWordStatus={onUpdateWordStatus}
             onDeleteWord={onDeleteWord}
+            isSentence={isSentenceStack}
           />
         )}
 
