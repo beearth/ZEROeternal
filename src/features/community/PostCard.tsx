@@ -30,7 +30,6 @@ export interface PostCardProps {
         name: string;
         avatar: string;
         location: string;
-        location?: string; // Add optional if needed or strict
         flag: string;
         targetLang?: string; // Author's learning language
     };
