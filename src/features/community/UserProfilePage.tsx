@@ -321,14 +321,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                         {/* Action Buttons & Stats */}
                         <div className="flex flex-col items-end mt-6 gap-4">
                             <div className="flex gap-3">
-                                {isCurrentUser ? (
-                                    <Button
-                                        onClick={() => { setIsEditingProfile(true); setEditName(postUser.name); }}
-                                        className="h-11 px-6 font-bold text-base border-[3px] border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm transition-all"
-                                    >
-                                        프로필 수정
-                                    </Button>
-                                ) : (
+                                {!isCurrentUser && (
                                     <Button
                                         onClick={() => setIsFollowing(!isFollowing)}
                                         className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
