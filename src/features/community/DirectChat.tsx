@@ -5,12 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 
-interface DirectMessage {
-    id: string;
-    content: string;
-    senderId: string;
-    timestamp: Date;
-}
+
 
 import { User } from 'firebase/auth';
 
@@ -18,29 +13,46 @@ interface DirectChatProps {
     user: User | null;
 }
 
+import { subscribeToChat, sendMessage, ChatMessage } from '../../services/chatService';
+import { useEffect } from 'react';
+
+// ... (interface DirectChatProps remains)
+
 export function DirectChat({ user }: DirectChatProps) {
-    const { userId } = useParams<{ userId: string }>();
+    const { userId: targetUserId } = useParams<{ userId: string }>();
     const location = useLocation();
     const navigate = useNavigate();
-    const { userName, userAvatar, userFlag, userLocation } = location.state || {}; // Fallback needed later if state missing
+    const { userName, userAvatar, userFlag, userLocation } = location.state || {};
 
-    const [messages, setMessages] = useState<DirectMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]); // Use ChatMessage type from service
     const [inputValue, setInputValue] = useState('');
 
-    const currentUserId = user?.uid || 'anonymous';
+    const currentUserId = user?.uid;
 
-    const handleSendMessage = () => {
-        if (!inputValue.trim()) return;
+    // Generate unique chatId based on participants (sorted to ensure consistency)
+    const chatId = [currentUserId, targetUserId].sort().join('_');
 
-        const newMessage: DirectMessage = {
-            id: Date.now().toString(),
-            content: inputValue,
-            senderId: currentUserId,
-            timestamp: new Date()
-        };
+    // Subscribe to real-time messages
+    useEffect(() => {
+        if (!currentUserId || !targetUserId) return;
 
-        setMessages([...messages, newMessage]);
-        setInputValue('');
+        const unsubscribe = subscribeToChat(chatId, (newMessages) => {
+            setMessages(newMessages);
+        });
+
+        return () => unsubscribe();
+    }, [chatId, currentUserId, targetUserId]);
+
+    const handleSendMessage = async () => {
+        if (!inputValue.trim() || !currentUserId) return;
+
+        try {
+            await sendMessage(chatId, currentUserId, inputValue);
+            setInputValue('');
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            // Optionally show error toast
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
