@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { translateText } from '../../services/gemini';
+import { getUserProfile, subscribeToUserProfile } from '../../services/userData';
 import { Heart, MessageCircle, Send, Repeat, MoreVertical, Edit, Trash2, Flag, Bookmark, EyeOff, Ban, Link as LinkIcon, BellOff, UserMinus, Languages } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import {
@@ -26,12 +28,13 @@ export interface Comment {
 
 export interface PostCardProps {
     id: string;
+    authorId?: string;
     user: {
         name: string;
         avatar: string;
         location: string;
         flag: string;
-        targetLang?: string; // Author's learning language
+        targetLang?: string;
     };
     viewerNativeLang?: string;
     viewerTargetLang?: string;
@@ -52,13 +55,14 @@ export interface PostCardProps {
     isLiked?: boolean;
     isReposted?: boolean;
     onClickProfile?: () => void;
-    currentUserId?: string; // Added for comment ownership check
-    onDeleteComment?: (commentId: string) => void; // Added for comment deletion
+    currentUserId?: string;
+    onDeleteComment?: (commentId: string) => void;
 }
 
 export function PostCard({
     id,
-    user,
+    authorId,
+    user: initialUser,
     title,
     image,
     content,
@@ -81,8 +85,56 @@ export function PostCard({
     currentUserId,
     onDeleteComment
 }: PostCardProps) {
+    const navigate = useNavigate();
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState("");
+
+    // State for user profile (starts with props, updates from DB)
+    const [displayUser, setDisplayUser] = useState(initialUser);
+
+    // Initial sync with props
+    useEffect(() => {
+        setDisplayUser(initialUser);
+    }, [initialUser]);
+
+    // REAL-TIME Sync with Firestore
+    useEffect(() => {
+        if (!authorId) return;
+
+        // Subscribe to changes
+        const unsubscribe = subscribeToUserProfile(authorId, (profile) => {
+            if (profile) {
+                setDisplayUser(prev => ({
+                    ...prev,
+                    name: profile.name,
+                    avatar: profile.avatar,
+                    flag: profile.flag || prev.flag,
+                    location: profile.location || prev.location
+                }));
+            }
+        });
+
+        return () => unsubscribe(); // Cleanup listener on unmount
+    }, [authorId]);
+
+    // Internal navigation handler using FRESH data
+    const handleProfileClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (authorId) {
+            navigate(`/profile/${authorId}`, {
+                state: {
+                    name: displayUser.name,
+                    avatar: displayUser.avatar,
+                    flag: displayUser.flag,
+                    location: displayUser.location,
+                    userName: displayUser.name, // Support legacy
+                    userAvatar: displayUser.avatar
+                }
+            });
+        } else if (onClickProfile) {
+            onClickProfile(); // Fallback to prop if no authorId (unlikely)
+        }
+    };
 
     // Optimistic UI for comments
     const [optimisticComments, setOptimisticComments] = useState<Comment[]>(comments);
@@ -218,8 +270,8 @@ export function PostCard({
                 {/* Avatar */}
                 <div onClick={onClickProfile} className="cursor-pointer flex-shrink-0 mt-0.5">
                     <Avatar className="h-10 w-10 border border-slate-100">
-                        <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
-                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                        <AvatarImage src={displayUser.avatar} alt={displayUser.name} className="object-cover" />
+                        <AvatarFallback>{displayUser.name[0]}</AvatarFallback>
                     </Avatar>
                 </div>
 
@@ -228,12 +280,12 @@ export function PostCard({
                     {/* Metadata: Name • Views/Time */}
                     <div className="flex items-center flex-wrap text-xs text-slate-500 gap-1 mb-2">
                         <span className="hover:text-slate-800 cursor-pointer text-sm font-semibold text-slate-900 mr-1" onClick={onClickProfile}>
-                            {user.name}
+                            {displayUser.name}
                         </span>
-                        <span className="text-lg leading-none" title={`Country: ${user.location}`}>{user.flag}</span>
-                        {user.targetLang && (
+                        <span className="text-lg leading-none" title={`Country: ${displayUser.location}`}>{displayUser.flag}</span>
+                        {displayUser.targetLang && (
                             <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-500 rounded-md border border-slate-200 font-medium tracking-tight">
-                                Learning {user.targetLang}
+                                Learning {displayUser.targetLang}
                             </span>
                         )}
                         <span>•</span>

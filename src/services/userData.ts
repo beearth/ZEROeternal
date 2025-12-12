@@ -7,6 +7,10 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { WordData } from "../types";
@@ -317,5 +321,115 @@ export const updateUserProfileData = async (
   } catch (error: any) {
     console.error("Error updating profile:", error);
     return { success: false, error: error.message };
+  }
+};
+
+// Real-time listener for user profile
+export const subscribeToUserProfile = (userId: string, onUpdate: (profile: any) => void) => {
+  const userRef = doc(db, "users", userId);
+
+  const unsubscribe = onSnapshot(userRef, (doc) => {
+    if (doc.exists()) {
+      const data = doc.data();
+      const profile = {
+        id: userId,
+        name: data.displayName || data.name || "Unknown User",
+        avatar: data.photoURL || data.avatar || "",
+        nativeLang: data.nativeLang || 'ko',
+        targetLang: data.targetLang || 'en',
+        bio: data.bio || "",
+        followers: data.followers || [],
+        following: data.following || [],
+        joinDate: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : "최근 가입",
+        studyStreak: data.studyStreak || 0,
+        flag: data.flag || '',
+        location: data.location || ''
+      };
+      onUpdate(profile);
+    }
+  });
+
+  return unsubscribe;
+};
+
+// Send Notification
+export const sendNotification = async (
+  recipientId: string,
+  senderId: string,
+  type: 'follow' | 'like' | 'comment',
+  message: string,
+  senderName: string,
+  senderAvatar: string
+) => {
+  try {
+    // Basic dup check for follows to avoid spam (optional but good)
+    // For now, just fire and forget
+    await addDoc(collection(db, "notifications"), {
+      recipientId,
+      senderId,
+      senderName,
+      senderAvatar,
+      type,
+      message,
+      read: false,
+      createdAt: new Date()
+    });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
+};
+
+// Toggle Follow User
+export const toggleFollowUser = async (currentUserId: string, targetUserId: string) => {
+  if (!currentUserId || !targetUserId || currentUserId === targetUserId) return;
+
+  const currentUserRef = doc(db, "users", currentUserId);
+  const targetUserRef = doc(db, "users", targetUserId);
+
+  try {
+    // 1. Check if already following
+    // We can check local state in UI, but safe to check DB or use ArrayUnion/Remove
+    const targetSnap = await getDoc(targetUserRef);
+    const targetData = targetSnap.data();
+    const isFollowing = targetData?.followers?.includes(currentUserId);
+
+    if (isFollowing) {
+      // Unfollow
+      await updateDoc(currentUserRef, {
+        following: arrayRemove(targetUserId)
+      });
+      await updateDoc(targetUserRef, {
+        followers: arrayRemove(currentUserId)
+      });
+    } else {
+      // Follow
+      await updateDoc(currentUserRef, {
+        following: arrayUnion(targetUserId)
+      });
+      await updateDoc(targetUserRef, {
+        followers: arrayUnion(currentUserId)
+      });
+
+      // Send Notification
+      // Use helper to get current user name/avatar if possible, or pass it in?
+      // Fetch current user brief info to put in notification
+      const mySnap = await getDoc(currentUserRef);
+      const myData = mySnap.data();
+      const myName = myData?.displayName || myData?.name || "Someone";
+      const myAvatar = myData?.photoURL || myData?.avatar || "";
+
+      await sendNotification(
+        targetUserId,
+        currentUserId,
+        'follow',
+        `${myName} started following you.`,
+        myName,
+        myAvatar
+      );
+    }
+    return !isFollowing;
+  } catch (error) {
+    console.error("Error toggling follow:", error);
+    throw error;
   }
 };

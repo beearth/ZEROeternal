@@ -8,7 +8,10 @@ import { PostCard, Comment } from './PostCard';
 import { User, updateProfile } from 'firebase/auth';
 import { toast } from "sonner";
 import { supabase } from '../../supabase';
-import { getUserProfile, updateUserProfileData } from '../../services/userData';
+import {
+    getUserProfile, updateUserProfileData, subscribeToUserProfile,
+    toggleFollowUser
+} from '../../services/userData';
 import { subscribeToPosts, toggleLike, addCommentToPost, deletePost, toggleRepost, deleteCommentFromPost } from '../../services/firestore';
 
 // Helper to convert Data URL to Blob
@@ -35,8 +38,8 @@ interface UserProfile {
     name: string;
     avatar: string;
     joinDate: string;
-    followers: number;
-    following: number;
+    followers: string[];
+    following: string[];
     studying: string[];
     native: string[];
     bio: string;
@@ -68,8 +71,8 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         name: currentUser.displayName || 'Anonymous',
         avatar: currentUser.photoURL || 'https://via.placeholder.com/200',
         joinDate: `Joined in ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
-        followers: 0,
-        following: 0,
+        followers: [],
+        following: [],
         studying: ['English'],
         native: ['Korean'], // Default or fetch
         bio: 'Hello! I am learning languages.',
@@ -98,8 +101,8 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         name: stateUser.userName || stateUser.name || 'Unknown',
         avatar: stateUser.userAvatar || stateUser.avatar || 'https://via.placeholder.com/200',
         joinDate: 'Signal User',
-        followers: 0,
-        following: 0,
+        followers: [],
+        following: [],
         studying: ['English'], // Default for snapshot
         native: ['Korean'],    // Default for snapshot
         bio: 'Hello!', // Default bio for visited users
@@ -120,43 +123,35 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         return map[code?.toLowerCase()] || code || 'English';
     };
 
-    // Fetch Profile Data if missing
+    // Fetch Profile Data (Real-time Sync)
     useEffect(() => {
-        const fetchProfile = async () => {
-            if (!userId || userId === 'current_user' || userId === 'user1') return;
+        if (!userId || userId === 'current_user' || userId === 'user1') return;
 
-            // We should ALWAYS fetch fresh data from Firestore, even for Current User, 
-            // to ensure multi-device sync and get fields not in Auth object (Bio, etc).
-
-            try {
-                // Try to get from Firestore
-                const { profile } = await getUserProfile(userId);
-
-                if (profile) {
-                    setFetchedProfile({
-                        id: profile.id || userId,
-                        name: profile.name,
-                        avatar: profile.avatar || '',
-                        joinDate: profile.joinDate || 'Joined recently',
-                        followers: profile.followers?.length || 0,
-                        following: profile.following?.length || 0,
-                        studying: profile.targetLang
-                            ? (Array.isArray(profile.targetLang) ? profile.targetLang.map(getLangName) : [getLangName(profile.targetLang)])
-                            : ['English'],
-                        native: profile.nativeLang
-                            ? (Array.isArray(profile.nativeLang) ? profile.nativeLang.map(getLangName) : [getLangName(profile.nativeLang)])
-                            : ['Korean'],
-                        bio: profile.bio || "Hello!",
-                        location: profile.location || 'Unknown',
-                        flag: profile.flag || '🏳️'
-                    } as any);
-                }
-            } catch (e) {
-                console.error("Failed to fetch profile", e);
+        // Use Snapshot Listener for Real-Time Updates
+        const unsubscribe = subscribeToUserProfile(userId, (profile) => {
+            if (profile) {
+                setFetchedProfile({
+                    id: profile.id || userId,
+                    name: profile.name,
+                    avatar: profile.avatar || '',
+                    joinDate: profile.joinDate || 'Joined recently',
+                    followers: profile.followers || [],
+                    following: profile.following || [],
+                    studying: profile.targetLang
+                        ? (Array.isArray(profile.targetLang) ? profile.targetLang.map(getLangName) : [getLangName(profile.targetLang)])
+                        : ['English'],
+                    native: profile.nativeLang
+                        ? (Array.isArray(profile.nativeLang) ? profile.nativeLang.map(getLangName) : [getLangName(profile.nativeLang)])
+                        : ['Korean'],
+                    bio: profile.bio || "Hello!",
+                    location: profile.location || 'Unknown',
+                    flag: profile.flag || '🏳️'
+                } as any);
             }
-        };
-        fetchProfile();
-    }, [userId, isCurrentUser]);
+        });
+
+        return () => unsubscribe();
+    }, [userId]);
 
     // Intelligent Selection Logic
     // 1. Current User (Always priority if it's your own profile)
@@ -186,8 +181,8 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
             name: 'User Not Found',
             avatar: '',
             joinDate: 'Joined recently',
-            followers: 0,
-            following: 0,
+            followers: [],
+            following: [],
             studying: ['English'],
             native: ['Korean'],
             bio: 'This user profile could not be loaded.',
@@ -229,14 +224,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
     // Bio Editing State
     const [isEditingBio, setIsEditingBio] = useState(false);
-    const [bio, setBio] = useState(() => {
-        const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
-        return savedBio || selectedUser.bio;
-    });
-    const [tempBio, setTempBio] = useState(bio);
+    // tempBio is ONLY for the editing textarea.
+    const [tempBio, setTempBio] = useState(selectedUser.bio);
 
-    // Update bio state when userId changes
-    // Update bio state when userId changes
     // Profile Editing State - Hoisted
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editName, setEditName] = useState(selectedUser.name);
@@ -246,10 +236,18 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     // Sync state with selectedUser when it changes (e.g. after fetch)
     useEffect(() => {
         if (!isEditingBio) {
-            setBio(selectedUser.bio);
             setTempBio(selectedUser.bio);
         }
     }, [selectedUser.bio, isEditingBio]);
+
+    // Sync Follow Status with Real-time Data
+    useEffect(() => {
+        if (currentUser && selectedUser) {
+            // Check if current user is in the target user's followers list
+            const following = selectedUser.followers?.includes(currentUser.uid) || false;
+            setIsFollowing(following);
+        }
+    }, [selectedUser, currentUser]);
 
     useEffect(() => {
         if (!isEditingProfile) {
@@ -258,27 +256,11 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         }
     }, [selectedUser.name, selectedUser.avatar, isEditingProfile]);
 
-    // Update bio state when userId changes (Reset/Init)
+    // Cleanup editing state on user switch
     useEffect(() => {
-        const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
-        const savedName = localStorage.getItem(`user_name_${effectiveTargetId}`);
-        const savedAvatar = localStorage.getItem(`user_avatar_${effectiveTargetId}`);
-
-        // Prefer LocalStorage for Current User, otherwise selectedUser (which might be fetch/snapshot)
-        // But since we added the Sync UseEffect above, this might be redundant?
-        // No, this handles the distinct "User Switch" event to force a reset from LocalStorage if available.
-
-        if (isCurrentUser) {
-            setBio(savedBio || selectedUser.bio);
-            setTempBio(savedBio || selectedUser.bio);
-            if (savedName) setEditName(savedName);
-            if (savedAvatar) setEditAvatar(savedAvatar);
-        }
-
         setIsEditingProfile(false);
         setIsEditingBio(false);
-    }, [effectiveTargetId, isCurrentUser]);
-
+    }, [effectiveTargetId]);
 
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,7 +314,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
                 await updateProfile(currentUser, updates);
 
-                // 3. Save to LocalStorage
+                // 3. Save to LocalStorage (Legacy support, but we rely on DB now)
                 localStorage.setItem(`user_name_${currentUser.uid}`, editName);
                 localStorage.setItem(`user_avatar_${currentUser.uid}`, finalAvatarUrl);
 
@@ -363,21 +345,38 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     };
 
     const currentUserId = currentUser?.uid || 'anonymous';
-    const postUser = { ...selectedUser, bio, name: editName, avatar: editAvatar };
+    // Use selectedUser directly for display. logic: editing uses 'edit...' state, display uses selectedUser (which is synced via onSnapshot)
+    const postUser = {
+        ...selectedUser,
+        name: isEditingProfile ? editName : selectedUser.name,
+        avatar: isEditingProfile ? editAvatar : selectedUser.avatar,
+        bio: selectedUser.bio // logic: display strictly from DB/Snapshot
+    };
 
-    const handleSaveBio = () => {
-        setBio(tempBio);
-        localStorage.setItem(`user_bio_${effectiveTargetId}`, tempBio);
-
+    const handleSaveBio = async () => {
         // [NEW] Save bio to Firestore if current user
         if (isCurrentUser && currentUser) {
-            updateUserProfileData(currentUser.uid, { bio: tempBio });
+            try {
+                // Update Firestore - the onSnapshot listener will update the UI automatically
+                await updateUserProfileData(currentUser.uid, { bio: tempBio });
+
+                // Also save to localStorage for fallback, but UI is driven by DB
+                localStorage.setItem(`user_bio_${effectiveTargetId}`, tempBio);
+
+                toast.success("소개가 업데이트되었습니다.");
+            } catch (error) {
+                console.error("Failed to update bio:", error);
+                toast.error("소개 업데이트 실패");
+            }
+        } else {
+            localStorage.setItem(`user_bio_${effectiveTargetId}`, tempBio);
+            toast.success("소개가 (로컬에) 저장되었습니다.");
         }
         setIsEditingBio(false);
     };
 
     const handleCancelBio = () => {
-        setTempBio(bio);
+        setTempBio(selectedUser.bio);
         setIsEditingBio(false);
     };
 
@@ -468,7 +467,21 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                             <div className="flex gap-3">
                                 {!isCurrentUser && (
                                     <Button
-                                        onClick={() => setIsFollowing(!isFollowing)}
+                                        onClick={async () => {
+                                            if (!currentUser) return;
+                                            // Optimistic Update
+                                            const newStatus = !isFollowing;
+                                            setIsFollowing(newStatus);
+                                            try {
+                                                await toggleFollowUser(currentUser.uid, effectiveTargetId);
+                                                // Success: The onSnapshot listener will eventually confirm this
+                                            } catch (error) {
+                                                console.error("Follow failed", error);
+                                                // Revert on error
+                                                setIsFollowing(!newStatus);
+                                                toast.error("팔로우 요청 실패");
+                                            }
+                                        }}
                                         className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
                                             ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                                             : 'bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a]'
@@ -496,12 +509,12 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                             <div className="flex gap-6 pr-2">
                                 <div className="flex items-center gap-1.5">
                                     <span className="font-black text-slate-900 text-base">
-                                        {postUser.followers + (isFollowing ? 1 : 0)}
+                                        {postUser.followers ? postUser.followers.length : 0}
                                     </span>
                                     <span className="font-bold text-slate-600 text-sm">followers</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 text-base">{postUser.following}</span>
+                                    <span className="font-black text-slate-900 text-base">{postUser.following ? postUser.following.length : 0}</span>
                                     <span className="font-bold text-slate-600 text-sm">following</span>
                                 </div>
                             </div>
