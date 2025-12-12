@@ -3,6 +3,7 @@ import { Menu, X, User, LogOut, Send } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { NotificationsPopover } from "./NotificationsPopover";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { WordData, VocabularyEntry } from "../types";
 
@@ -98,6 +99,9 @@ export function MainContent({
                 {/* 사용자 정보 */}
                 {user && (
                     <div className="flex items-center gap-3">
+                        <div className="mr-1">
+                            <NotificationsPopover userId={user.uid} />
+                        </div>
                         <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                                 <User className="w-4 h-4 text-white" />

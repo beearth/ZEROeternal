@@ -11,6 +11,8 @@ import {
   addDoc,
   arrayUnion,
   arrayRemove,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { WordData } from "../types";
@@ -431,5 +433,35 @@ export const toggleFollowUser = async (currentUserId: string, targetUserId: stri
   } catch (error) {
     console.error("Error toggling follow:", error);
     throw error;
+  }
+};
+
+// Subscribe to Notifications
+export const subscribeToNotifications = (userId: string, onUpdate: (notifications: any[]) => void) => {
+  const q = query(
+    collection(db, "notifications"),
+    where("recipientId", "==", userId),
+    orderBy("createdAt", "desc"), // Requires index? If so, we might need to create it or remove orderBy for MVP
+    limit(20)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const notifs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    onUpdate(notifs);
+  });
+};
+
+// Mark Notification as Read
+export const markNotificationAsRead = async (notificationId: string) => {
+  try {
+    const notifRef = doc(db, "notifications", notificationId);
+    await updateDoc(notifRef, {
+      read: true
+    });
+  } catch (error) {
+    console.error("Error marking notification read:", error);
   }
 };
