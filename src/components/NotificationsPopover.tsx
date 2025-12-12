@@ -87,13 +87,11 @@ export function NotificationsPopover({ userId }: NotificationsPopoverProps) {
 
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative rounded-lg hover:bg-slate-100">
-                    <Bell className="h-5 w-5 text-slate-600" />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white" />
-                    )}
-                </Button>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10 rounded-lg relative">
+                <Bell className="h-5 w-5 text-slate-600" />
+                {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white" />
+                )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 shadow-xl border-slate-200 p-0 rounded-xl overflow-hidden bg-white">
                 <div className="p-3 border-b border-slate-100 flex items-center justify-between">
