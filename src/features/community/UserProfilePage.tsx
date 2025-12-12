@@ -124,14 +124,17 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     };
 
     // Fetch Profile Data (Real-time Sync)
+    // Fetch Profile Data (Real-time Sync)
     useEffect(() => {
-        if (!userId || userId === 'current_user' || userId === 'user1') return;
+        const targetId = (userId === 'current_user' && currentUser) ? currentUser.uid : userId;
+
+        if (!targetId || targetId === 'user1') return;
 
         // Use Snapshot Listener for Real-Time Updates
-        const unsubscribe = subscribeToUserProfile(userId, (profile) => {
+        const unsubscribe = subscribeToUserProfile(targetId, (profile) => {
             if (profile) {
                 setFetchedProfile({
-                    id: profile.id || userId,
+                    id: profile.id || targetId,
                     name: profile.name,
                     avatar: profile.avatar || '',
                     joinDate: profile.joinDate || 'Joined recently',
@@ -143,7 +146,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     native: profile.nativeLang
                         ? (Array.isArray(profile.nativeLang) ? profile.nativeLang.map(getLangName) : [getLangName(profile.nativeLang)])
                         : ['Korean'],
-                    bio: profile.bio || "Hello!",
+                    bio: profile.bio || "",
                     location: profile.location || 'Unknown',
                     flag: profile.flag || '🏳️'
                 } as any);
@@ -151,7 +154,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         });
 
         return () => unsubscribe();
-    }, [userId]);
+    }, [userId, currentUser]);
 
     // Intelligent Selection Logic
     // 1. Current User (Always priority if it's your own profile)
