@@ -75,7 +75,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         following: [],
         studying: ['English'],
         native: ['Korean'], // Default or fetch
-        bio: 'Hello! I am learning languages.',
+        bio: '',
         location: 'Earth',
         flag: '🌍'
     } : undefined;
@@ -105,7 +105,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         following: [],
         studying: ['English'], // Default for snapshot
         native: ['Korean'],    // Default for snapshot
-        bio: 'Hello!', // Default bio for visited users
+        bio: '', // Default bio for visited users
         location: stateUser.userLocation || stateUser.location || 'Unknown',
         flag: stateUser.userFlag || stateUser.flag || '🏳️'
     } : undefined;
@@ -609,8 +609,8 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     </div>
                 ) : (
                     <>
-                        <p className="text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
-                            {postUser.bio}
+                        <p className={`text-sm leading-relaxed font-medium whitespace-pre-wrap ${!postUser.bio ? 'text-slate-500/50' : 'text-slate-800'}`}>
+                            {postUser.bio || "자기소개를 입력하세요"}
                         </p>
                         {isCurrentUser && (
                             <button
