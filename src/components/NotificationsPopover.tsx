@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, Check, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
@@ -15,6 +12,7 @@ import { subscribeToNotifications, markNotificationAsRead } from '../services/us
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { toast } from "sonner";
 
 interface Notification {
     id: string;
@@ -36,14 +34,42 @@ export function NotificationsPopover({ userId }: NotificationsPopoverProps) {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
+    const lastNotificationIdRef = useRef<string | null>(null);
+    const isInitialLoad = useRef(true);
 
     useEffect(() => {
         if (!userId) return;
         const unsubscribe = subscribeToNotifications(userId, (data) => {
-            setNotifications(data as Notification[]);
+            const newNotifications = data as Notification[];
+
+            // Check for new notifications to trigger toast
+            if (newNotifications.length > 0) {
+                const latest = newNotifications[0];
+
+                // Only toast if it's a new ID and not initial load
+                if (!isInitialLoad.current && latest.id !== lastNotificationIdRef.current) {
+                    // Show Toast
+                    toast(latest.senderName, {
+                        description: latest.message,
+                        action: {
+                            label: "보기",
+                            onClick: () => {
+                                setIsOpen(true);
+                                // Optional: navigate to profile
+                                if (latest.type === 'follow') navigate(`/profile/${latest.senderId}`);
+                            }
+                        }
+                    });
+                }
+
+                lastNotificationIdRef.current = latest.id;
+            }
+
+            setNotifications(newNotifications);
+            isInitialLoad.current = false;
         });
         return () => unsubscribe();
-    }, [userId]);
+    }, [userId, navigate]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -55,9 +81,6 @@ export function NotificationsPopover({ userId }: NotificationsPopoverProps) {
         // Navigation Logic
         if (notification.type === 'follow') {
             navigate(`/profile/${notification.senderId}`);
-        } else {
-            // For like/comment, maybe go to post (need postId in notification schema first, but for now profile is safe or just stay)
-            // Ideally we should add postId to notification schema later.
         }
         setIsOpen(false);
     };
@@ -65,14 +88,12 @@ export function NotificationsPopover({ userId }: NotificationsPopoverProps) {
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
             <DropdownMenuTrigger asChild>
-                <div className="relative inline-flex">
-                    <Button variant="ghost" size="icon" className="relative rounded-lg hover:bg-slate-100">
-                        <Bell className="h-5 w-5 text-slate-600" />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white" />
-                        )}
-                    </Button>
-                </div>
+                <Button variant="ghost" size="icon" className="relative rounded-lg hover:bg-slate-100">
+                    <Bell className="h-5 w-5 text-slate-600" />
+                    {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white" />
+                    )}
+                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 shadow-xl border-slate-200 p-0 rounded-xl overflow-hidden bg-white">
                 <div className="p-3 border-b border-slate-100 flex items-center justify-between">
