@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles: Publicly readable for name/avatar/etc.
+    // Write restricted to owner.
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Posts: Publicly readable, Write if authenticated
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+    }
+    
+    // Chats: Only participants can read/write
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid in resource.data.participants || 
+        resource.data.participants == null // Allow creation
+      );
+      
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+  }
+}

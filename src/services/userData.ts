@@ -231,3 +231,91 @@ export const getUserConversations = async (userId: string) => {
   }
 };
 
+
+// 사용자 프로필 불러오기 (이름, 아바타 등 전체 정보)
+export const getUserProfile = async (userId: string) => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      const profile = {
+        id: userId,
+        name: data.displayName || data.name || "Unknown User",
+        avatar: data.photoURL || data.avatar || "",
+        nativeLang: data.nativeLang || 'ko', // Keep as string or array based on DB, consumer handles it
+        targetLang: data.targetLang || 'en',
+        bio: data.bio || "",
+        followers: data.followers || [],
+        following: data.following || [],
+        joinDate: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : "최근 가입",
+        studyStreak: data.studyStreak || 0,
+        flag: data.flag || '',
+        location: data.location || ''
+      };
+      return { profile, error: null };
+    } else {
+      // Mock fallback if not found in DB but ID exists
+      return {
+        profile: {
+          id: userId,
+          name: 'Unknown User',
+          avatar: '',
+          nativeLang: 'ko',
+          targetLang: 'en',
+          bio: '',
+          followers: [],
+          following: [],
+          joinDate: '최근 가입',
+          studyStreak: 0,
+          flag: '',
+          location: ''
+        },
+        error: null
+      };
+    }
+  } catch (error: any) {
+    console.error("Error fetching profile:", error);
+    return { profile: null, error: error.message };
+  }
+};
+
+// 사용자 프로필 업데이트 (DB 동기화)
+export const updateUserProfileData = async (
+  userId: string,
+  data: {
+    name?: string;
+    avatar?: string;
+    bio?: string;
+    location?: string;
+    flag?: string;
+    nativeLang?: string[];
+    targetLang?: string[];
+  }
+) => {
+  try {
+    const userRef = doc(db, "users", userId);
+
+    // 필드 매핑 (Firestore 필드명과 일치)
+    const updates: any = {
+      updatedAt: new Date(),
+    };
+
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.name !== undefined) updates.displayName = data.name; // 호환성
+    if (data.avatar !== undefined) updates.avatar = data.avatar;
+    if (data.avatar !== undefined) updates.photoURL = data.avatar; // 호환성
+    if (data.bio !== undefined) updates.bio = data.bio;
+    if (data.location !== undefined) updates.location = data.location;
+    if (data.flag !== undefined) updates.flag = data.flag;
+    if (data.nativeLang !== undefined) updates.nativeLang = data.nativeLang;
+    if (data.targetLang !== undefined) updates.targetLang = data.targetLang;
+
+    await setDoc(userRef, updates, { merge: true });
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error updating profile:", error);
+    return { success: false, error: error.message };
+  }
+};

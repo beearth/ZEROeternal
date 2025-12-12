@@ -1,0 +1,2 @@
+﻿src/features/community/DirectChat.tsx(62,42): error TS2339: Property 'senderName' does not exist on type 'ChatMessage'.
+src/features/community/DirectChat.tsx(63,44): error TS2339: Property 'senderAvatar' does not exist on type 'ChatMessage'.

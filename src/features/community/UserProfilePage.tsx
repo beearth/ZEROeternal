@@ -8,6 +8,7 @@ import { PostCard, Comment } from './PostCard';
 import { User, updateProfile } from 'firebase/auth';
 import { toast } from "sonner";
 import { supabase } from '../../supabase';
+import { getUserProfile, updateUserProfileData } from '../../services/userData';
 import { subscribeToPosts, toggleLike, addCommentToPost, deletePost, toggleRepost, deleteCommentFromPost } from '../../services/firestore';
 
 // Helper to convert Data URL to Blob
@@ -44,21 +45,8 @@ interface UserProfile {
 }
 
 // Mock Data for Multiple Users
-const MOCK_USERS: Record<string, UserProfile> = {
-    'user1': {
-        id: 'user1',
-        name: 'Guest_User',
-        avatar: 'https://via.placeholder.com/200',
-        joinDate: 'Joined recently',
-        followers: 0,
-        following: 0,
-        studying: ['English'],
-        native: ['Korean'],
-        bio: 'Welcome!',
-        location: 'Seoul, Korea',
-        flag: '🇰🇷'
-    }
-};
+// Mock Data Removed to enforce real data fetch
+const MOCK_USERS: Record<string, UserProfile> = {};
 
 const LANGUAGE_FLAGS: Record<string, string> = {
     'Korean': '🇰🇷', 'English': '🇺🇸', 'Japanese': '🇯🇵', 'Chinese': '🇨🇳',
@@ -112,17 +100,109 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         joinDate: 'Signal User',
         followers: 0,
         following: 0,
-        studying: [],
-        native: [],
+        studying: ['English'], // Default for snapshot
+        native: ['Korean'],    // Default for snapshot
         bio: 'Hello!', // Default bio for visited users
         location: stateUser.userLocation || stateUser.location || 'Unknown',
         flag: stateUser.userFlag || stateUser.flag || '🏳️'
     } : undefined;
 
-    // Select user based on ID, priority: CurrentUser -> State -> Mock
-    const selectedUser = isCurrentUser && currentUserProfile
-        ? currentUserProfile
-        : (stateUserProfile || MOCK_USERS[userId || 'user1'] || MOCK_USERS['user1']);
+    // State for fetched profile (for other users)
+    const [fetchedProfile, setFetchedProfile] = useState<UserProfile | null>(null);
+
+    // Helper to map codes to names
+    const getLangName = (code: string | string[]) => {
+        if (Array.isArray(code)) code = code[0];
+        const map: Record<string, string> = {
+            'ko': 'Korean', 'en': 'English', 'ja': 'Japanese', 'zh': 'Chinese',
+            'es': 'Spanish', 'fr': 'French', 'de': 'German', 'ru': 'Russian', 'it': 'Italian'
+        };
+        return map[code?.toLowerCase()] || code || 'English';
+    };
+
+    // Fetch Profile Data if missing
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!userId || userId === 'current_user' || userId === 'user1') return;
+
+            // We should ALWAYS fetch fresh data from Firestore, even for Current User, 
+            // to ensure multi-device sync and get fields not in Auth object (Bio, etc).
+
+            try {
+                // Try to get from Firestore
+                const { profile } = await getUserProfile(userId);
+
+                if (profile) {
+                    setFetchedProfile({
+                        id: profile.id || userId,
+                        name: profile.name,
+                        avatar: profile.avatar || '',
+                        joinDate: profile.joinDate || 'Joined recently',
+                        followers: profile.followers?.length || 0,
+                        following: profile.following?.length || 0,
+                        studying: profile.targetLang
+                            ? (Array.isArray(profile.targetLang) ? profile.targetLang.map(getLangName) : [getLangName(profile.targetLang)])
+                            : ['English'],
+                        native: profile.nativeLang
+                            ? (Array.isArray(profile.nativeLang) ? profile.nativeLang.map(getLangName) : [getLangName(profile.nativeLang)])
+                            : ['Korean'],
+                        bio: profile.bio || "Hello!",
+                        location: profile.location || 'Unknown',
+                        flag: profile.flag || '🏳️'
+                    } as any);
+                }
+            } catch (e) {
+                console.error("Failed to fetch profile", e);
+            }
+        };
+        fetchProfile();
+    }, [userId, isCurrentUser]);
+
+    // Intelligent Selection Logic
+    // 1. Current User (Always priority if it's your own profile)
+    // 2. Snapshot (State) - PREFERRED if Fetch is loading or Fetch returned "Unknown"
+    // 3. Fetched - Only if it yields a valid name
+
+    // Check if fetched profile is "valid" (has a real name, not a placeholder)
+    const isFetchedValid = fetchedProfile &&
+        fetchedProfile.name !== 'Unknown User' &&
+        fetchedProfile.name !== 'Guest_User';
+
+    // Intelligent Selection Logic
+    // 1. Fetched Profile (Highest Priority - Real DB Data)
+    // 2. Current User (Auth Data - Fast but might be stale on other devices)
+    // 3. Snapshot (State - Fast transition)
+
+    // Base object to start with
+    // If we have valid fetched data, use it (even for current user, to sync changes).
+    // If not, use CurrentUser (if applicable).
+    // If not, use Snapshot.
+    let displaySource = isFetchedValid ? fetchedProfile : (isCurrentUser ? currentUserProfile : stateUserProfile);
+
+    // If absolutely nothing exists (direct URL visit to random ID with no fetch result yet), fallback
+    if (!displaySource) {
+        displaySource = {
+            id: userId || 'unknown',
+            name: 'User Not Found',
+            avatar: '',
+            joinDate: 'Joined recently',
+            followers: 0,
+            following: 0,
+            studying: ['English'],
+            native: ['Korean'],
+            bio: 'This user profile could not be loaded.',
+            location: 'Unknown',
+            flag: '🏳️'
+        };
+    }
+
+    const selectedUser = {
+        ...displaySource,
+        // Double Safety: Overlay State Data if the chosen source is missing critical fields
+        avatar: (displaySource.avatar) ? displaySource.avatar : (stateUserProfile?.avatar || ''),
+        flag: (displaySource.flag && displaySource.flag !== '🏳️') ? displaySource.flag : (stateUserProfile?.flag || '🏳️'),
+        name: (displaySource.name && displaySource.name !== 'Unknown User') ? displaySource.name : (stateUserProfile?.name || 'Unknown User')
+    };
 
     // State for Posts from Firestore
     const [posts, setPosts] = useState<any[]>([]);
@@ -157,25 +237,49 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
     // Update bio state when userId changes
     // Update bio state when userId changes
+    // Profile Editing State - Hoisted
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editName, setEditName] = useState(selectedUser.name);
+    const [editAvatar, setEditAvatar] = useState(selectedUser.avatar);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Sync state with selectedUser when it changes (e.g. after fetch)
+    useEffect(() => {
+        if (!isEditingBio) {
+            setBio(selectedUser.bio);
+            setTempBio(selectedUser.bio);
+        }
+    }, [selectedUser.bio, isEditingBio]);
+
+    useEffect(() => {
+        if (!isEditingProfile) {
+            setEditName(selectedUser.name);
+            setEditAvatar(selectedUser.avatar);
+        }
+    }, [selectedUser.name, selectedUser.avatar, isEditingProfile]);
+
+    // Update bio state when userId changes (Reset/Init)
     useEffect(() => {
         const savedBio = localStorage.getItem(`user_bio_${effectiveTargetId}`);
         const savedName = localStorage.getItem(`user_name_${effectiveTargetId}`);
         const savedAvatar = localStorage.getItem(`user_avatar_${effectiveTargetId}`);
 
-        setBio(savedBio || selectedUser.bio);
-        setTempBio(savedBio || selectedUser.bio);
+        // Prefer LocalStorage for Current User, otherwise selectedUser (which might be fetch/snapshot)
+        // But since we added the Sync UseEffect above, this might be redundant?
+        // No, this handles the distinct "User Switch" event to force a reset from LocalStorage if available.
 
-        if (savedName) setEditName(savedName);
-        if (savedAvatar) setEditAvatar(savedAvatar);
+        if (isCurrentUser) {
+            setBio(savedBio || selectedUser.bio);
+            setTempBio(savedBio || selectedUser.bio);
+            if (savedName) setEditName(savedName);
+            if (savedAvatar) setEditAvatar(savedAvatar);
+        }
 
         setIsEditingProfile(false);
-    }, [effectiveTargetId]);
+        setIsEditingBio(false);
+    }, [effectiveTargetId, isCurrentUser]);
 
-    // Profile Editing State
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const [editName, setEditName] = useState(selectedUser.name);
-    const [editAvatar, setEditAvatar] = useState(selectedUser.avatar);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -232,6 +336,14 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                 localStorage.setItem(`user_name_${currentUser.uid}`, editName);
                 localStorage.setItem(`user_avatar_${currentUser.uid}`, finalAvatarUrl);
 
+                // 4. [NEW] Save to Firestore (Users Collection) for others to see
+                await updateUserProfileData(currentUser.uid, {
+                    name: editName,
+                    avatar: finalAvatarUrl,
+                    location: selectedUser.location,
+                    flag: selectedUser.flag
+                });
+
                 toast.success("프로필이 성공적으로 업데이트되었습니다!");
             } catch (error) {
                 console.error("Profile update failed:", error);
@@ -256,6 +368,11 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const handleSaveBio = () => {
         setBio(tempBio);
         localStorage.setItem(`user_bio_${effectiveTargetId}`, tempBio);
+
+        // [NEW] Save bio to Firestore if current user
+        if (isCurrentUser && currentUser) {
+            updateUserProfileData(currentUser.uid, { bio: tempBio });
+        }
         setIsEditingBio(false);
     };
 

@@ -1,0 +1,3 @@
+﻿src/services/userData.ts(277,3): error TS1472: 'catch' or 'finally' expected.
+src/services/userData.ts(277,5): error TS1005: ',' expected.
+src/services/userData.ts(318,1): error TS1128: Declaration or statement expected.

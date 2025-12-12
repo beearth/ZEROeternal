@@ -260,7 +260,14 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                             comments={post.comments}
                             onAddComment={(text) => handleAddComment(post.id, text)}
                             onShare={() => handleShare(post)}
-                            onClickProfile={() => navigate(`/profile/${post.authorId || 'user1'}`)}
+                            onClickProfile={() => navigate(`/profile/${post.authorId || 'user1'}`, {
+                                state: {
+                                    userName: post.user.name,
+                                    userAvatar: post.user.avatar,
+                                    userFlag: post.user.flag,
+                                    userLocation: post.user.location
+                                }
+                            })}
                             isOwner={post.authorId === currentUserId}
                             onEdit={() => navigate(`/edit-post/${post.id}`)}
                             onDelete={() => handleDeletePost(post.id)}

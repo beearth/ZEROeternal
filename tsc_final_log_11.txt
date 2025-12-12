@@ -1,0 +1,33 @@
+﻿src/features/community/DirectChat.tsx(62,42): error TS2339: Property 'senderName' does not exist on type 'ChatMessage'.
+src/features/community/DirectChat.tsx(63,44): error TS2339: Property 'senderAvatar' does not exist on type 'ChatMessage'.
+src/features/community/DirectChat.tsx(171,109): error TS2339: Property 'text' does not exist on type 'ChatMessage'.
+src/features/community/UserProfilePage.tsx(145,41): error TS2339: Property 'avatar' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'avatar' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(146,43): error TS2339: Property 'joinDate' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'joinDate' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(147,44): error TS2339: Property 'followers' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'followers' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(148,44): error TS2339: Property 'following' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'following' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(149,43): error TS2339: Property 'targetLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'targetLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(149,79): error TS2339: Property 'targetLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'targetLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(149,101): error TS2339: Property 'targetLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'targetLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(149,123): error TS2339: Property 'targetLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'targetLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(150,41): error TS2339: Property 'nativeLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'nativeLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(150,77): error TS2339: Property 'nativeLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'nativeLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(150,99): error TS2339: Property 'nativeLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'nativeLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(150,121): error TS2339: Property 'nativeLang' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'nativeLang' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(151,38): error TS2339: Property 'bio' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'bio' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(152,43): error TS2339: Property 'location' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'location' does not exist on type '{ id: string; name: string; }'.
+src/features/community/UserProfilePage.tsx(153,39): error TS2339: Property 'flag' does not exist on type '{ id: string; name: any; avatar: any; nativeLang: any; targetLang: any; bio: any; followers: any; following: any; joinDate: string; studyStreak: any; flag: any; location: any; } | { id: string; name: string; }'.
+  Property 'flag' does not exist on type '{ id: string; name: string; }'.

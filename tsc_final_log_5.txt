@@ -1,0 +1,2 @@
+﻿src/App.tsx(27,3): error TS2300: Duplicate identifier 'getUserConversations'.
+src/App.tsx(28,3): error TS2300: Duplicate identifier 'getUserConversations'.

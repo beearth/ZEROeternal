@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Globe, BookOpen, RefreshCw, Trash2, Menu, Bot } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
+import { ChatAvatar, ChatUserName } from "./components/ChatUserIdentity";
 import { Input } from "../../components/ui/input";
 import { toast } from "sonner";
 import { translateText, generateStudyTips } from "../../services/gemini";
@@ -576,15 +576,21 @@ export function GlobalChatRoom({
                             className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
                         >
                             {!isMe && (
-                                <Avatar className="h-10 w-10 border border-slate-200 mt-1">
-                                    <AvatarImage src={message.senderAvatar} />
-                                    <AvatarFallback>{message.senderName[0]}</AvatarFallback>
-                                </Avatar>
+                                <ChatAvatar
+                                    userId={message.senderId}
+                                    name={message.senderName}
+                                    avatar={message.senderAvatar}
+                                    className="h-10 w-10 border border-slate-200 mt-1"
+                                />
                             )}
 
                             <div className={`flex flex-col max-w-[85%] ${isMe ? 'items-end' : 'items-start'}`}>
                                 {!isMe && (
-                                    <span className="text-xs text-slate-500 mb-1 ml-1">{message.senderName}</span>
+                                    <ChatUserName
+                                        userId={message.senderId}
+                                        name={message.senderName}
+                                        className="text-xs text-slate-500 mb-1 ml-1 font-medium"
+                                    />
                                 )}
 
                                 <div

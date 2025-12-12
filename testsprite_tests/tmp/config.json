@@ -1,17 +1,16 @@
 {
   "status": "commited",
-  "type": "frontend",
-  "scope": "codebase",
-  "localEndpoint": "http://localhost:3000",
-  "loginUser": "signalvoca",
+  "type": "backend",
+  "scope": "diff",
+  "localEndpoint": "http://localhost:3000/community/global-chat",
+  "backendAuthType": "public",
   "executionArgs": {
     "projectName": "signalvoca",
     "projectPath": "c:\\Users\\심도진\\Desktop\\signalvoca",
     "testIds": [],
-    "additionalInstruction": "",
+    "additionalInstruction": "1. Navigate to Global Chat (/community/global-chat).\n2. Click on a user avatar (className includes 'ChatAvatar').\n3. Verify that the URL changes to /profile/{userId}.\n4. Verify that the profile page loads.",
     "envs": {
       "API_KEY": "sk-user-52mVZA8O8ndFUnxY9PMDkyS4aQa-e3kM22Vj1h7dOI2Xkto2zWXkzhcqyldowvkUe03BaYDbwZDiEUNzMWrg4hS4K3SV3ho-cg0wTISm0On7d10AKMYRXsVaGgHQfe95Uwg"
     }
-  },
-  "proxy": "http://bec0dcaa-4103-4223-8c9e-7227fccf821f:7Qrre9hK5mQdDrLsYYkNrUpJKCAYWVPD@tun.testsprite.com:8080"
+  }
 }

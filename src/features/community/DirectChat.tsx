@@ -50,25 +50,27 @@ export function DirectChat({ user }: DirectChatProps) {
     useEffect(() => {
         if (!currentUserId || !targetUserId) return;
 
-        const unsubscribe = subscribeToChat(chatId, (newMessages) => {
-            setMessages(newMessages);
-
-            // If we lack profile info (e.g. refresh), try to find it in history
-            if (!partnerProfile.name && targetUserId) {
-                const partnerMsg = newMessages.find(m => m.senderId === targetUserId);
-                if (partnerMsg) {
+        // Fetch latest profile data for accurate header info
+        import('../../services/userData').then(({ getUserProfile }) => {
+            getUserProfile(targetUserId).then(({ profile }) => {
+                if (profile) {
                     setPartnerProfile(prev => ({
                         ...prev,
-                        name: partnerMsg.senderName,
-                        avatar: partnerMsg.senderAvatar,
-                        // Messages don't store flag/location usually, but at least we get name/avatar
+                        name: profile.name || prev.name,
+                        avatar: profile.avatar || prev.avatar,
+                        flag: profile.flag || prev.flag,
+                        location: profile.location || prev.location
                     }));
                 }
-            }
+            });
+        });
+
+        const unsubscribe = subscribeToChat(chatId, (newMessages) => {
+            setMessages(newMessages);
         });
 
         return () => unsubscribe();
-    }, [chatId, currentUserId, targetUserId, partnerProfile.name]);
+    }, [chatId, currentUserId, targetUserId]); // Removed partnerProfile dependencies to avoid loops
 
     const handleSendMessage = async () => {
         if (!msgInput.trim() || !currentUserId) return;
@@ -159,3 +161,42 @@ export function DirectChat({ user }: DirectChatProps) {
                                             })}
                                         >
                                             <AvatarImage src={partnerProfile.avatar} className="object-cover" />
+                                            <AvatarFallback>{partnerProfile.name?.[0] || '?'}</AvatarFallback>
+                                        </Avatar>
+                                    )}
+                                    <div
+                                        className={`rounded-2xl px-4 py-2 max-w-[70%] shadow-sm ${isMe
+                                            ? 'bg-blue-600 text-white rounded-tr-none'
+                                            : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                                            }`}
+                                    >
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 pb-1">
+                                        {message.timestamp?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 bg-white border-t border-slate-200">
+                <div className="flex gap-2 max-w-3xl mx-auto">
+                    <Input
+                        value={msgInput}
+                        onChange={(e) => setMsgInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="메시지 입력..."
+                        className="flex-1"
+                    />
+                    <Button onClick={handleSendMessage} disabled={!msgInput.trim()} size="icon" className="bg-blue-600 hover:bg-blue-700">
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
