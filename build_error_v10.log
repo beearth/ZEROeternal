@@ -2,56 +2,6 @@
 > fun-age-app-clone@0.1.0 build
 > vite build
 
-X [ERROR] "@vitejs/plugin-react" resolved to an ESM file. ESM file cannot be loaded by `require`. See https://vite.dev/guide/troubleshooting.html#this-package-is-esm-only for more details. [plugin externalize-deps]
-
-    node_modules/esbuild/lib/main.js:1225:27:
-      1225 │         let result = await callback({
-           ╵                            ^
-
-    at file:///C:/Users/%EC%8B%AC%EB%8F%84%EC%A7%84/Desktop/signalvoca/node_modules/vite/dist/node/chunks/dep-CB_7IfJ-.js:66644:23
-    at requestCallbacks.on-resolve (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:1225:28)
-    at handleRequest (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:647:17)
-    at handleIncomingPacket (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:672:7)
-    at Socket.readFromStdout (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:600:7)
-    at Socket.emit (node:events:508:28)
-    at addChunk (node:internal/streams/readable:559:12)
-    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
-    at Readable.push (node:internal/streams/readable:390:5)
-    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
-
-  This error came from the "onResolve" callback registered here:
-
-    node_modules/esbuild/lib/main.js:1150:20:
-      1150 │       let promise = setup({
-           ╵                     ^
-
-    at setup (file:///C:/Users/%EC%8B%AC%EB%8F%84%EC%A7%84/Desktop/signalvoca/node_modules/vite/dist/node/chunks/dep-CB_7IfJ-.js:66606:18)
-    at handlePlugins (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:1150:21)
-    at buildOrContextImpl (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:873:5)
-    at Object.buildOrContext (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:699:5)
-    at C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:2023:15
-    at new Promise (<anonymous>)
-    at Object.build (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:2022:25)
-    at build (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:1873:51)
-    at bundleConfigFile (file:///C:/Users/%EC%8B%AC%EB%8F%84%EC%A7%84/Desktop/signalvoca/node_modules/vite/dist/node/chunks/dep-CB_7IfJ-.js:66561:24)
-
-  The plugin "externalize-deps" was triggered by this import
-
-    vite.config.ts:3:18:
-      3 │ import react from '@vitejs/plugin-react';
-        ╵                   ~~~~~~~~~~~~~~~~~~~~~~
-
-[31mfailed to load config from C:\Users\심도진\Desktop\signalvoca\vite.config.ts[39m
-[31merror during build:
-Error: Build failed with 1 error:
-node_modules/esbuild/lib/main.js:1225:27: ERROR: [plugin: externalize-deps] "@vitejs/plugin-react" resolved to an ESM file. ESM file cannot be loaded by `require`. See https://vite.dev/guide/troubleshooting.html#this-package-is-esm-only for more details.
-    at failureErrorWithLog (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:1472:15)
-    at C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:945:25
-    at runOnEndCallbacks (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:1315:45)
-    at buildResponseToResult (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:943:7)
-    at C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:970:16
-    at responseCallbacks.<computed> (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:622:9)
-    at handleIncomingPacket (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:677:12)
-    at Socket.readFromStdout (C:\Users\심도진\Desktop\signalvoca\node_modules\esbuild\lib\main.js:600:7)
-    at Socket.emit (node:events:508:28)
-    at addChunk (node:internal/streams/readable:559:12)[39m
+[36mvite v5.4.11 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 2680 modules transformed.

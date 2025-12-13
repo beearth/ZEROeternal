@@ -6,6 +6,7 @@ import { FriendRecommendations } from './FriendRecommendations';
 import { Button } from "../../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { toast } from "sonner";
+import { NotificationsPopover } from "../../components/NotificationsPopover";
 
 // Extended interface with authorId and title
 interface ExtendedPostCardProps extends PostCardProps {
@@ -160,7 +161,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
 
 
     return (
-        <div className="flex flex-col h-full bg-[#faFAFA]">
+        <div className="flex-1 flex flex-col h-full bg-[#faFAFA] w-full min-w-0">
             {/* YouTube-style Header */}
             <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-slate-100">
                 <div className="flex items-center justify-between px-4 h-14">
@@ -200,27 +201,32 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                         {/* Open Chat Pill */}
                         <Button
                             onClick={() => navigate('/community/global-chat')}
-                            className="hidden sm:flex items-center gap-2 h-9 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
+                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
                             title="Global Open Chat"
                         >
                             <Globe className="w-4 h-4" />
-                            <span className="font-semibold text-sm">오픈챗</span>
+                            <span className="font-semibold text-sm hidden sm:inline">오픈챗</span>
                         </Button>
 
                         {/* Create Post Pill */}
                         <Button
                             onClick={() => navigate('/create-post')}
-                            className="hidden sm:flex items-center gap-2 h-9 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
+                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
                         >
                             <Plus className="w-5 h-5" />
-                            <span className="font-semibold text-sm">글쓰기</span>
+                            <span className="font-semibold text-sm hidden sm:inline">글쓰기</span>
                         </Button>
 
                         {/* Notification Bell */}
-                        <button className="p-2 hover:bg-slate-100 rounded-full relative">
-                            <Bell className="h-6 w-6 text-slate-700" strokeWidth={1.5} />
-                            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-600 rounded-full border-2 border-white"></span>
-                        </button>
+                        {user ? (
+                            <div className="mr-1">
+                                <NotificationsPopover userId={user.uid} />
+                            </div>
+                        ) : (
+                            <button className="p-2 hover:bg-slate-100 rounded-full relative">
+                                <Bell className="h-6 w-6 text-slate-700" strokeWidth={1.5} />
+                            </button>
+                        )}
 
                         {/* User Profile */}
                         <Avatar className="h-8 w-8 ml-1 cursor-pointer border border-slate-200" onClick={() => navigate(`/profile/${user?.uid || 'guest'}`)}>
@@ -282,8 +288,8 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                             onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
                             user={post.authorId === currentUserId ? {
                                 ...post.user,
-                                name: localStorage.getItem(`user_name_${currentUserId}`) || post.user.name,
-                                avatar: localStorage.getItem(`user_avatar_${currentUserId}`) || post.user.avatar,
+                                name: user?.displayName || post.user.name,
+                                avatar: user?.photoURL || post.user.avatar,
                                 targetLang: targetLang || 'EN'
                             } : post.user}
                         />

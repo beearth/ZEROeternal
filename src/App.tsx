@@ -70,7 +70,7 @@ export default function App() {
     },
   ]);
   const [currentConversationId, setCurrentConversationId] = useState("1");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [isTyping, setIsTyping] = useState(false);
 
   // 언어 상태
@@ -634,6 +634,45 @@ export default function App() {
       return filtered;
     });
   };
+
+  // 실시간 사용자 프로필 동기화
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = onSnapshot(doc(db, "users", user.uid), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setUser((prev) => {
+          if (!prev) return null;
+          // Firestore 데이터가 변경되면 로컬 user 상태 업데이트 (프로필 사진, 이름 등)
+          const newPhoto = data.photoURL || data.avatar;
+          const newName = data.displayName || data.name;
+
+          // 불필요한 리렌더링 방지
+          if (prev.photoURL !== newPhoto || prev.displayName !== newName) {
+            return {
+              ...prev,
+              photoURL: newPhoto,
+              displayName: newName,
+            };
+          }
+          return prev;
+        });
+
+        // 언어 설정 동기화
+        if (data.nativeLang && data.nativeLang !== nativeLang) {
+          setNativeLang(data.nativeLang);
+          localStorage.setItem("signal_native_lang", data.nativeLang);
+        }
+        if (data.targetLang && data.targetLang !== targetLang) {
+          setTargetLang(data.targetLang);
+          localStorage.setItem("signal_target_lang", data.targetLang);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   // 단어 상태 업데이트 핸들러 (Red/Yellow/Green/White/Orange)
   // StackView에서는 (word, status)로 호출

@@ -1,5 +1,5 @@
-2025-12-10T01:23:02.467Z vite:config bundled config file loaded in 38.97ms
-2025-12-10T01:23:02.484Z vite:config using resolved config: {
+2025-12-13T03:09:41.471Z vite:config bundled config file loaded in 193.43ms
+2025-12-13T03:09:41.487Z vite:config using resolved config: {
   plugins: [
     'vite:build-metadata',
     'vite:watch-package-data',
@@ -41,6 +41,7 @@
     preserveSymlinks: false,
     alias: [ [Object], [Object], [Object] ]
   },
+  css: { postcss: { plugins: [Array] }, lightningcss: undefined },
   build: {
     target: 'esnext',
     cssTarget: 'esnext',
@@ -49,7 +50,7 @@
     assetsInlineLimit: 4096,
     cssCodeSplit: true,
     sourcemap: false,
-    rollupOptions: { onwarn: [Function: onwarn] },
+    rollupOptions: { output: [Object], onwarn: [Function: onwarn] },
     minify: false,
     terserOptions: {},
     write: true,
@@ -119,7 +120,6 @@
   mainConfig: null,
   bundleChain: [],
   isProduction: true,
-  css: { lightningcss: undefined },
   preview: {
     port: undefined,
     strictPort: undefined,
@@ -169,5 +169,5 @@
 }
 [36mvite v5.4.11 [32mbuilding for production...[36m[39m
 transforming...
-2025-12-10T01:23:03.034Z vite:resolve [32m0.91ms[39m [36mtailwindcss[39m -> [2mC:/Users/심도진/Desktop/signalvoca/node_modules/tailwindcss/index.css[22m
-[32m✓[39m 1706 modules transformed.
+2025-12-13T03:09:41.586Z vite:resolve [32m0.71ms[39m [36mtailwindcss[39m -> [2mC:/Users/심도진/Desktop/signalvoca/node_modules/tailwindcss/index.css[22m
+[32m✓[39m 2680 modules transformed.
