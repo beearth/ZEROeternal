@@ -48,25 +48,67 @@ interface ChatMessage {
 
 interface WordSpanProps {
     part: string;
+    wordState: number;
+    isMe: boolean;
     messageId: string;
     fullSentence: string;
-    bgClass: string;
-    textClass: string;
     onClick: () => void;
     onLongPress: (e: React.PointerEvent) => void;
 }
 
-const WordSpan = ({ part, messageId, fullSentence, bgClass, textClass, onClick, onLongPress }: WordSpanProps) => {
+// Helper function for styles (Strictly Same as ChatMessage)
+const getWordStyle = (state: number) => {
+    switch (state) {
+        case 1:
+            return {
+                className: "bg-red-200 text-red-900 font-bold",
+                style: { backgroundColor: "#fecaca", color: "#7f1d1d" },
+            };
+        case 2:
+            return {
+                className: "bg-yellow-200 text-yellow-900 font-bold",
+                style: { backgroundColor: "#fef08a", color: "#713f12" },
+            };
+        case 3:
+            return {
+                className: "bg-green-200 text-green-900 font-bold",
+                style: { backgroundColor: "#bbf7d0", color: "#14532d" },
+            };
+        case 4:
+            return {
+                className: "bg-orange-200 text-orange-900 font-bold",
+                style: { backgroundColor: "#fed7aa", color: "#9a3412" },
+            };
+        default:
+            return { className: "", style: {} };
+    }
+};
+
+const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onLongPress }: WordSpanProps) => {
     const longPressHandlers = useLongPress({
         onLongPress: (e) => onLongPress(e),
         onClick: onClick,
         delay: 500,
     });
 
+    const styleInfo = getWordStyle(wordState);
+
+    // Default Style (if no status) - Keeps bubble colors
+    const defaultClass = isMe ? "hover:bg-blue-500 text-white" : "hover:bg-slate-200 text-slate-800";
+
+    // Unified Class Logic
+    const finalClassName = wordState > 0
+        ? `${styleInfo.className} px-0.5 rounded shadow-sm cursor-pointer transition-colors inline-block`
+        : `${defaultClass} px-0.5 rounded cursor-pointer transition-colors inline-block`;
+
     return (
         <span
             {...longPressHandlers}
-            className={`inline-block rounded px-0.5 cursor-pointer transition-colors ${bgClass} ${textClass}`}
+            className={finalClassName}
+            style={{
+                userSelect: "none",
+                ...(wordState > 0 ? styleInfo.style : {})
+            }}
         >
             {part}
         </span>
@@ -513,35 +555,27 @@ export function GlobalChatRoom({
                         console.log(`[GlobalChat Debug] Word: ${wordKey}, isImportant: ${isImportant}, globalEntry:`, globalEntry, "status:", status);
                     }
 
-                    // Default Style
-                    let bgClass = isMe ? "hover:bg-blue-500" : "hover:bg-slate-200";
-                    let textClass = isMe ? "text-white" : "text-slate-800";
+                    // Map status to number for WordSpan interaction
+                    let statusNumber = 0;
+                    if (status === "red") statusNumber = 1;
+                    else if (status === "yellow") statusNumber = 2;
+                    else if (status === "green") statusNumber = 3;
+                    else if (status === "orange") statusNumber = 4;
 
-                    // Status Style (Overrides)
-                    if (status === "red") {
-                        bgClass = "bg-red-100/20 hover:bg-red-200/30";
-                        textClass = isMe ? "text-red-100 font-bold underline decoration-red-300" : "text-red-600 font-bold";
-                    } else if (status === "yellow") {
-                        bgClass = "bg-yellow-100/20 hover:bg-yellow-200/30";
-                        textClass = isMe ? "text-yellow-100 font-bold underline decoration-yellow-300" : "text-yellow-600 font-bold";
-                    } else if (status === "green") {
-                        bgClass = "bg-green-100/20 hover:bg-green-200/30";
-                        textClass = isMe ? "text-green-100 font-bold underline decoration-green-300" : "text-green-600 font-bold";
-                    } else if (status === "orange") {
-                        bgClass = "bg-orange-200 hover:bg-orange-300"; // Much stronger orange
-                        textClass = isMe ? "text-orange-50 font-bold underline decoration-orange-200" : "text-orange-900 font-bold";
-                    }
+                    // Use WordSpan for unified behavior (matches ChatMessage exactly)
+                    // Note: WordSpan handles its own styling via getWordStyle internally if we pass wordState
+                    // We remove manual bgClass/textClass to avoid conflict
 
                     return (
                         <WordSpan
                             key={index}
                             part={part}
+                            wordState={statusNumber}
+                            isMe={isMe}
                             messageId={messageId}
                             fullSentence={text}
-                            bgClass={bgClass}
-                            textClass={textClass}
-                            onClick={() => handleWordClick(part, messageId, text)}
-                            onLongPress={(e) => handleLongPress(e, part, messageId, text)}
+                            onClick={() => handleWordClick(wordKey, index)}
+                            onLongPress={(e) => handleWordLongPress(e, wordKey, text, messageId)}
                         />
                     );
                 })}
