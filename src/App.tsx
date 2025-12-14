@@ -1293,6 +1293,7 @@ export default function App() {
                 nativeLang={nativeLang}
                 onSaveSentence={handleSaveSentence}
                 onSaveImportant={handleSaveImportant}
+                importantStack={importantStack}
               />
             }
           />

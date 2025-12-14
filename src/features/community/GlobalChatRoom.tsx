@@ -29,6 +29,7 @@ interface GlobalChatRoomProps {
     nativeLang: string;
     onSaveSentence?: (sentence: string) => void;
     onSaveImportant?: (word: WordData) => void;
+    importantStack: WordData[];
 }
 
 interface ChatMessage {
@@ -79,7 +80,8 @@ export function GlobalChatRoom({
     onResetWordStatus,
     nativeLang,
     onSaveSentence,
-    onSaveImportant
+    onSaveImportant,
+    importantStack
 }: GlobalChatRoomProps) {
     const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -461,9 +463,14 @@ export function GlobalChatRoom({
                     const uniqueKey = `${messageId}-${wordKey}`;
 
                     const globalEntry = userVocabulary[wordKey];
-                    const status = globalEntry
-                        ? globalEntry.status
-                        : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
+
+                    const isImportant = importantStack.some(item => item.word.toLowerCase() === wordKey);
+
+                    const status = isImportant
+                        ? "orange"
+                        : globalEntry
+                            ? globalEntry.status
+                            : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
 
                     // Default Style
                     let bgClass = isMe ? "hover:bg-blue-500" : "hover:bg-slate-200";
