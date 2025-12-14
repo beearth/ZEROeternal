@@ -848,14 +848,14 @@ export default function App() {
       return;
     }
 
-    // 0.1 중복 체크
-    // Check against current importantStack state
+    // 0.1 중복 체크 (Removed early return to allow status update)
+    // Check against current importantStack state handled in setter
     const isDuplicate = importantStack.some(
       w => w.word.toLowerCase().trim() === wordKey
     );
     if (isDuplicate) {
-      toast.info("이미 중요 단어장에 있는 단어입니다.");
-      return;
+      // toast.info("이미 중요 단어장에 있는 단어입니다."); 
+      // Do not return, proceed to update status to 'orange'
     }
 
     // 1. [Optimistic] Check Global Vocab for meaning needed?

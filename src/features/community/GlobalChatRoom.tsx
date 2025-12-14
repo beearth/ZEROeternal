@@ -97,6 +97,10 @@ export function GlobalChatRoom({
     const updateTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     // Radial Menu State
+    useEffect(() => {
+        console.log("GlobalChatRoom importantStack:", importantStack);
+    }, [importantStack]);
+
     const [radialMenu, setRadialMenu] = useState<{
         showRadialMenu: boolean;
         menuPosition: { x: number; y: number };
@@ -320,11 +324,12 @@ export function GlobalChatRoom({
 
         const globalEntry = userVocabulary[wordKey];
         const currentState = globalEntry
-            ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : 3)
+            ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : globalEntry.status === "green" ? 3 : globalEntry.status === "orange" ? 4 : 0)
             : (wordStates[uniqueKey] || 0);
 
         let nextState: number;
         if (currentState === 0) nextState = 1;
+        else if (currentState === 4) nextState = 0; // Click orange -> clear
         else if (currentState === 3) nextState = 0;
         else nextState = currentState + 1;
 
