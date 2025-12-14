@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { translateText, generateStudyTips } from "../../services/gemini";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { VocabularyEntry, WordData } from "../../types";
-import { RadialMenu, RadialDirection } from "../../components/RadialMenuNew";
+import { RadialMenu, RadialDirection } from "../../components/RadialMenu";
 import { useLongPress } from "../../hooks/useLongPress";
 import { WordDetailModal } from "../../components/WordDetailModal";
 import { subscribeToMessages, sendMessage, deleteMessage } from '../../services/chat';
@@ -405,7 +405,7 @@ export function GlobalChatRoom({
                     onSaveImportant({
                         id: `${messageId}-${word}`,
                         word: word,
-                        status: "red",
+                        status: "orange",
                         messageId: messageId,
                         sentence: fullSentence,
                         timestamp: new Date(),
@@ -479,6 +479,9 @@ export function GlobalChatRoom({
                     } else if (status === "green") {
                         bgClass = "bg-green-100/20 hover:bg-green-200/30";
                         textClass = isMe ? "text-green-100 font-bold underline decoration-green-300" : "text-green-600 font-bold";
+                    } else if (status === "orange") {
+                        bgClass = "bg-orange-100/20 hover:bg-orange-200/30";
+                        textClass = isMe ? "text-orange-100 font-bold underline decoration-orange-300" : "text-orange-600 font-bold";
                     }
 
                     return (
@@ -508,16 +511,13 @@ export function GlobalChatRoom({
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f0f2f5] relative">
             {/* Radial Menu */}
-            {radialMenu.showRadialMenu && (
-                <RadialMenu
-                    center={radialMenu.menuPosition}
-                    isOpen={radialMenu.showRadialMenu}
-                    onSelect={handleRadialSelect}
-                    onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
-                    selectedWord={radialMenu.selectedWord || ""}
-                    variant="chat"
-                />
-            )}
+            <RadialMenu
+                isOpen={radialMenu.showRadialMenu}
+                center={radialMenu.menuPosition}
+                word={radialMenu.selectedWord || ""}
+                onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
+                onSelect={handleRadialSelect}
+            />
 
             {/* Word Detail Modal */}
             {selectedWordDetail && (

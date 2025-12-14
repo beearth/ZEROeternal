@@ -438,11 +438,16 @@ export const toggleFollowUser = async (currentUserId: string, targetUserId: stri
 
 // Subscribe to Notifications
 export const subscribeToNotifications = (userId: string, onUpdate: (notifications: any[]) => void) => {
+  /* 
+   FIX: 'failed-precondition' error (Missing Index)
+   Removed orderBy("createdAt", "desc") to avoid requiring a composite index.
+   Sorting should be done client-side if needed to prevent app crashes.
+  */
+  console.log("DEBUG: Subscribing to notifications (No Limit, No OrderBy)");
   const q = query(
     collection(db, "notifications"),
-    where("recipientId", "==", userId),
-    orderBy("createdAt", "desc"), // Requires index? If so, we might need to create it or remove orderBy for MVP
-    limit(20)
+    where("recipientId", "==", userId)
+    // limit(20) // Removed potential index conflict
   );
 
   return onSnapshot(q, (snapshot) => {

@@ -102,21 +102,28 @@ export default function App() {
 
 
 
-  // 마크다운 제거 함수 (단어 정제용)
-  const cleanMarkdown = (text: string): string => {
+  // 마크다운 제거 함수
+  const cleanMarkdown = (text: string | undefined | null): string => {
+    if (!text) return ""; // Null/Undefined 보호
     return text
-      .replace(/\*\*/g, "") // ** 제거
-      .replace(/\*/g, "") // * 제거
+      .replace(/\*\*(.*?)\*\*/g, "$1") // 볼드 제거
+      .replace(/\*(.*?)\*/g, "$1") // 이탤릭 제거
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1") // 링크 텍스트만 추출
+      .replace(/`(.*?)`/g, "$1") // 인라인 코드 제거
+      .replace(/```[\s\S]*?```/g, "") // 코드 블록 제거
       .replace(/`/g, "") // 백틱 제거
       .replace(/#{1,6}\s/g, "") // 헤더 마크다운 제거
       .replace(/^-/g, "") // 리스트 마크다운 제거
       .replace(/^\d+\./g, "") // 번호 리스트 제거 (예: "1." 제거)
+      .replace(/&nbsp;/g, " ") // &nbsp; 제거
       .trim();
   };
 
   // 단어 텍스트만 추출 (마크다운 제거 + 공백/문장부호 제거)
-  const extractCleanWord = (text: string): string => {
+  const extractCleanWord = (text: string | undefined | null): string => {
     const cleaned = cleanMarkdown(text);
+    if (!cleaned) return "";
+
     // 공백이나 문장부호로 분리하여 첫 번째 단어만 추출
     const words = cleaned.split(/[\s\n.,?!;:()\[\]{}"'`]+/).filter(w => w.length > 0);
 
@@ -221,40 +228,36 @@ export default function App() {
     }
   };
 
-  // Firestore에 단어장 저장 (Debounce 적용)
-  const saveVocabularyToDB = (userId: string, vocabData: Record<string, VocabularyEntry>) => {
-    // 기존 타이머 취소
-    if (saveVocabularyTimeoutRef.current) {
-      clearTimeout(saveVocabularyTimeoutRef.current);
-    }
-
-    // 500ms 후 저장 (Debounce)
-    saveVocabularyTimeoutRef.current = setTimeout(async () => {
-      try {
-        // undefined 값 제거 (Firestore는 undefined를 허용하지 않음)
-        const cleanedVocabData: Record<string, any> = {};
-        Object.entries(vocabData).forEach(([word, entry]) => {
-          const cleanedEntry: any = {};
-          Object.entries(entry).forEach(([key, value]) => {
-            if (value !== undefined) {
-              cleanedEntry[key] = value;
-            }
-          });
-          cleanedVocabData[word] = cleanedEntry;
+  // Firestore에 단어장 저장 (즉시 저장 - Debounce 제거)
+  // Debounce가 있으면 로컬 상태가 변경된 후(Red), 아직 저장되지 않은 시점에
+  // onSnapshot이 서버의 이전 상태(White)를 가져와서 덮어쓰는 "Red -> White" 현상 발생
+  const saveVocabularyToDB = async (userId: string, vocabData: Record<string, VocabularyEntry>) => {
+    try {
+      // undefined 값 제거
+      const cleanedVocabData: Record<string, any> = {};
+      Object.entries(vocabData).forEach(([word, entry]) => {
+        const cleanedEntry: any = {};
+        Object.entries(entry).forEach(([key, value]) => {
+          if (value !== undefined) {
+            cleanedEntry[key] = value;
+          }
         });
+        cleanedVocabData[word] = cleanedEntry;
+      });
 
-        const userRef = doc(db, "users", userId);
-        await setDoc(userRef, {
-          vocabulary: cleanedVocabData,
-          updatedAt: new Date(),
-        }, { merge: true });
+      const userRef = doc(db, "users", userId);
 
-        console.log('✅ 단어장이 Firestore에 저장되었습니다.');
-      } catch (error: any) {
-        console.error("단어장 저장 실패:", error);
-        toast.error("단어장 저장에 실패했습니다.");
-      }
-    }, 500);
+      // 즉시 저장 (비동기로 실행되지만, SDK가 로컬 캐시에 즉시 반영함)
+      await setDoc(userRef, {
+        vocabulary: cleanedVocabData,
+        updatedAt: new Date(),
+      }, { merge: true });
+
+      // console.log('✅ 단어장이 Firestore에 저장되었습니다.');
+    } catch (error: any) {
+      console.error("단어장 저장 실패:", error);
+      toast.error("단어장 저장에 실패했습니다.");
+    }
   };
 
   // 언어 설정 저장
@@ -416,23 +419,27 @@ export default function App() {
       setUserVocabulary(mergedVocab);
       lastLoadedVocab.current = mergedVocab;
 
-      // Helper to load stack with fallback (migration)
-      const loadStack = (dbList: any[], status: string, setFn: any, refFn: any) => {
-        if (Array.isArray(dbList)) {
-          setFn(dbList);
-          refFn.current = dbList;
-        } else {
-          // Fallback: Derive from vocabulary (for migration)
-          const derived = Object.keys(mergedVocab).filter(k => mergedVocab[k].status === status);
-          setFn(derived);
-          // Force save if we had to derive (so DB gets populated), unless empty
-          refFn.current = derived.length > 0 ? null : [];
-        }
+      // 3. Stacks are DERIVED from Vocabulary (Single Source of Truth)
+      // DB의 stacks 필드는 참고용이거나 마이그레이션용으로만 사용하고,
+      // 실제 앱 내 스택 상태는 항상 loadedVocab을 기준으로 재구축하여 동기화 불일치 방지
+      const deriveStack = (status: string) => {
+        return Object.entries(mergedVocab)
+          .filter(([_, entry]) => entry.status === status)
+          .map(([word, _]) => word); // 키만 반환
       };
 
-      loadStack(stacks.red, 'red', setRedStack, lastLoadedRed);
-      loadStack(stacks.yellow, 'yellow', setYellowStack, lastLoadedYellow);
-      loadStack(stacks.green, 'green', setGreenStack, lastLoadedGreen);
+      const newRedStack = deriveStack('red');
+      const newYellowStack = deriveStack('yellow');
+      const newGreenStack = deriveStack('green');
+
+      setRedStack(newRedStack);
+      lastLoadedRed.current = newRedStack;
+
+      setYellowStack(newYellowStack);
+      lastLoadedYellow.current = newYellowStack;
+
+      setGreenStack(newGreenStack);
+      lastLoadedGreen.current = newGreenStack;
 
       if (Array.isArray(stacks.important)) {
         setImportantStack(stacks.important);
@@ -675,8 +682,6 @@ export default function App() {
   }, [user?.uid]);
 
   // 단어 상태 업데이트 핸들러 (Red/Yellow/Green/White/Orange)
-  // StackView에서는 (word, status)로 호출
-  // ChatMessage에서는 (wordId, status, word, messageId, sentence, koreanMeaning, isReturningToRed)로 호출
   const handleUpdateWordStatus = useCallback(async (
     wordOrId: string,
     newStatus: "red" | "yellow" | "green" | "white" | "orange",
@@ -686,88 +691,106 @@ export default function App() {
     koreanMeaningParam?: string,
     isReturningToRed: boolean = false
   ) => {
-    // wordParam이 있으면 ChatMessage에서 호출된 것 (wordOrId는 ID)
-    // wordParam이 없으면 StackView에서 호출된 것 (wordOrId는 Word)
     const word = wordParam || wordOrId;
-    const koreanMeaning = koreanMeaningParam || "";
-
-    console.log("Updating status for:", word, "to", newStatus);
-
-    // 1. 먼저 입력된 단어를 그대로 키로 변환해 시도 (TOEIC 리스트 등에서 정확한 키를 보낼 때)
-    let wordKey = word.toLowerCase().trim();
     let cleanWord = word.trim();
+    let wordKey = cleanWord.toLowerCase();
 
-    // [FALLBACK] If word looks like an ID (timestamp-index-word), extract the word part
-    // This handles cases where ChatMessage might fail to pass the wordParam correctly
+    // ID Parsing & Cleaning Logic matches existing pattern
     if (/^\d{10,}-\d+-.+/.test(word)) {
       const match = word.match(/^\d{10,}-\d+-(.+)$/);
       if (match && match[1]) {
-        console.warn("Detected ID passed as word, extracting word part:", match[1]);
-        cleanWord = match[1];
-        wordKey = cleanWord.toLowerCase().trim();
+        cleanWord = match[1].trim();
+        wordKey = cleanWord.toLowerCase();
       }
-    }
-
-    // 2. 만약 키가 존재하지 않으면, 마크다운/특수문자 제거 후 다시 시도 (채팅에서 드래그로 선택했을 때)
-    if (!userVocabulary[wordKey]) {
-      cleanWord = extractCleanWord(cleanWord); // Use cleanWord here
-      wordKey = cleanWord.toLowerCase().trim();
+    } else {
+      if (!userVocabulary[wordKey]) {
+        try {
+          const extracted = extractCleanWord(cleanWord);
+          if (extracted) {
+            cleanWord = extracted;
+            wordKey = cleanWord.toLowerCase();
+          }
+        } catch (e) {
+          console.log("extractCleanWord skipped");
+        }
+      }
     }
 
     if (!cleanWord || cleanWord.length < 2 || cleanWord.length > 50) {
-      console.warn("유효하지 않은 단어 (길이 부적절):", word);
+      toast.error(`단어가 유효하지 않습니다: ${cleanWord}`);
       return;
     }
 
-    // 이전 단어 상태 확인
+    // Capture previous state values for optimistic update
     const prevEntry = userVocabulary[wordKey];
-    const isExistingWord = !!prevEntry;
+    const prevMeaning = prevEntry?.koreanMeaning || koreanMeaningParam || "";
+    const prevStatus = prevEntry?.status;
 
-    // 한글 뜻 처리 로직
-    let finalKoreanMeaning = koreanMeaning;
+    // 1. [Optimistic Update] Update State & DB IMMEDIATELY with available data
+    // Do NOT wait for translation here.
+    const optimisticEntry: VocabularyEntry = {
+      status: newStatus,
+      koreanMeaning: prevMeaning, // Might be empty initially
+      category: prevEntry?.category || "general"
+    };
 
-    // 1. 기존 단어라면 기존 뜻을 우선 사용 (단, 입력된 뜻이 있으면 그것을 사용)
-    if (isExistingWord && !finalKoreanMeaning) {
-      finalKoreanMeaning = prevEntry.koreanMeaning || "";
-    }
-
-    // 2. 여전히 뜻이 비어있다면 API로 가져오기 (새 단어이거나, 기존 단어인데 뜻이 없는 경우)
-    if (!finalKoreanMeaning) {
-      try {
-        finalKoreanMeaning = await getKoreanMeaning(cleanWord);
-      } catch (error: any) {
-        console.error(`❌ 단어 "${cleanWord}"의 한글 뜻 가져오기 실패:`, error);
-        finalKoreanMeaning = "";
-      }
-    }
-
-    // 1. 전역 단어장 업데이트
+    // Update Local State
     setUserVocabulary((prev) => {
-      const existingEntry = prev[wordKey];
-      console.log("Existing entry for", wordKey, ":", existingEntry);
+      const updated = { ...prev, [wordKey]: optimisticEntry };
 
-      const updatedVocabulary = {
-        ...prev,
-        [wordKey]: {
-          ...existingEntry, // 기존 속성(category 등) 유지
-          status: newStatus,
-          koreanMeaning: finalKoreanMeaning || existingEntry?.koreanMeaning || "",
-        },
-      };
-
-      return updatedVocabulary;
+      // Update DB Immediately (Fire and Forget)
+      if (user) {
+        saveVocabularyToDB(user.uid, updated);
+      }
+      return updated;
     });
 
-    // Stack Manual Update (to preserve order)
-    if (newStatus !== prevEntry?.status) {
-      const remove = (list: string[]) => list.filter(w => w !== wordKey);
-      setRedStack(prev => remove(prev));
-      setYellowStack(prev => remove(prev));
-      setGreenStack(prev => remove(prev));
+    // Update derived stacks immediately
+    if (newStatus !== prevStatus) {
+      setRedStack(prev => prev.filter(w => w !== wordKey));
+      setYellowStack(prev => prev.filter(w => w !== wordKey));
+      setGreenStack(prev => prev.filter(w => w !== wordKey));
 
       if (newStatus === "red") setRedStack(prev => [...prev, wordKey]);
       else if (newStatus === "yellow") setYellowStack(prev => [...prev, wordKey]);
       else if (newStatus === "green") setGreenStack(prev => [...prev, wordKey]);
+    }
+
+    // 2. [Background Process] Fetch Translation if missing
+    // User can continue working while this happens.
+    if (!prevMeaning && newStatus !== 'white') {
+      // Don't await this inside the main flow
+      getKoreanMeaning(cleanWord).then(fetchedMeaning => {
+        if (fetchedMeaning) {
+          // Translation arrived! Update State & DB again.
+          console.log(`[Background] Translated ${cleanWord}: ${fetchedMeaning}`);
+
+          setUserVocabulary(currentVocab => {
+            // Check if the word still exists and hasn't been deleted/changed by user since
+            const currentEntry = currentVocab[wordKey];
+            if (!currentEntry || currentEntry.status === 'white') return currentVocab;
+
+            const updatedEntry = { ...currentEntry, koreanMeaning: fetchedMeaning };
+            const updatedVocab = { ...currentVocab, [wordKey]: updatedEntry };
+
+            // Save updated meaning to DB
+            if (user) {
+              saveVocabularyToDB(user.uid, updatedVocab);
+              toast.success(`"${cleanWord}" 뜻 자동완성: ${fetchedMeaning}`);
+            }
+            return updatedVocab;
+          });
+        }
+      }).catch(err => {
+        console.error(`[Background] Translation failed for ${cleanWord}`, err);
+      });
+
+      // Notify user that it's saved but translating
+      toast.info(`저장 완료! (뜻 검색 중...)`);
+    } else {
+      if (newStatus !== 'white') {
+        // toast.success(`저장 완료`); // Optional: Reduce noise
+      }
     }
 
   }, [user, userVocabulary]);
@@ -814,53 +837,45 @@ export default function App() {
     }
   };
 
-  // 중요 단어 저장 핸들러
+  // 중요 단어 저장 핸들러 (Refactored for Speed)
   const handleSaveImportant = async (word: WordData) => {
-    let finalMeaning = word.koreanMeaning;
+    const wordKey = word.word.toLowerCase().trim();
+    let initialMeaning = word.koreanMeaning;
 
-    // 1. 뜻이 없으면 전역 단어장에서 찾아봄
-    if (!finalMeaning) {
-      const globalEntry = userVocabulary[word.word.toLowerCase()];
-      if (globalEntry?.koreanMeaning) {
-        finalMeaning = globalEntry.koreanMeaning;
-      }
-    }
-
-    // 2. 여전히 뜻이 없으면 API로 가져옴
-    if (!finalMeaning) {
-      try {
-        finalMeaning = await getKoreanMeaning(word.word);
-      } catch (error) {
-        console.error("중요 단어 뜻 가져오기 실패:", error);
-      }
-    }
-
-    const wordWithMeaning = { ...word, koreanMeaning: finalMeaning || "" };
-
-    // 0. 길이 체크 (문장은 중요 단어장에 저장 불가)
-    // 0. 길이 체크 (문장은 중요 단어장에 저장 불가)
+    // 0. 길이 체크
     if (word.word.length > 50) {
       toast.error("문장은 중요 단어장에 저장할 수 없습니다.");
       return;
     }
 
-    // 0.1 중복 체크 (이미 저장된 단어인지 확인)
+    // 0.1 중복 체크
+    // Check against current importantStack state
     const isDuplicate = importantStack.some(
-      w => w.word.toLowerCase().trim() === word.word.toLowerCase().trim()
+      w => w.word.toLowerCase().trim() === wordKey
     );
     if (isDuplicate) {
       toast.info("이미 중요 단어장에 있는 단어입니다.");
       return;
     }
 
+    // 1. [Optimistic] Check Global Vocab for meaning needed?
+    if (!initialMeaning) {
+      const globalEntry = userVocabulary[wordKey];
+      if (globalEntry?.koreanMeaning) {
+        initialMeaning = globalEntry.koreanMeaning;
+      }
+    }
+
+    const optimisticWordData = { ...word, koreanMeaning: initialMeaning || "" };
+
+    // 2. [Optimistic Update] Add to Important Stack & Global List IMMEDIATELY
+    // Important Stack Update
     setImportantStack((prev) => {
-      // 이중 안전장치
-      if (prev.find((w) => w.word.toLowerCase() === word.word.toLowerCase())) return prev;
-      return [...prev, wordWithMeaning];
+      if (prev.find((w) => w.word.toLowerCase() === wordKey)) return prev;
+      return [...prev, optimisticWordData];
     });
 
-    // 전역 단어장에도 'orange' 상태로 업데이트 (채팅창 반영을 위해)
-    const wordKey = word.word.toLowerCase().trim();
+    // Global Vocab Update (Sync status to 'orange')
     setUserVocabulary((prev) => {
       const existingEntry = prev[wordKey];
       const updatedVocabulary = {
@@ -868,18 +883,55 @@ export default function App() {
         [wordKey]: {
           ...existingEntry,
           status: "orange" as "red" | "yellow" | "green" | "white" | "orange",
-          koreanMeaning: finalMeaning || existingEntry?.koreanMeaning || "",
+          koreanMeaning: initialMeaning || existingEntry?.koreanMeaning || "",
+          category: existingEntry?.category || "important"
         },
       };
 
+      // Save Global Vocab DB
       if (user) {
         saveVocabularyToDB(user.uid, updatedVocabulary);
       }
-
       return updatedVocabulary;
     });
 
-    // 이미 호출한 곳에서 토스트를 띄우고 있지만, 여기서 데이터가 업데이트됨을 보장함
+    toast.success("중요 단어장에 추가되었습니다.");
+
+    // 3. [Background] Fetch Meaning if missing
+    if (!initialMeaning) {
+      getKoreanMeaning(word.word).then(fetchedMeaning => {
+        if (fetchedMeaning) {
+          console.log(`[Important Check] Fetched: ${fetchedMeaning}`);
+
+          // Update Important Stack with meaning
+          setImportantStack(prevStack =>
+            prevStack.map(item =>
+              item.word.toLowerCase() === wordKey
+                ? { ...item, koreanMeaning: fetchedMeaning }
+                : item
+            )
+          );
+
+          // Update Global Vocab with meaning
+          setUserVocabulary(prevVocab => {
+            const currentEntry = prevVocab[wordKey];
+            if (!currentEntry) return prevVocab;
+
+            const updatedVocab = {
+              ...prevVocab,
+              [wordKey]: { ...currentEntry, koreanMeaning: fetchedMeaning }
+            };
+
+            if (user) saveVocabularyToDB(user.uid, updatedVocab);
+            return updatedVocab;
+          });
+
+          toast.info(`"${word.word}" 중요 단어 뜻 업데이트 완료`);
+        }
+      }).catch(err => {
+        console.error("중요 단어 뜻 가져오기 실패:", err);
+      });
+    }
   };
 
   // 문장 저장 핸들러
@@ -1071,7 +1123,7 @@ export default function App() {
                 user={user}
                 onLogout={handleLogout}
                 userVocabulary={userVocabulary}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                onUpdateWordStatus={handleUpdateWordStatus}
                 onResetWordStatus={handleResetWordStatus}
                 onSaveImportant={handleSaveImportant}
                 onSaveSentence={handleSaveSentence}

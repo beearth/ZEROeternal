@@ -52,7 +52,7 @@ export const deleteMessage = async (messageId: string) => {
 export const subscribeToMessages = (callback: (messages: any[]) => void) => {
     const q = query(
         collection(db, COLLECTION_NAME),
-        orderBy("created_at", "asc"),
+        // orderBy("created_at", "asc"), // Removed to avoid Index Error
         limit(100)
     );
 
@@ -66,13 +66,17 @@ export const subscribeToMessages = (callback: (messages: any[]) => void) => {
                 senderId: data.sender_id,
                 senderName: data.sender_name,
                 senderAvatar: data.sender_avatar,
-                timestamp: data.created_at instanceof Timestamp 
-                    ? data.created_at.toDate().toISOString() 
+                timestamp: data.created_at instanceof Timestamp
+                    ? data.created_at.toDate().toISOString()
                     : new Date().toISOString(),
                 originalLang: data.original_lang,
                 targetLang: data.target_lang
             };
         });
+
+        // Client-side Sort
+        messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
         callback(messages);
     });
 

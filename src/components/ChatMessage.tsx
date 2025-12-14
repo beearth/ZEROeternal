@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useLongPress } from "../hooks/useLongPress";
-import { RadialMenu, RadialDirection } from "./RadialMenuNew";
+import { RadialMenu } from "./RadialMenu";
 import { WordDetailModal } from "./WordDetailModal";
 import { generateStudyTips } from "../services/gemini";
 
@@ -33,18 +33,6 @@ interface ChatMessageProps {
   userVocabulary?: Record<string, { status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string }>;
 }
 
-// 래디얼 메뉴 상태
-interface RadialMenuState {
-  showRadialMenu: boolean;
-  menuCenter: { x: number; y: number } | null;
-  selectedWordData: {
-    index: number;
-    word: string;
-    wordId: string;
-    startOffset: number;
-  } | null;
-}
-
 // Helper function for styles (moved outside)
 const getWordStyle = (state: number) => {
   switch (state) {
@@ -62,6 +50,11 @@ const getWordStyle = (state: number) => {
       return {
         className: "bg-green-200 text-green-900",
         style: { backgroundColor: "#bbf7d0", color: "#14532d" },
+      };
+    case 4:
+      return {
+        className: "bg-orange-200 text-orange-900",
+        style: { backgroundColor: "#fed7aa", color: "#9a3412" },
       };
     default:
       return { className: "", style: {} };
@@ -226,7 +219,6 @@ export function ChatMessage({
   onSaveSentence,
   userVocabulary = {},
 }: ChatMessageProps) {
-  // ... (existing state definitions)
   const isAssistant = message.role === "assistant";
   const [wordStates, setWordStates] = useState<Record<number, number>>({});
 
@@ -234,7 +226,16 @@ export function ChatMessage({
   const [highlightWord, setHighlightWord] = useState<number | null>(null);
 
   // 래디얼 메뉴 상태
-  const [radialMenu, setRadialMenu] = useState<RadialMenuState>({
+  const [radialMenu, setRadialMenu] = useState<{
+    showRadialMenu: boolean;
+    menuCenter: { x: number; y: number } | null;
+    selectedWordData: {
+      index: number;
+      word: string;
+      wordId: string;
+      startOffset: number;
+    } | null;
+  }>({
     showRadialMenu: false,
     menuCenter: null,
     selectedWordData: null,
@@ -251,9 +252,6 @@ export function ChatMessage({
   } | null>(null);
 
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
-  const radialMenuRef = useRef<HTMLDivElement | null>(null);
-
-  // ... (handleClickOutside useEffect)
 
   // userVocabulary 변경 시 단어 상태 동기화
   useEffect(() => {
@@ -440,10 +438,6 @@ export function ChatMessage({
     }, 600); // 600ms 딜레이 (사용자가 색상을 고를 시간 여유)
   }, [isAssistant, isTyping, message.id, message.content, onResetWordStatus, onUpdateWordStatus]);
 
-  // ... (Long Press & Pointer Move handlers - omitted for brevity, assume unchanged)
-
-  // ... (Radial Select & Pointer Up handlers - omitted for brevity, assume unchanged)
-
   // userVocabulary 변경 시 단어 상태 동기화
   useEffect(() => {
     if (!isAssistant || isTyping) return;
@@ -550,7 +544,7 @@ export function ChatMessage({
       }
 
       const wordState = finalState;
-      const isSelected = radialMenu.selectedWordData?.index === currentWordIndex;
+      const isSelected = radialMenu.showRadialMenu && radialMenu.selectedWordData?.index === currentWordIndex;
       const isCurrentlyHolding = isHolding[currentWordIndex] || false;
       const isHighlighted = highlightWord === currentWordIndex;
 
@@ -574,8 +568,7 @@ export function ChatMessage({
     });
   };
 
-  // 롱프레스 핸들러 - 래디얼 메뉴 열기
-  // 롱프레스 핸들러 - 래디얼 메뉴 열기
+  // 롱프레스 핸들러 - 옵션 메뉴 열기
   const handleLongPress = useCallback((
     e: React.PointerEvent,
     wordIndex: number,
@@ -583,10 +576,6 @@ export function ChatMessage({
     startOffset: number
   ) => {
     if (!isAssistant || isTyping) return;
-
-    // 이벤트 전파 방지
-    e.preventDefault();
-    e.stopPropagation();
 
     // 클릭된 정확한 지점의 화면 좌표 (이벤트의 clientX, clientY 사용)
     const clickX = e.clientX;
@@ -627,30 +616,20 @@ export function ChatMessage({
     }, 100);
   }, [isAssistant, isTyping, message.id]);
 
-  // Pointer Move - 드래그 방향 감지 (RadialMenu 컴포넌트에서 처리하므로 여기서는 제거)
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // 래디얼 메뉴가 열려있을 때는 RadialMenu 컴포넌트가 이벤트를 처리함
-    // 구형 로직 제거됨
-  }, []);
-
-  // Radial Menu 선택 핸들러
-  const handleRadialSelect = useCallback((direction: RadialDirection) => {
+  // 래디얼 메뉴 선택 핸들러
+  const handleRadialSelect = useCallback((direction: "left" | "right" | "top" | "bottom") => {
     const selectedWordData = radialMenu.selectedWordData;
     if (!selectedWordData) return;
 
-    const cleanWord = cleanMarkdown(selectedWordData.word);
-    const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+    const { word: finalWord, wordId, startOffset } = selectedWordData;
 
     switch (direction) {
       case "left":
-        // ⬅️ Left: 문장 저장 (Save Sentence)
+        // 📄 문장 저장 (Left)
         if (onSaveSentence && finalWord && finalWord.length >= 2) {
-          // Find the specific sentence containing the clicked word using character offset
+          // Find the specific sentence
           const fullText = message.content;
-          const targetOffset = selectedWordData.startOffset;
-
-          // Split by sentence delimiters but capture them to calculate offsets
-          // Delimiters: . ? ! followed by space or newline
+          const targetOffset = startOffset;
           const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
           const parts = fullText.split(sentenceRegex);
 
@@ -662,72 +641,51 @@ export function ChatMessage({
             const partLength = part.length;
             const endPos = currentPos + partLength;
 
-            // Check if this part is a content part (even index) or contains the word
-            // Note: split with capture group returns [content, delimiter, content, delimiter...]
-            // effectively, we just need to find the chunk that contains our offset.
-            // However, we want to capture the 'content' part, not the 'delimiter' part if possible.
-            // But 'targetOffset' points to the start of the word.
-
             if (targetOffset >= currentPos && targetOffset < endPos) {
-              // Found the part containing the word
-              // If it's a delimiter part (unlikely for a valid word), pick it or previous?
-              // Valid words shouldn't be in delimiters generally.
               foundSentence = part;
-
-              // If the part is just numbering (e.g. "1"), and the word was strangely inside it?
-              // Or if the sentence was split into "1" and "The meeting...", logic might look for neighbors.
-              // But with regex `([.?!](?:\s+|$)|(?:\r?\n){2,})`, "1. " splits into "1" and " ".
-              // If word is "1" (meaningful?), it would be in "1".
-              // If word is "The", it is in "The meeting...".
               break;
             }
-
             currentPos += partLength;
           }
 
-          // Fallback to original find logic if index-based lookup fails or returns empty
           const targetSentence = foundSentence.trim() || message.content.split(/[.?!]\s+/).find(s => s.includes(finalWord)) || "";
 
           if (targetSentence) {
             onSaveSentence(targetSentence.trim());
-            toast.success(`문장이 저장되었습니다.`, {
-              duration: 2000,
-            });
+            toast.success(`문장이 저장되었습니다.`, { duration: 2000 });
           }
         }
         break;
+
       case "right":
-        // ➡️ Right: 중요 단어 저장 (Save Important)
+        // ⭐ 중요 단어 저장 (Right)
         if (onSaveImportant && finalWord && finalWord.length >= 2) {
           onSaveImportant({
-            id: selectedWordData.wordId,
+            id: wordId,
             word: finalWord,
-            status: "red", // 기본값
+            status: "orange",
             messageId: message.id,
             sentence: message.content,
             timestamp: new Date(),
             koreanMeaning: userVocabulary?.[finalWord.toLowerCase()]?.koreanMeaning || ""
           });
-          toast.success(`단어 "${finalWord}"이(가) 중요 단어장에 저장되었습니다`, {
-            duration: 2000,
-          });
+          toast.success(`단어 "${finalWord}"이(가) 중요 단어장에 저장되었습니다`, { duration: 2000 });
         }
         break;
+
       case "bottom":
-        // ⬇️ Bottom: 발음 듣기 (TTS)
+        // 🔊 발음 듣기 (Bottom)
         if (window.speechSynthesis && finalWord && finalWord.length >= 2) {
           const utterance = new SpeechSynthesisUtterance(finalWord);
           utterance.lang = "en-US";
           window.speechSynthesis.speak(utterance);
-          toast.success(`"${finalWord}" 발음을 재생합니다.`, {
-            duration: 2000,
-          });
         } else {
           toast.error("음성 재생을 지원하지 않는 브라우저입니다.");
         }
         break;
+
       case "top":
-        // ⬆️ Top: 상세보기 (Detail)
+        // 🔍 상세 보기 (Top)
         if (finalWord && finalWord.length >= 2) {
           const entry = userVocabulary?.[finalWord.toLowerCase()];
           setSelectedDetailWord({
@@ -736,12 +694,9 @@ export function ChatMessage({
             status: entry?.status || "white",
             messageId: message.id,
             fullSentence: message.content,
-            wordId: selectedWordData.wordId,
+            wordId: wordId,
           });
         }
-        break;
-      default:
-        // 다른 방향은 아직 기능 없음 (Placeholder)
         break;
     }
 
@@ -751,6 +706,7 @@ export function ChatMessage({
       menuCenter: null,
       selectedWordData: null,
     });
+
   }, [radialMenu.selectedWordData, onSaveSentence, onSaveImportant, message.content, message.id, userVocabulary]);
 
 
@@ -797,18 +753,13 @@ export function ChatMessage({
       </div>
 
       {/* Radial Menu */}
-      {radialMenu.showRadialMenu && radialMenu.menuCenter && (
-        <RadialMenu
-          center={radialMenu.menuCenter}
-          isOpen={radialMenu.showRadialMenu}
-          onSelect={handleRadialSelect}
-          onClose={() =>
-            setRadialMenu((prev) => ({ ...prev, showRadialMenu: false }))
-          }
-          selectedWord={radialMenu.selectedWordData?.word || ""}
-          variant="chat"
-        />
-      )}
+      <RadialMenu
+        isOpen={radialMenu.showRadialMenu}
+        center={radialMenu.menuCenter}
+        word={radialMenu.selectedWordData?.word || ""}
+        onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
+        onSelect={handleRadialSelect}
+      />
 
       {/* Word Detail Modal */}
       {selectedDetailWord && (
@@ -818,25 +769,23 @@ export function ChatMessage({
           word={selectedDetailWord.word}
           koreanMeaning={selectedDetailWord.koreanMeaning}
           status={selectedDetailWord.status}
-          onGenerateStudyTips={generateStudyTips}
-          onUpdateWordStatus={(word, newStatus) => {
+          onUpdateWordStatus={async (word, newStatus) => {
             if (onUpdateWordStatus && selectedDetailWord) {
-              onUpdateWordStatus(
+              await onUpdateWordStatus(
                 selectedDetailWord.wordId,
                 newStatus,
-                word,
+                selectedDetailWord.word,
                 selectedDetailWord.messageId,
                 selectedDetailWord.fullSentence,
                 selectedDetailWord.koreanMeaning,
                 false
               );
+              setSelectedDetailWord(prev => prev ? { ...prev, status: newStatus } : null);
             }
           }}
-          onDeleteWord={(word) => {
-            if (onResetWordStatus) {
-              onResetWordStatus(word);
-            }
-          }}
+          onGenerateStudyTips={() =>
+            generateStudyTips(selectedDetailWord.word, selectedDetailWord.status)
+          }
         />
       )}
     </div>

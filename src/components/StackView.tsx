@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
 import { useNavigate } from "react-router-dom";
-import { RadialMenu, type RadialDirection } from "./RadialMenuNew";
+import { RadialMenu, type RadialDirection } from "./RadialMenu";
 
 interface StackViewProps {
   title: string;
@@ -126,17 +126,20 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
     }
 
     switch (direction) {
-      case "top": // 삭제
+      case "left": // 삭제 (List variant: Trash)
         if (onDeleteWord) {
           onDeleteWord(menuOpenWord);
+        } else if (onUpdateWordStatus) {
+          // fallback if using onUpdateWordStatus to 'white'
+          onUpdateWordStatus(menuOpenWord, "white");
         }
         break;
-      case "bottom": // 듣기
+      case "bottom": // 듣기 (List variant: Volume)
         const utterance = new SpeechSynthesisUtterance(menuOpenWord);
         utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
         break;
-      case "left": // 상세보기
+      case "top": // 상세보기 (List variant: Search)
         const meaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
         const status = vocabEntry?.status || itemData?.status || "white";
 
@@ -146,7 +149,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
           status: status,
         });
         break;
-      case "right": // 중요 저장
+      case "right": // 중요 저장 (List variant: Star)
         if (isSentenceStack) {
           toast.error("문장은 단어장에 저장할 수 없습니다.");
           break;
@@ -154,7 +157,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         if (onSaveImportant) {
           // Use existing data if available
           const currentMeaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
-          const currentStatus = vocabEntry?.status || itemData?.status || "white";
+          // const currentStatus = vocabEntry?.status || itemData?.status || "white";
 
           onSaveImportant({
             id: Date.now().toString(),
@@ -407,7 +410,8 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
               setMenuPosition(null);
             }}
             onSelect={handleRadialMenuSelect}
-            selectedWord={menuOpenWord}
+            word={menuOpenWord}
+            variant="list"
           />
         )}
       </div>

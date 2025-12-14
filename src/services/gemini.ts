@@ -183,14 +183,13 @@ export async function sendMessageToGemini(
 // 단어의 한글 뜻을 가져오는 함수
 export async function getKoreanMeaning(word: string): Promise<string> {
   if (!genAI) {
-    console.warn('Gemini API가 초기화되지 않았습니다.');
-    return "";
+    throw new Error('Gemini API가 초기화되지 않았습니다.');
   }
 
   try {
     // 할당량이 더 여유로운 Flash 모델 사용 (일반 채팅용)
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-    const prompt = `다음 단어(또는 구)의 한국어 뜻을 한 단어 또는 짧은 구로만 답변해주세요. 입력된 단어의 언어가 무엇이든 상관없이 한국어 뜻만 답변하세요. 다른 설명은 절대 하지 마세요: "${word}"`;
+    const prompt = `다음 단어(또는 구)의 한국어 뜻을 한 단어 또는 짧은 구로만 답변해주세요. 입력된 단어의 언어가 무엇이든 상관없이 한국어 뜻만 답변하세요. 다른 설명은 절대 하지 마세요. 예: "Apple" -> "사과". 단어: "${word}"`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -202,8 +201,12 @@ export async function getKoreanMeaning(word: string): Promise<string> {
     // 따옴표나 특수문자 제거
     meaning = meaning.replace(/^["']|["']$/g, '').trim();
 
-    // 빈 문자열이거나 너무 긴 경우 재시도
-    if (!meaning || meaning.length > 50) {
+    // 검증: 한글이 포함되어 있는지, 혹은 유효한 뜻인지 확인
+    if (!meaning) {
+      throw new Error("번역 결과가 비어있습니다.");
+    }
+
+    if (meaning.length > 50) {
       console.warn(`의심스러운 번역 결과: "${meaning}"`);
       // 간단한 재시도
       const retryResult = await model.generateContent(`"${word}"의 한글 뜻만 답변:`);
@@ -211,19 +214,17 @@ export async function getKoreanMeaning(word: string): Promise<string> {
       meaning = retryResponse.text().trim().split('\n')[0].replace(/^["']|["']$/g, '').trim();
     }
 
-    return meaning || "";
+    if (!meaning) throw new Error("재시도 후에도 번역 실패");
+
+    return meaning;
   } catch (error: any) {
     console.error(`단어 "${word}"의 한글 뜻 가져오기 실패:`, error);
-    console.error('에러 상세:', error.message || error);
 
-    // 할당량 초과 에러인 경우 명확한 메시지와 함께 에러를 다시 throw
-    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
-      const quotaError = new Error('API 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.');
-      (quotaError as any).status = 429;
-      throw quotaError;
+    // 에러를 상위로 전파하여 UI에서 표시하도록 함
+    if (error.status === 429 || error.message?.includes('429')) {
+      throw new Error('API 할당량 초과');
     }
-
-    return "";
+    throw error;
   }
 }
 

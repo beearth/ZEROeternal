@@ -4,7 +4,7 @@ import { ArrowLeft, BookOpen, Plus, Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
-import { RadialMenu, type RadialDirection } from "./RadialMenuNew";
+import { RadialMenu, type RadialDirection } from "./RadialMenu";
 
 interface ToeicWordListProps {
   userVocabulary: Record<string, VocabularyEntry>;
@@ -124,13 +124,7 @@ export function ToeicWordList({
     const entry = userVocabulary[menuOpenWord];
 
     switch (direction) {
-      case "top": // 삭제
-        handleDeleteWord(menuOpenWord);
-        break;
-      case "bottom": // 듣기
-        handleTTS(menuOpenWord);
-        break;
-      case "left": // 상세보기
+      case "top": // 상세보기 (Search visual)
         if (entry) {
           setSelectedWord({
             word: menuOpenWord,
@@ -139,13 +133,19 @@ export function ToeicWordList({
           });
         }
         break;
+      case "bottom": // 듣기
+        handleTTS(menuOpenWord);
+        break;
+      case "left": // 삭제 (Trash visual)
+        handleDeleteWord(menuOpenWord);
+        break;
       case "right": // 중요 저장
         if (onSaveImportant && entry) {
           onSaveImportant({
             id: Date.now().toString(),
             word: menuOpenWord,
             koreanMeaning: entry.koreanMeaning,
-            status: entry.status === "white" ? "red" : entry.status,
+            status: "orange",
             messageId: "manual",
             sentence: "",
             timestamp: new Date(),
@@ -187,6 +187,8 @@ export function ToeicWordList({
         return "text-black border-yellow-500";
       case "green":
         return "text-white border-green-500";
+      case "orange":
+        return "text-white border-orange-500";
       default:
         return "bg-white text-gray-900 border-2 border-gray-200 hover:border-gray-400 shadow-sm";
     }
@@ -200,6 +202,8 @@ export function ToeicWordList({
         return { backgroundColor: "#eab308" };
       case "green":
         return { backgroundColor: "#22c55e" };
+      case "orange":
+        return { backgroundColor: "#f97316" };
       default:
         return { backgroundColor: "#ffffff" };
     }
@@ -336,19 +340,15 @@ export function ToeicWordList({
         현재 {toeicWords.length}개의 단어가 저장되어 있습니다.
       </div>
 
-      {/* RadialMenu */}
-      {menuOpenWord && menuPosition && (
-        <RadialMenu
-          center={menuPosition}
-          isOpen={!!menuOpenWord}
-          onClose={() => {
-            setMenuOpenWord(null);
-            setMenuPosition(null);
-          }}
-          onSelect={handleRadialMenuSelect}
-          selectedWord={menuOpenWord}
-        />
-      )}
+      {/* Radial Menu */}
+      <RadialMenu
+        isOpen={!!menuOpenWord}
+        center={menuPosition}
+        word={menuOpenWord || ""}
+        onClose={() => setMenuOpenWord(null)}
+        onSelect={handleRadialMenuSelect}
+        variant="list"
+      />
 
       {/* 단어 상세 모달 */}
       <WordDetailModal

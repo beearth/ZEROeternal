@@ -21,7 +21,8 @@ export const subscribeToChat = (chatId: string, callback: (messages: ChatMessage
     const messagesRef = collection(db, "chats", chatId, "messages");
 
     // Order by timestamp
-    const q = query(messagesRef, orderBy("createdAt", "asc"));
+    // Order by timestamp removed to avoid index error
+    const q = query(messagesRef);
 
     // Real-time listener
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -35,6 +36,10 @@ export const subscribeToChat = (chatId: string, callback: (messages: ChatMessage
                 timestamp: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date()
             };
         });
+
+        // Client-side Sort
+        messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
         callback(messages);
     });
 
