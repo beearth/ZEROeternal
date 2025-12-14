@@ -467,14 +467,13 @@ export function GlobalChatRoom({
     const renderClickableText = (text: string | undefined, messageId: string, isMe: boolean) => {
         if (!text) return null;
 
-        let parts: string[] = [];
-        parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+        const parts = getSegments(text);
 
         return (
             <div className="flex flex-wrap items-center gap-y-1">
                 {parts.map((part, index) => {
-                    // preserve whitespace or punctuation as is
-                    if (/^(\s+|[.,!?:;()"']+|\[|\]|\|)$/.test(part)) {
+                    // preserve whitespace or punctuation as is (Comprehensive check)
+                    if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
                         return <span key={index}>{part}</span>;
                     }
 
