@@ -73,6 +73,21 @@ const WordSpan = ({ part, messageId, fullSentence, bgClass, textClass, onClick, 
     );
 };
 
+// 텍스트 세그먼트 분리 함수 (일관된 토큰화 보장 - ChatMessage와 동일)
+const getSegments = (text: string) => {
+    let parts: string[] = [];
+    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+        const segmenter = new (Intl as any).Segmenter("en", { granularity: 'word' });
+        const segments = segmenter.segment(text);
+        for (const { segment } of segments) {
+            parts.push(segment);
+        }
+    } else {
+        parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
+    }
+    return parts;
+};
+
 export function GlobalChatRoom({
     user,
     userVocabulary,
@@ -409,16 +424,19 @@ export function GlobalChatRoom({
                 break;
             case "right":
                 if (onSaveImportant) {
+                    // Strict cleaning: remove punctuation from the saved word
+                    const wordToSave = word.replace(/[.,!?:;()"']+/g, "").trim();
+
                     onSaveImportant({
-                        id: `${messageId}-${word}`,
-                        word: word,
+                        id: `${messageId}-${wordToSave}`,
+                        word: wordToSave,
                         status: "orange",
                         messageId: messageId,
                         sentence: fullSentence,
                         timestamp: new Date(),
-                        koreanMeaning: userVocabulary[word.toLowerCase()]?.koreanMeaning || ""
+                        koreanMeaning: userVocabulary[wordToSave.toLowerCase()]?.koreanMeaning || ""
                     });
-                    toast.success(`"${word}" 중요 단어로 저장됨`);
+                    toast.success(`"${wordToSave}" 중요 단어로 저장됨`);
                 } else {
                     onUpdateWordStatus(
                         `${messageId}-${word}`,
@@ -461,7 +479,9 @@ export function GlobalChatRoom({
                     }
 
                     const clean = cleanMarkdown(part);
-                    const wordKey = clean.trim().toLowerCase();
+                    // Strict cleaning for key matching: remove punctuation
+                    const wordKey = clean.replace(/[.,!?:;()"']+/g, "").trim().toLowerCase();
+
                     if (!wordKey) return <span key={index}>{part}</span>;
 
                     // Use unique key for random state consistency
@@ -469,17 +489,14 @@ export function GlobalChatRoom({
 
                     // Initialize random state if needed (consistency)
                     if (wordStates[uniqueKey] === undefined) {
-                        // ... (wordStates logic is managed in useEffect, actually)
-                        // Wait, wordStates is set in useEffect based on parsing.
-                        // If splitting changes, uniqueKey indices changes!
-                        // This might reset colors. That's fine/good.
+                        // ...
                     }
 
                     const globalEntry = userVocabulary[wordKey];
 
-                    // Check Important Stack
+                    // Check Important Stack with ROBUST matching (handle legacy punctuation)
                     const isImportant = importantStack.some(item =>
-                        item.word.toLowerCase().trim() === wordKey
+                        item.word.replace(/[.,!?:;()"']+/g, "").trim().toLowerCase() === wordKey
                     );
 
                     const status = isImportant
