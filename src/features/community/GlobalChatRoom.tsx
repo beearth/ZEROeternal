@@ -74,11 +74,15 @@ const WordSpan = ({ part, messageId, fullSentence, bgClass, textClass, onClick, 
 };
 
 // 텍스트 세그먼트 분리 함수 (일관된 토큰화 보장 - ChatMessage와 동일)
+// Performance Optimization: Re-use Segmenter instance
+const gSegmenter = (typeof Intl !== 'undefined' && 'Segmenter' in Intl)
+    ? new (Intl as any).Segmenter("en", { granularity: 'word' })
+    : null;
+
 const getSegments = (text: string) => {
     let parts: string[] = [];
-    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
-        const segmenter = new (Intl as any).Segmenter("en", { granularity: 'word' });
-        const segments = segmenter.segment(text);
+    if (gSegmenter) {
+        const segments = gSegmenter.segment(text);
         for (const { segment } of segments) {
             parts.push(segment);
         }
