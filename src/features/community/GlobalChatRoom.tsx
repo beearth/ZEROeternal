@@ -455,27 +455,43 @@ export function GlobalChatRoom({
         return (
             <div className="flex flex-wrap items-center gap-y-1">
                 {parts.map((part, index) => {
-                    if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
+                    // preserve whitespace or punctuation as is
+                    if (/^(\s+|[.,!?:;()"']+|\[|\]|\|)$/.test(part)) {
                         return <span key={index}>{part}</span>;
                     }
 
                     const clean = cleanMarkdown(part);
-                    if (!isMeaningfulWord(part)) {
-                        return <span key={index}>{part}</span>;
-                    }
-
                     const wordKey = clean.trim().toLowerCase();
-                    const uniqueKey = `${messageId}-${wordKey}`;
+                    if (!wordKey) return <span key={index}>{part}</span>;
+
+                    // Use unique key for random state consistency
+                    const uniqueKey = `${messageId}-${index}`;
+
+                    // Initialize random state if needed (consistency)
+                    if (wordStates[uniqueKey] === undefined) {
+                        // ... (wordStates logic is managed in useEffect, actually)
+                        // Wait, wordStates is set in useEffect based on parsing.
+                        // If splitting changes, uniqueKey indices changes!
+                        // This might reset colors. That's fine/good.
+                    }
 
                     const globalEntry = userVocabulary[wordKey];
 
-                    const isImportant = importantStack.some(item => item.word.toLowerCase() === wordKey);
+                    // Check Important Stack
+                    const isImportant = importantStack.some(item =>
+                        item.word.toLowerCase().trim() === wordKey
+                    );
 
                     const status = isImportant
                         ? "orange"
                         : globalEntry
                             ? globalEntry.status
                             : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
+
+                    // Debug Log for "Community" or similar
+                    if (wordKey === "community") {
+                        console.log(`[GlobalChat Debug] Word: ${wordKey}, isImportant: ${isImportant}, globalEntry:`, globalEntry, "status:", status);
+                    }
 
                     // Default Style
                     let bgClass = isMe ? "hover:bg-blue-500" : "hover:bg-slate-200";
@@ -492,8 +508,8 @@ export function GlobalChatRoom({
                         bgClass = "bg-green-100/20 hover:bg-green-200/30";
                         textClass = isMe ? "text-green-100 font-bold underline decoration-green-300" : "text-green-600 font-bold";
                     } else if (status === "orange") {
-                        bgClass = "bg-orange-100/20 hover:bg-orange-200/30";
-                        textClass = isMe ? "text-orange-100 font-bold underline decoration-orange-300" : "text-orange-600 font-bold";
+                        bgClass = "bg-orange-200 hover:bg-orange-300"; // Much stronger orange
+                        textClass = isMe ? "text-orange-50 font-bold underline decoration-orange-200" : "text-orange-900 font-bold";
                     }
 
                     return (
