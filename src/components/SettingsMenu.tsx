@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Settings, LogOut, RefreshCw, MoreHorizontal, User } from "lucide-react";
+import { Settings, LogOut, RefreshCw, MoreHorizontal, User, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface SettingsMenuProps {
     onLogout: () => void;
     onResetLanguage: () => void;
+    onResetVocabulary?: () => void;
 }
 
-export function SettingsMenu({ onLogout, onResetLanguage }: SettingsMenuProps) {
+export function SettingsMenu({ onLogout, onResetLanguage, onResetVocabulary }: SettingsMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
@@ -55,6 +56,26 @@ export function SettingsMenu({ onLogout, onResetLanguage }: SettingsMenuProps) {
                         <RefreshCw className="w-4 h-4" />
                         <span>언어 설정 초기화</span>
                     </button>
+
+                    {onResetVocabulary && (
+                        <button
+                            onClick={() => {
+                                if (window.confirm("정말로 모든 단어/문장 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                                    const userInput = window.prompt("초기화를 진행하려면 '초기화'를 입력하세요.");
+                                    if (userInput === "초기화") {
+                                        onResetVocabulary();
+                                        setIsOpen(false);
+                                    } else if (userInput !== null) {
+                                        alert("입력값이 올바르지 않아 취소되었습니다.");
+                                    }
+                                }
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-orange-500 hover:bg-[#2a2b2c] transition-colors text-sm"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            <span>모든 저장소 초기화</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={() => {

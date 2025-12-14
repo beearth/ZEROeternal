@@ -539,20 +539,17 @@ export function GlobalChatRoom({
 
                     const globalEntry = userVocabulary[wordKey];
 
-                    // Check Important Stack with ROBUST matching (handle legacy punctuation)
-                    const isImportant = importantStack.some(item =>
-                        item.word.replace(/[.,!?:;()"']+/g, "").trim().toLowerCase() === wordKey
-                    );
-
-                    const status = isImportant
-                        ? "orange"
-                        : globalEntry
-                            ? globalEntry.status
-                            : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
+                    // [STRICT TRUTH] Only use userVocabulary (globalEntry).
+                    // If word is in vocabulary, use its status.
+                    // If deleted (globalEntry undefined), fall back to random wordStates or White.
+                    // This prevents "Ghost Orange" colors from stale importantStack.
+                    const status = globalEntry
+                        ? globalEntry.status
+                        : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
 
                     // Debug Log for "Community" or similar
                     if (wordKey === "community") {
-                        console.log(`[GlobalChat Debug] Word: ${wordKey}, isImportant: ${isImportant}, globalEntry:`, globalEntry, "status:", status);
+                        console.log(`[GlobalChat Debug] Word: ${wordKey}, globalEntry:`, globalEntry, "status:", status);
                     }
 
                     // Map status to number for WordSpan interaction
@@ -574,8 +571,8 @@ export function GlobalChatRoom({
                             isMe={isMe}
                             messageId={messageId}
                             fullSentence={text}
-                            onClick={() => handleWordClick(wordKey, index)}
-                            onLongPress={(e) => handleWordLongPress(e, wordKey, text, messageId)}
+                            onClick={() => handleWordClick(wordKey, messageId, text)}
+                            onLongPress={(e) => handleLongPress(e, wordKey, messageId, text)}
                         />
                     );
                 })}

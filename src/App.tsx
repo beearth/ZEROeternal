@@ -29,7 +29,7 @@ import {
 } from "./services/userData";
 import type { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 interface Message {
   id: string;
@@ -248,10 +248,13 @@ export default function App() {
       const userRef = doc(db, "users", userId);
 
       // 즉시 저장 (비동기로 실행되지만, SDK가 로컬 캐시에 즉시 반영함)
-      await setDoc(userRef, {
+      // [CRITICAL FIX] Use updateDoc to REPLACE the vocabulary field.
+      // setDoc with merge: true preserves deleted keys (Ghost Words).
+      // updateDoc ensures that if a key is missing in cleanedVocabData, it is removed from DB.
+      await updateDoc(userRef, {
         vocabulary: cleanedVocabData,
         updatedAt: new Date(),
-      }, { merge: true });
+      });
 
       // console.log('✅ 단어장이 Firestore에 저장되었습니다.');
     } catch (error: any) {
@@ -1023,6 +1026,33 @@ export default function App() {
     }
   };
 
+
+  // 단어장 전체 초기화 핸들러 (사용자 요청 시 모든 단어 데이터 삭제)
+  const handleResetVocabulary = async () => {
+    try {
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        // DB에서 vocabulary 필드를 빈 객체로 업데이트 (덮어쓰기)
+        await updateDoc(userRef, {
+          vocabulary: {},
+          updatedAt: new Date()
+        });
+      }
+
+      // 로컬 상태 초기화
+      setUserVocabulary({});
+      setRedStack([]);
+      setYellowStack([]);
+      setGreenStack([]);
+      setImportantStack([]);
+
+      toast.success("모든 단어 데이터가 초기화되었습니다.");
+    } catch (error) {
+      console.error("데이터 초기화 실패:", error);
+      toast.error("데이터 초기화에 실패했습니다.");
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     setUser(null);
@@ -1104,6 +1134,7 @@ export default function App() {
             setTargetLang(null);
             saveLanguageSettings(nativeLang, "");
           }}
+          onResetVocabulary={handleResetVocabulary}
         />
 
 
@@ -1236,9 +1267,7 @@ export default function App() {
                 }}
                 onGenerateStudyTips={handleGenerateStudyTips}
                 onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onDeleteWord={(word) => {
-                  setImportantStack((prev) => prev.filter((item) => item.word !== word));
-                }}
+                onDeleteWord={handleResetWordStatus}
                 onSaveImportant={handleSaveImportant}
                 onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               />

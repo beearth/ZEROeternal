@@ -35,6 +35,7 @@ interface SidebarProps {
   counts: StackCounts;
   onLogout: () => void;
   onResetLanguage: () => void;
+  onResetVocabulary?: () => void;
 }
 
 interface StackIconProps {
@@ -69,6 +70,7 @@ export function Sidebar({
   counts,
   onLogout,
   onResetLanguage,
+  onResetVocabulary,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,7 +96,7 @@ export function Sidebar({
         <div className="p-4 border-b border-[#2a2b2c]">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} />
+              <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} onResetVocabulary={onResetVocabulary} />
               <h2 className="font-bold text-xl bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 text-transparent bg-clip-text">SIGNAL VOCA</h2>
             </div>
             <button

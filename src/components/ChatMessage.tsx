@@ -287,7 +287,9 @@ export function ChatMessage({
           default: state = 0; break;
         }
       } else {
-        state = localState;
+        // [STRICT SYNC] If not in vocabulary and not pending update, FORCE WHITE (0).
+        // Do not fallback to localState, which leads to "Ghost Colors".
+        state = 0;
       }
 
       newWordStates[wordIndex] = state;
