@@ -1288,7 +1288,7 @@ export default function App() {
               <GlobalChatRoom
                 user={user}
                 userVocabulary={userVocabulary}
-                onUpdateWordStatus={(_id, status, word, messageId, sentence) => handleUpdateWordStatus(word, status, messageId, sentence)}
+                onUpdateWordStatus={(_id, status, word, messageId, sentence) => handleUpdateWordStatus(word, status, word, messageId, sentence)}
                 onResetWordStatus={handleResetWordStatus}
                 nativeLang={nativeLang}
                 onSaveSentence={handleSaveSentence}
