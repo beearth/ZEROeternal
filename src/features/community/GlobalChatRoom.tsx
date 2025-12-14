@@ -540,6 +540,18 @@ export function GlobalChatRoom({
                     koreanMeaning={selectedWordDetail.koreanMeaning || ""}
                     status={selectedWordDetail.status}
                     onGenerateStudyTips={generateStudyTips}
+                    onUpdateWordStatus={async (word, status) => {
+                        if (selectedWordDetail) {
+                            await onUpdateWordStatus(
+                                `${selectedWordDetail.messageId}-${word}`,
+                                status,
+                                word,
+                                selectedWordDetail.messageId,
+                                selectedWordDetail.sentence || ""
+                            );
+                        }
+                    }}
+                    onDeleteWord={(word) => onResetWordStatus(word)}
                 />
             )}
 
