@@ -120,6 +120,7 @@ const WordSpan = React.memo(({
     <span
       key={partIndex}
       {...longPressHandlers}
+      onContextMenu={(e) => e.preventDefault()} // 모바일 컨텍스트 메뉴 차단
       onPointerLeave={(e) => {
         // 포인터가 떠났을 때는 롱프레스만 취소 (클릭 실행 안 함)
         longPressHandlers.onPointerLeave?.(e);
@@ -140,6 +141,11 @@ const WordSpan = React.memo(({
         }`}
       style={{
         userSelect: "none",
+        WebkitUserSelect: "none", // Chrome/Safari/Opera
+        MozUserSelect: "none",    // Firefox
+        msUserSelect: "none",     // IE/Edge
+        WebkitTouchCallout: "none", // iOS long-press menu
+        touchAction: "manipulation", // Improve touch response
         ...styleInfo.style,
         backgroundColor: getHoldingBackgroundColor(),
         transform: isCurrentlyHolding ? 'scale(0.98)' : 'scale(1)',

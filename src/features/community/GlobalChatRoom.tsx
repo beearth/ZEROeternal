@@ -104,9 +104,15 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
     return (
         <span
             {...longPressHandlers}
+            onContextMenu={(e) => e.preventDefault()}
             className={finalClassName}
             style={{
                 userSelect: "none",
+                WebkitUserSelect: "none",
+                MozUserSelect: "none",
+                msUserSelect: "none",
+                WebkitTouchCallout: "none",
+                touchAction: "manipulation",
                 ...(wordState > 0 ? styleInfo.style : {})
             }}
         >
