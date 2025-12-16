@@ -233,15 +233,15 @@ export function Sidebar({
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                  <Star className="w-5 h-5 text-orange-400" />
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <Star className="w-5 h-5 text-blue-400" />
                 </div>
-                <span className="text-orange-400 font-medium truncate">
+                <span className="text-blue-400 font-medium truncate">
                   중요 단어장
                 </span>
               </div>
               {counts.important > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold flex-shrink-0 ml-2">
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
                   {counts.important}
                 </span>
               )}
@@ -259,15 +259,15 @@ export function Sidebar({
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-orange-400" />
                 </div>
-                <span className="text-blue-400 font-medium truncate">
+                <span className="text-orange-400 font-medium truncate">
                   문장 보관소
                 </span>
               </div>
               {counts.sentence > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
+                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold flex-shrink-0 ml-2">
                   {counts.sentence}
                 </span>
               )}

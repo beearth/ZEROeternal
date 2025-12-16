@@ -76,8 +76,8 @@ const getWordStyle = (state: number) => {
             };
         case 4:
             return {
-                className: "bg-orange-200 text-orange-900 font-bold",
-                style: { backgroundColor: "#fed7aa", color: "#9a3412" },
+                className: "bg-blue-200 text-blue-900 font-bold",
+                style: { backgroundColor: "#bfdbfe", color: "#1e3a8a" },
             };
         default:
             return { className: "", style: {} };
@@ -451,8 +451,20 @@ export function GlobalChatRoom({
         switch (direction) {
             case "left":
                 if (onSaveSentence) {
-                    onSaveSentence(fullSentence);
-                    toast.success("문장이 저장되었습니다.");
+                    // 1. Try to get user selection first (High Priority)
+                    const selection = window.getSelection()?.toString().trim();
+                    if (selection && selection.length > 5) {
+                        onSaveSentence(selection);
+                        toast.success("선택한 문장이 저장되었습니다.");
+                    } else {
+                        // 2. If no selection, try to extract the specific sentence containing the word
+                        // Current `fullSentence` is usually the entire message content
+                        const sentences = fullSentence.match(/[^.!?]+[.!?]+/g) || [fullSentence];
+                        const targetSentence = sentences.find(s => s.toLowerCase().includes(word.toLowerCase()))?.trim() || fullSentence;
+
+                        onSaveSentence(targetSentence);
+                        toast.success(targetSentence === fullSentence ? "문장(전체)이 저장되었습니다." : "문장이 저장되었습니다.");
+                    }
                 } else {
                     toast.error("문장 저장 기능을 사용할 수 없습니다.");
                 }

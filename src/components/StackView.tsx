@@ -199,7 +199,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       case "red": return "text-white border-red-500";
       case "yellow": return "text-black border-yellow-500";
       case "green": return "text-white border-green-500";
-      case "orange": return "text-white border-orange-500";
+      case "orange": return "text-white border-blue-500";
       default: return "bg-white text-gray-900 border-2 border-gray-200 hover:border-gray-400 shadow-sm";
     }
   };
@@ -209,7 +209,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       case "red": return { backgroundColor: '#ef4444' };
       case "yellow": return { backgroundColor: '#eab308' };
       case "green": return { backgroundColor: '#22c55e' };
-      case "orange": return { backgroundColor: '#f97316' }; // orange-500
+      case "orange": return { backgroundColor: '#3b82f6' }; // blue-500 (Swapped for Important)
       default: return { backgroundColor: '#ffffff' };
     }
   };

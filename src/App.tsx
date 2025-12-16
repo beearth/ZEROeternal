@@ -560,10 +560,13 @@ export default function App() {
       // 현재 대화의 모든 메시지를 Gemini 형식으로 변환
       const allMessages = [...currentConversation.messages, userMessage];
 
-      const geminiMessages: GeminiChatMessage[] = allMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
+      // 에러 메시지("죄송합니다. 응답을 생성하는 중 오류가 발생했습니다...")는 AI 문맥에 포함시키지 않음
+      const geminiMessages: GeminiChatMessage[] = allMessages
+        .filter(msg => !msg.content.startsWith("죄송합니다. 응답을 생성하는 중 오류가 발생했습니다"))
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        }));
 
       const aiResponse = await sendMessageToGemini(
         geminiMessages,
@@ -1250,7 +1253,7 @@ export default function App() {
             element={
               <StackView
                 title="Important Stack"
-                color="#f97316"
+                color="#3b82f6"
                 items={importantStack}
                 userVocabulary={userVocabulary}
                 onUpdateVocabulary={(wordKey, meaning) => {
@@ -1278,7 +1281,7 @@ export default function App() {
             element={
               <StackView
                 title="Sentences"
-                color="#3b82f6"
+                color="#f97316"
                 items={sentenceStack}
                 onDeleteWord={(sentence) => {
                   setSentenceStack((prev) => prev.filter((item) => item !== sentence));

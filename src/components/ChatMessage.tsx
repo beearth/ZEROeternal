@@ -53,8 +53,8 @@ const getWordStyle = (state: number) => {
       };
     case 4:
       return {
-        className: "bg-orange-200 text-orange-900",
-        style: { backgroundColor: "#fed7aa", color: "#9a3412" },
+        className: "bg-blue-200 text-blue-900",
+        style: { backgroundColor: "#bfdbfe", color: "#1e3a8a" },
       };
     default:
       return { className: "", style: {} };
@@ -112,7 +112,7 @@ const WordSpan = React.memo(({
     if (wordState === 1) return "#fca5a5"; // red-300
     if (wordState === 2) return "#fde047"; // yellow-300
     if (wordState === 3) return "#86efac"; // green-300
-    if (wordState === 4) return "#fdba74"; // orange-300
+    if (wordState === 4) return "#93c5fd"; // blue-300
     return "#d1d5db"; // gray-300
   };
 
@@ -650,7 +650,16 @@ export function ChatMessage({
             currentPos += partLength;
           }
 
-          const targetSentence = foundSentence.trim() || message.content.split(/[.?!]\s+/).find(s => s.includes(finalWord)) || "";
+          // 1. Try User Selection first
+          const selection = window.getSelection()?.toString().trim();
+          if (selection && selection.length > 5) {
+            onSaveSentence(selection);
+            toast.success(`선택한 문장이 저장되었습니다.`, { duration: 2000 });
+            return;
+          }
+
+          // 2. Fallback to extracting sentence containing the word
+          const targetSentence = foundSentence.trim() || message.content.split(/([.?!]\s+)/).map((p, i, a) => i % 2 === 0 ? p + (a[i + 1] || "") : "").find(s => s.includes(finalWord)) || message.content;
 
           if (targetSentence) {
             onSaveSentence(targetSentence.trim());
