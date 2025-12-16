@@ -253,10 +253,10 @@ export function PostCard({
     };
 
     return (
-        <div className='flex flex-col bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow mb-6'>
+        <div className="bg-[#2a2b2c] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-[#2a2b2c] mb-6">
             {/* 1. Image Section (YouTube Style: Top & Dominant) */}
             {image && (
-                <div className="w-full aspect-video bg-slate-50 relative cursor-pointer">
+                <div className="w-full aspect-video bg-[#1e1f20] relative cursor-pointer">
                     <img
                         src={image}
                         alt={title || "Post content"}
@@ -268,8 +268,8 @@ export function PostCard({
             {/* 2. Info & Meta Section */}
             <div className="p-4 flex gap-3 items-start relative">
                 {/* Avatar */}
-                <div onClick={onClickProfile} className="cursor-pointer flex-shrink-0 mt-0.5">
-                    <Avatar className="h-10 w-10 border border-slate-100">
+                <div onClick={handleProfileClick} className="cursor-pointer flex-shrink-0 mt-0.5">
+                    <Avatar className="h-10 w-10 border border-[#3a3b3c]">
                         <AvatarImage src={displayUser.avatar} alt={displayUser.name} className="object-cover" />
                         <AvatarFallback>{displayUser.name[0]}</AvatarFallback>
                     </Avatar>
@@ -278,13 +278,13 @@ export function PostCard({
                 {/* Text Content */}
                 <div className="flex-1 min-w-0 pr-6">
                     {/* Metadata: Name • Views/Time */}
-                    <div className="flex items-center flex-wrap text-xs text-slate-500 gap-1 mb-2">
-                        <span className="hover:text-slate-800 cursor-pointer text-sm font-semibold text-slate-900 mr-1" onClick={onClickProfile}>
+                    <div className="flex items-center flex-wrap text-xs text-zinc-400 gap-1 mb-2">
+                        <span className="hover:text-white cursor-pointer text-sm font-semibold text-white mr-1" onClick={handleProfileClick}>
                             {displayUser.name}
                         </span>
                         <span className="text-lg leading-none" title={`Country: ${displayUser.location}`}>{displayUser.flag}</span>
                         {displayUser.targetLang && (
-                            <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-500 rounded-md border border-slate-200 font-medium tracking-tight">
+                            <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-[#3a3b3c] text-zinc-400 rounded-md border border-[#3a3b3c] font-medium tracking-tight">
                                 Learning {displayUser.targetLang}
                             </span>
                         )}
@@ -295,10 +295,10 @@ export function PostCard({
                     {/* Content Body (Always shown if exists) */}
                     {content && (
                         <div className="w-full">
-                            <p className={`text-[15px] whitespace-pre-wrap leading-relaxed transition-colors duration-300 ${displayMode === 'target' ? 'text-blue-700 font-medium' : 'text-slate-800'
+                            <p className={`text-[15px] whitespace-pre-wrap leading-relaxed transition-colors duration-300 ${displayMode === 'target' ? 'text-blue-400 font-medium' : 'text-zinc-200'
                                 }`}>
                                 {isTranslating ? (
-                                    <span className="flex items-center gap-2 text-slate-400">
+                                    <span className="flex items-center gap-2 text-zinc-500">
                                         <span className="animate-spin text-lg">⏳</span> 번역 중...
                                     </span>
                                 ) : (
@@ -309,22 +309,11 @@ export function PostCard({
                             </p>
                             <div className="flex gap-2 mt-3">
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (displayMode === 'target') {
-                                            setDisplayMode('original');
-                                        } else {
-                                            if (translatedTarget) {
-                                                setDisplayMode('target');
-                                            } else {
-                                                fetchTranslation(viewerTargetLang, 'target');
-                                            }
-                                        }
-                                    }}
+                                    onClick={handleTranslate}
                                     disabled={isTranslating}
                                     className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${displayMode === 'target'
-                                        ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm ring-1 ring-blue-100'
-                                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-white hover:border-blue-100 hover:text-blue-600'
+                                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-sm ring-1 ring-blue-500/20'
+                                        : 'bg-[#3a3b3c] text-zinc-400 border-[#3a3b3c] hover:bg-[#4a4b4c] hover:text-white'
                                         } disabled:opacity-50`}
                                 >
                                     <Languages className="w-3.5 h-3.5" />
@@ -346,8 +335,8 @@ export function PostCard({
                                     }}
                                     disabled={isTranslating}
                                     className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${displayMode === 'native'
-                                        ? 'bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
-                                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-white hover:border-slate-300 hover:text-slate-800'
+                                        ? 'bg-[#3a3b3c] text-white border-[#4a4b4c] shadow-sm'
+                                        : 'bg-[#3a3b3c] text-zinc-400 border-[#3a3b3c] hover:bg-[#4a4b4c] hover:text-white'
                                         } disabled:opacity-50`}
                                 >
                                     <Languages className="w-3.5 h-3.5" />
@@ -362,26 +351,26 @@ export function PostCard({
                 <div className="absolute top-4 right-4">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors">
+                            <button className="p-2 rounded-full hover:bg-[#3a3b3c] text-zinc-400 transition-colors">
                                 <MoreVertical className="h-5 w-5" />
                             </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[200px] p-2">
+                        <DropdownMenuContent align="end" className="w-[200px] p-2 bg-[#1e1f20] border-[#2a2b2c] text-zinc-300">
                             {isOwner ? (
                                 <>
-                                    <DropdownMenuItem onClick={() => toast.success("링크가 복사되었습니다.")} className="cursor-pointer gap-2 p-2.5">
-                                        <LinkIcon className="h-4 w-4 text-slate-500" />
-                                        <span className="text-slate-700 font-medium">링크 복사</span>
+                                    <DropdownMenuItem onClick={() => toast.success("링크가 복사되었습니다.")} className="cursor-pointer gap-2 p-2.5 hover:bg-[#2a2b2c] focus:bg-[#2a2b2c]">
+                                        <LinkIcon className="h-4 w-4 text-zinc-500" />
+                                        <span className="text-zinc-300 font-medium">링크 복사</span>
                                     </DropdownMenuItem>
-                                    <div className="h-px bg-slate-100 my-1" />
+                                    <div className="h-px bg-[#2a2b2c] my-1" />
                                     {onEdit && (
-                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="cursor-pointer gap-2 p-2.5">
-                                            <Edit className="h-4 w-4 text-slate-500" />
-                                            <span className="text-slate-700 font-medium">수정하기</span>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="cursor-pointer gap-2 p-2.5 hover:bg-[#2a2b2c] focus:bg-[#2a2b2c]">
+                                            <Edit className="h-4 w-4 text-zinc-500" />
+                                            <span className="text-zinc-300 font-medium">수정하기</span>
                                         </DropdownMenuItem>
                                     )}
                                     {onDelete && (
-                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-600 focus:text-red-600 cursor-pointer gap-2 p-2.5">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-400 focus:text-red-400 cursor-pointer gap-2 p-2.5 hover:bg-red-500/10 focus:bg-red-500/10">
                                             <Trash2 className="h-4 w-4" />
                                             <span className="font-medium">삭제하기</span>
                                         </DropdownMenuItem>
@@ -389,27 +378,27 @@ export function PostCard({
                                 </>
                             ) : (
                                 <>
-                                    <DropdownMenuItem onClick={() => toast.success("저장되었습니다.")} className="cursor-pointer gap-2 p-2.5">
-                                        <Bookmark className="h-4 w-4 text-slate-900" />
-                                        <span className="text-slate-900 font-medium">저장</span>
+                                    <DropdownMenuItem onClick={() => toast.success("저장되었습니다.")} className="cursor-pointer gap-2 p-2.5 hover:bg-[#2a2b2c] focus:bg-[#2a2b2c]">
+                                        <Bookmark className="h-4 w-4 text-zinc-300" />
+                                        <span className="text-zinc-300 font-medium">저장</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => toast.success("이 게시글 유형이 적게 표시됩니다.")} className="cursor-pointer gap-2 p-2.5">
-                                        <EyeOff className="h-4 w-4 text-slate-900" />
-                                        <span className="text-slate-900 font-medium">관심 없음</span>
+                                    <DropdownMenuItem onClick={() => toast.success("이 게시글 유형이 적게 표시됩니다.")} className="cursor-pointer gap-2 p-2.5 hover:bg-[#2a2b2c] focus:bg-[#2a2b2c]">
+                                        <EyeOff className="h-4 w-4 text-zinc-300" />
+                                        <span className="text-zinc-300 font-medium">관심 없음</span>
                                     </DropdownMenuItem>
-                                    <div className="h-px bg-slate-100 my-1" />
-                                    <DropdownMenuItem onClick={() => toast.success("차단되었습니다.")} className="cursor-pointer gap-2 p-2.5 text-red-600 focus:text-red-600">
+                                    <div className="h-px bg-[#2a2b2c] my-1" />
+                                    <DropdownMenuItem onClick={() => toast.success("차단되었습니다.")} className="cursor-pointer gap-2 p-2.5 text-red-400 focus:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10">
                                         <Ban className="h-4 w-4" />
                                         <span className="font-medium">차단하기</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }} className="cursor-pointer gap-2 p-2.5 text-red-600 focus:text-red-600">
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }} className="cursor-pointer gap-2 p-2.5 text-red-400 focus:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10">
                                         <Flag className="h-4 w-4" />
                                         <span className="font-medium">신고하기</span>
                                     </DropdownMenuItem>
-                                    <div className="h-px bg-slate-100 my-1" />
-                                    <DropdownMenuItem onClick={() => toast.success("링크가 복사되었습니다.")} className="cursor-pointer gap-2 p-2.5">
-                                        <LinkIcon className="h-4 w-4 text-slate-500" />
-                                        <span className="text-slate-700 font-medium">링크 복사</span>
+                                    <div className="h-px bg-[#2a2b2c] my-1" />
+                                    <DropdownMenuItem onClick={() => toast.success("링크가 복사되었습니다.")} className="cursor-pointer gap-2 p-2.5 hover:bg-[#2a2b2c] focus:bg-[#2a2b2c]">
+                                        <LinkIcon className="h-4 w-4 text-zinc-500" />
+                                        <span className="text-zinc-300 font-medium">링크 복사</span>
                                     </DropdownMenuItem>
                                 </>
                             )}
@@ -426,10 +415,10 @@ export function PostCard({
                         <TooltipTrigger asChild>
                             <button
                                 onClick={handleLike}
-                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-slate-100 transition-colors group"
+                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-[#3a3b3c] transition-colors group"
                             >
-                                <Heart size={20} className={`transition-colors ${optimisticIsLiked ? 'fill-red-500 text-red-500' : 'text-slate-900 group-hover:text-red-500'}`} />
-                                <span className={`text-sm font-medium ${optimisticIsLiked ? 'text-red-500' : 'text-slate-600'}`}>{optimisticLikes > 0 && optimisticLikes}</span>
+                                <Heart size={20} className={`transition-colors ${optimisticIsLiked ? 'fill-red-500 text-red-500' : 'text-zinc-400 group-hover:text-red-500'}`} />
+                                <span className={`text-sm font-medium ${optimisticIsLiked ? 'text-red-500' : 'text-zinc-400'}`}>{optimisticLikes > 0 && optimisticLikes}</span>
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -442,10 +431,10 @@ export function PostCard({
                         <TooltipTrigger asChild>
                             <button
                                 onClick={() => setShowComments(!showComments)}
-                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-slate-100 transition-colors group"
+                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-[#3a3b3c] transition-colors group"
                             >
-                                <MessageCircle size={20} className={`transition-colors ${showComments ? 'text-blue-600' : 'text-slate-900 group-hover:text-blue-600'}`} />
-                                <span className={`text-sm font-medium ${showComments ? 'text-blue-600' : 'text-slate-600'}`}>{optimisticComments.length > 0 && optimisticComments.length}</span>
+                                <MessageCircle size={20} className={`transition-colors ${showComments ? 'text-blue-500' : 'text-zinc-400 group-hover:text-blue-500'}`} />
+                                <span className={`text-sm font-medium ${showComments ? 'text-blue-500' : 'text-zinc-400'}`}>{optimisticComments.length > 0 && optimisticComments.length}</span>
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -458,10 +447,10 @@ export function PostCard({
                         <TooltipTrigger asChild>
                             <button
                                 onClick={onRepost}
-                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-slate-100 transition-colors group"
+                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-[#3a3b3c] transition-colors group"
                             >
-                                <Repeat size={20} className={`transition-colors ${isReposted ? 'text-green-600' : 'text-slate-900 group-hover:text-green-600'}`} />
-                                <span className={`text-sm font-medium ${isReposted ? 'text-green-600' : 'text-slate-600'}`}>{reposts > 0 && reposts}</span>
+                                <Repeat size={20} className={`transition-colors ${isReposted ? 'text-green-500' : 'text-zinc-400 group-hover:text-green-500'}`} />
+                                <span className={`text-sm font-medium ${isReposted ? 'text-green-500' : 'text-zinc-400'}`}>{reposts > 0 && reposts}</span>
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -474,9 +463,9 @@ export function PostCard({
                         <TooltipTrigger asChild>
                             <button
                                 onClick={onShare}
-                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-slate-100 transition-colors group"
+                                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-[#3a3b3c] transition-colors group"
                             >
-                                <Send size={20} className="text-slate-900 group-hover:text-cyan-600 transition-colors" />
+                                <Send size={20} className="text-zinc-400 group-hover:text-cyan-500 transition-colors" />
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -488,12 +477,11 @@ export function PostCard({
 
             {/* Comments Expanded Section */}
             {showComments && (
-                <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="bg-[#1e1f20] border-t border-[#3a3b3c] p-4 animate-in fade-in slide-in-from-top-1 duration-200">
                     {/* Comment Input */}
                     <div className="flex items-center gap-3 mb-4">
                         <Avatar className="w-8 h-8">
-                            {/* Ideally current user avatar, but simplistic fallback */}
-                            <AvatarFallback className="bg-slate-200 text-slate-600 text-xs font-bold">Me</AvatarFallback>
+                            <AvatarFallback className="bg-[#3a3b3c] text-zinc-400 text-xs font-bold">Me</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 relative">
                             <input
@@ -502,13 +490,13 @@ export function PostCard({
                                 onChange={(e) => setCommentText(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="댓글 추가..."
-                                className="w-full bg-transparent border-b border-slate-300 py-1.5 text-sm text-slate-900 focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-500"
+                                className="w-full bg-transparent border-b border-[#3a3b3c] py-1.5 text-sm text-white focus:outline-none focus:border-white transition-colors placeholder:text-zinc-600"
                             />
                         </div>
                         <button
                             onClick={handleSubmitComment}
                             disabled={!commentText.trim()}
-                            className="text-sm font-semibold text-blue-600 disabled:opacity-50 hover:text-blue-700"
+                            className="text-sm font-semibold text-blue-500 disabled:opacity-50 hover:text-blue-400"
                         >
                             게시
                         </button>
@@ -520,21 +508,21 @@ export function PostCard({
                             {optimisticComments.map((comment) => (
                                 <div key={comment.id} className="flex gap-3 items-start group">
                                     <Avatar className="w-8 h-8 mt-0.5">
-                                        <AvatarFallback className="bg-purple-100 text-purple-700 text-xs">{comment.authorName[0]}</AvatarFallback>
+                                        <AvatarFallback className="bg-purple-500/10 text-purple-400 text-xs">{comment.authorName[0]}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-xs font-semibold text-slate-900">{comment.authorName}</span>
-                                            <span className="text-[10px] text-slate-500">{comment.createdAt}</span>
+                                            <span className="text-xs font-semibold text-white">{comment.authorName}</span>
+                                            <span className="text-[10px] text-zinc-500">{comment.createdAt}</span>
                                         </div>
-                                        <p className="text-sm text-slate-800 leading-relaxed">{comment.content}</p>
+                                        <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
                                     </div>
 
                                     {/* Delete Comment Button (Only for owner) */}
                                     {(currentUserId && comment.authorId === currentUserId) && (
                                         <button
                                             onClick={() => handleDeleteComment(comment.id)}
-                                            className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                            className="p-1 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                             title="삭제"
                                         >
                                             <Trash2 className="w-4 h-4" />

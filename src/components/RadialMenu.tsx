@@ -53,7 +53,7 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
         activeDirectionRef.current = activeDirection;
     }, [activeDirection]);
 
-    // Reset state when opening (Fixes stale state issue)
+    // Reset state when opening
     React.useEffect(() => {
         if (isOpen) {
             setActiveDirection(null);
@@ -61,79 +61,17 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
         }
     }, [isOpen]);
 
-    // Gesture Handling
-    React.useEffect(() => {
-        if (!isOpen || !center) return;
-
-        const handlePointerMove = (e: PointerEvent) => {
-            // Use logical center (finger position) for gesture
-            const originX = center.x;
-            const originY = center.y;
-
-            const dx = e.clientX - originX;
-            const dy = e.clientY - originY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            let newDirection: RadialDirection | null = null;
-
-            // Deadzone check (don't activate if too close to center)
-            if (dist >= 25) {
-                // Calculate angle
-                let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-                // Navigate quadrants
-                if (angle >= -45 && angle < 45) {
-                    newDirection = "right";
-                } else if (angle >= 45 && angle < 135) {
-                    newDirection = "bottom";
-                } else if (angle >= -135 && angle < -45) {
-                    newDirection = "top";
-                } else {
-                    newDirection = "left";
-                }
-            }
-
-            // Only update if changed to avoid unnecessary renders
-            if (activeDirectionRef.current !== newDirection) {
-                activeDirectionRef.current = newDirection;
-                setActiveDirection(newDirection);
-            }
-        };
-
-        const handlePointerUp = (e: PointerEvent) => {
-            // Use ref to get the absolute latest value, ignoring render cycles
-            const currentDir = activeDirectionRef.current;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            if (currentDir) {
-                onSelect(currentDir);
-            }
-            // Always close on release (User request: "Release to Cancel")
-            onClose();
-        };
-
-        // Bind both listeners in the same effect to ensure they share context if needed
-        // but strictly speaking they can be separate. Merging them here simplifies lifecycle.
-        window.addEventListener("pointermove", handlePointerMove);
-        window.addEventListener("pointerup", handlePointerUp);
-
-        return () => {
-            window.removeEventListener("pointermove", handlePointerMove);
-            window.removeEventListener("pointerup", handlePointerUp);
-        };
-    }, [isOpen, center, onSelect, onClose]);
-
+    // Click-based interaction does not need complex gesture listeners on window.
+    // The buttons themselves handle onClick.
 
     if (!isOpen || !center) return null;
 
     return createPortal(
         <div className="fixed inset-0 z-50 overflow-hidden pointer-events-none" style={{ touchAction: 'none' }}>
-            {/* Backdrop */}
+            {/* Backdrop - Click to close */}
             <div
                 className="absolute inset-0 bg-black/10 pointer-events-auto"
-                onClick={onClose}
+                onPointerDown={onClose}
             />
 
             {/* Menu Container */}
@@ -144,25 +82,21 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
                 {/* Center Button (Close) */}
                 <button
                     onClick={onClose}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onPointerUp={(e) => {
-                        e.stopPropagation();
-                        onClose();
-                    }}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-white text-slate-900 shadow-xl flex items-center justify-center font-bold z-20 pointer-events-auto transition-transform"
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-white text-slate-900 shadow-xl flex items-center justify-center font-bold z-20 pointer-events-auto transition-transform active:scale-95"
                     style={{ width: buttonSize, height: buttonSize }}
                 >
                     <X className="w-6 h-6" />
                 </button>
 
                 {/* Top: Detail */}
+
                 <RadialButton
                     icon={<Search className="w-5 h-5 text-slate-700" />}
                     angle={-90}
                     radius={radius}
                     size={buttonSize}
                     isActive={activeDirection === "top"}
-                    onClick={() => onSelect("top")}
+                    onClick={() => { onSelect("top"); onClose(); }}
                 />
 
                 {/* Right: Important */}
@@ -172,7 +106,7 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
                     radius={radius}
                     size={buttonSize}
                     isActive={activeDirection === "right"}
-                    onClick={() => onSelect("right")}
+                    onClick={() => { onSelect("right"); onClose(); }}
                 />
 
                 {/* Bottom: TTS */}
@@ -182,7 +116,7 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
                     radius={radius}
                     size={buttonSize}
                     isActive={activeDirection === "bottom"}
-                    onClick={() => onSelect("bottom")}
+                    onClick={() => { onSelect("bottom"); onClose(); }}
                 />
 
                 {/* Left: Sentence (Chat) or Delete (List) */}
@@ -192,7 +126,7 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
                     radius={radius}
                     size={buttonSize}
                     isActive={activeDirection === "left"}
-                    onClick={() => onSelect("left")}
+                    onClick={() => { onSelect("left"); onClose(); }}
                 />
             </div>
         </div>,

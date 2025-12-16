@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { translateText, generateStudyTips } from "../../services/gemini";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { VocabularyEntry, WordData } from "../../types";
-import { RadialMenu, RadialDirection } from "../../components/RadialMenu";
+import { WordOptionMenu, type WordOptionType } from "../../components/WordOptionMenu";
 import { useLongPress } from "../../hooks/useLongPress";
 import { WordDetailModal } from "../../components/WordDetailModal";
 import { subscribeToMessages, sendMessage, deleteMessage } from '../../services/chat';
@@ -115,6 +115,8 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
                 touchAction: "manipulation",
                 ...(wordState > 0 ? styleInfo.style : {})
             }}
+            // @ts-ignore
+            onSelectStart={(e) => e.preventDefault()}
         >
             {part}
         </span>
@@ -448,14 +450,14 @@ export function GlobalChatRoom({
         });
     }, []);
 
-    const handleRadialSelect = useCallback((direction: RadialDirection) => {
+    const handleOptionSelect = useCallback((option: WordOptionType) => {
         const { selectedWordData } = radialMenu;
         if (!selectedWordData) return;
 
         const { word, messageId, fullSentence } = selectedWordData;
 
-        switch (direction) {
-            case "left":
+        switch (option) {
+            case "sentence":
                 if (onSaveSentence) {
                     // 1. Try to get user selection first (High Priority)
                     const selection = window.getSelection()?.toString().trim();
@@ -475,7 +477,7 @@ export function GlobalChatRoom({
                     toast.error("문장 저장 기능을 사용할 수 없습니다.");
                 }
                 break;
-            case "top":
+            case "detail":
                 const entry = userVocabulary[word.toLowerCase()];
                 setSelectedWordDetail({ // Fixed state set
                     word: word,
@@ -486,7 +488,7 @@ export function GlobalChatRoom({
                     timestamp: new Date()
                 } as any);
                 break;
-            case "right":
+            case "important":
                 if (onSaveImportant) {
                     // Strict cleaning: remove punctuation from the saved word
                     const wordToSave = word.replace(/[.,!?:;()"']+/g, "").trim();
@@ -512,13 +514,16 @@ export function GlobalChatRoom({
                     toast.success(`"${word}" 중요 단어로 저장됨`);
                 }
                 break;
-            case "bottom":
+            case "tts":
                 if (window.speechSynthesis) {
                     const utterance = new SpeechSynthesisUtterance(word);
                     utterance.lang = "en-US";
                     window.speechSynthesis.speak(utterance);
                 }
                 break;
+            /* case "delete":
+                toast.info("채팅에서는 단어 삭제를 지원하지 않습니다");
+                break; */
         }
 
         setRadialMenu(prev => ({
@@ -607,13 +612,13 @@ export function GlobalChatRoom({
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f0f2f5] relative">
-            {/* Radial Menu */}
-            <RadialMenu
+            {/* WordOptionMenu */}
+            <WordOptionMenu
                 isOpen={radialMenu.showRadialMenu}
-                center={radialMenu.menuPosition}
                 word={radialMenu.selectedWord || ""}
                 onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
-                onSelect={handleRadialSelect}
+                onSelectOption={handleOptionSelect}
+                hideDeleteOption={true}
             />
 
             {/* Word Detail Modal */}

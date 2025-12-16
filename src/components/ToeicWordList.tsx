@@ -4,7 +4,7 @@ import { ArrowLeft, BookOpen, Plus, Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
-import { RadialMenu, type RadialDirection } from "./RadialMenu";
+import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
 
 interface ToeicWordListProps {
   userVocabulary: Record<string, VocabularyEntry>;
@@ -39,6 +39,7 @@ export function ToeicWordList({
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
 
   const [deletingWords, setDeletingWords] = useState<Set<string>>(new Set());
   const [selectedWord, setSelectedWord] = useState<{
@@ -88,6 +89,7 @@ export function ToeicWordList({
     isLongPress.current = false;
     const x = event.clientX;
     const y = event.clientY;
+    startPos.current = { x, y };
 
     longPressTimerRef.current = setTimeout(() => {
       isLongPress.current = true;
@@ -98,10 +100,34 @@ export function ToeicWordList({
     }, 500);
   };
 
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (!longPressTimerRef.current || !startPos.current) return;
+
+    const moveX = Math.abs(event.clientX - startPos.current.x);
+    const moveY = Math.abs(event.clientY - startPos.current.y);
+
+    // 10px 이상 움직이면 스크롤로 간주하고 롱프레스 취소
+    if (moveX > 10 || moveY > 10) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+      startPos.current = null;
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    startPos.current = null;
+  };
+
   const handlePointerUp = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null; // 타이머 초기화 중요
     }
+    startPos.current = null;
   };
 
   const handlePointerLeave = () => {
@@ -118,13 +144,14 @@ export function ToeicWordList({
   };
 
   // RadialMenu select 핸들러
-  const handleRadialMenuSelect = (direction: RadialDirection) => {
+  // WordOptionMenu select 핸들러
+  const handleOptionSelect = (option: WordOptionType) => {
     if (!menuOpenWord) return;
 
     const entry = userVocabulary[menuOpenWord];
 
-    switch (direction) {
-      case "top": // 상세보기 (Search visual)
+    switch (option) {
+      case "detail": // 상세보기
         if (entry) {
           setSelectedWord({
             word: menuOpenWord,
@@ -133,13 +160,17 @@ export function ToeicWordList({
           });
         }
         break;
-      case "bottom": // 듣기
+      case "tts": // 듣기
         handleTTS(menuOpenWord);
         break;
-      case "left": // 삭제 (Trash visual)
+      case "delete": // 삭제
         handleDeleteWord(menuOpenWord);
         break;
-      case "right": // 중요 저장
+      case "sentence": // 문장 저장 (현재 기능 없음, 필요 시 구현)
+        // Placeholder or future implementation
+        toast.info("문장 저장 기능은 준비 중입니다.");
+        break;
+      case "important": // 중요 저장
         if (onSaveImportant && entry) {
           onSaveImportant({
             id: Date.now().toString(),
@@ -154,6 +185,7 @@ export function ToeicWordList({
         }
         break;
     }
+    setMenuOpenWord(null); // 메뉴 닫기
   };
 
   const handleWordClick = (word: string, currentStatus: string) => {
@@ -281,8 +313,11 @@ export function ToeicWordList({
                   <div
                     key={word}
                     onPointerDown={(e) => handlePointerDown(word, e)}
+                    onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
                     onPointerLeave={handlePointerLeave}
+                    onContextMenu={(e) => e.preventDefault()}
                     onClick={() => {
                       handleWordClick(word, entry.status);
                     }}
@@ -341,13 +376,13 @@ export function ToeicWordList({
       </div>
 
       {/* Radial Menu */}
-      <RadialMenu
+      {/* Word Option Menu (Banner Style) */}
+      <WordOptionMenu
         isOpen={!!menuOpenWord}
-        center={menuPosition}
         word={menuOpenWord || ""}
         onClose={() => setMenuOpenWord(null)}
-        onSelect={handleRadialMenuSelect}
-        variant="list"
+        onSelectOption={handleOptionSelect}
+        hideSentenceOption={true}
       />
 
       {/* 단어 상세 모달 */}

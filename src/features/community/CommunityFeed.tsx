@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { toast } from "sonner";
 import { NotificationsPopover } from "../../components/NotificationsPopover";
+import { AiKnowHowCard } from "./AiKnowHowCard";
 
 // Extended interface with authorId and title
 interface ExtendedPostCardProps extends PostCardProps {
@@ -161,20 +162,20 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
 
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#faFAFA] w-full min-w-0">
+        <div className="flex-1 flex flex-col h-full bg-[#1e1f20] w-full min-w-0">
             {/* YouTube-style Header */}
-            <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-slate-100">
+            <header className="sticky top-0 z-40 bg-[#1e1f20]/95 backdrop-blur-sm border-b border-[#2a2b2c]">
                 <div className="flex items-center justify-between px-4 h-14">
                     {/* Left: Menu & Logo */}
                     <div className="flex items-center gap-4">
-                        <button onClick={onToggleSidebar} className="p-2 hover:bg-slate-100 rounded-full lg:hidden">
-                            <Menu className="h-6 w-6 text-slate-700" />
+                        <button onClick={onToggleSidebar} className="p-2 hover:bg-[#2a2b2c] rounded-full lg:hidden">
+                            <Menu className="h-6 w-6 text-zinc-400" />
                         </button>
                         <h1
-                            className="text-xl font-bold tracking-tight text-slate-900 cursor-pointer flex items-center gap-1"
+                            className="text-xl font-bold tracking-tight text-white cursor-pointer flex items-center gap-1"
                             onClick={() => navigate('/community')}
                         >
-                            <span>Community</span>
+                            <span>AI KNOW HOW</span>
                         </h1>
                     </div>
 
@@ -184,24 +185,24 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                             <input
                                 type="text"
                                 placeholder="검색"
-                                className="w-full h-10 px-4 rounded-l-full border border-slate-300 focus:border-blue-500 outline-none bg-white text-[15px] placeholder:text-slate-400"
+                                className="w-full h-10 px-4 rounded-l-full border border-[#2a2b2c] focus:border-blue-500 outline-none bg-[#2a2b2c] text-white text-[15px] placeholder:text-zinc-500"
                             />
-                            <button className="h-10 px-6 bg-slate-50 border border-l-0 border-slate-300 rounded-r-full hover:bg-slate-100 flex items-center justify-center transition-colors">
-                                <Search className="h-5 w-5 text-slate-600" strokeWidth={2} />
+                            <button className="h-10 px-6 bg-[#2a2b2c] border border-l-0 border-[#2a2b2c] rounded-r-full hover:bg-[#3a3b3c] flex items-center justify-center transition-colors">
+                                <Search className="h-5 w-5 text-zinc-400" strokeWidth={2} />
                             </button>
                         </div>
                     </div>
 
                     {/* Right: Actions */}
                     <div className="flex items-center gap-2 sm:gap-3">
-                        <button className="p-2 hover:bg-slate-100 rounded-full md:hidden">
-                            <Search className="h-6 w-6 text-slate-700" />
+                        <button className="p-2 hover:bg-[#2a2b2c] rounded-full md:hidden">
+                            <Search className="h-6 w-6 text-zinc-400" />
                         </button>
 
                         {/* Open Chat Pill */}
                         <Button
                             onClick={() => navigate('/community/global-chat')}
-                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
+                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-[#2a2b2c] hover:bg-[#3a3b3c] text-white border border-[#2a2b2c] shadow-sm transition-colors"
                             title="Global Open Chat"
                         >
                             <Globe className="w-4 h-4" />
@@ -211,7 +212,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                         {/* Create Post Pill */}
                         <Button
                             onClick={() => navigate('/create-post')}
-                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200 shadow-sm transition-colors"
+                            className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-[#2a2b2c] hover:bg-[#3a3b3c] text-white border border-[#2a2b2c] shadow-sm transition-colors"
                         >
                             <Plus className="w-5 h-5" />
                             <span className="font-semibold text-sm hidden sm:inline">글쓰기</span>
@@ -223,15 +224,15 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                                 <NotificationsPopover userId={user.uid} />
                             </div>
                         ) : (
-                            <button className="p-2 hover:bg-slate-100 rounded-full relative">
-                                <Bell className="h-6 w-6 text-slate-700" strokeWidth={1.5} />
+                            <button className="p-2 hover:bg-[#2a2b2c] rounded-full relative">
+                                <Bell className="h-6 w-6 text-zinc-400" strokeWidth={1.5} />
                             </button>
                         )}
 
                         {/* User Profile */}
-                        <Avatar className="h-8 w-8 ml-1 cursor-pointer border border-slate-200" onClick={() => navigate(`/profile/${user?.uid || 'guest'}`)}>
+                        <Avatar className="h-8 w-8 ml-1 cursor-pointer border border-[#2a2b2c]" onClick={() => navigate(`/profile/${user?.uid || 'guest'}`)}>
                             <AvatarImage src={user?.photoURL && user.photoURL.startsWith('http') ? user.photoURL : undefined} />
-                            <AvatarFallback className="bg-slate-100 text-slate-600 text-sm font-medium">
+                            <AvatarFallback className="bg-[#2a2b2c] text-zinc-400 text-sm font-medium">
                                 {user?.displayName?.[0] || 'U'}
                             </AvatarFallback>
                         </Avatar>
@@ -239,14 +240,14 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                 </div>
 
                 {/* Categories Bar */}
-                <div className="flex items-center gap-3 px-4 py-2 overflow-x-auto no-scrollbar border-t border-slate-50">
+                <div className="flex items-center gap-3 px-4 py-2 overflow-x-auto no-scrollbar border-t border-[#2a2b2c]">
                     {categories.map((cat) => (
                         <button
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
                             className={`px-3 py-1.5 rounded-lg text-[14px] font-semibold whitespace-nowrap transition-colors ${selectedCategory === cat
-                                ? 'bg-slate-900 text-white'
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                ? 'bg-white text-black'
+                                : 'bg-[#2a2b2c] text-zinc-400 hover:bg-[#3a3b3c] hover:text-white'
                                 }`}
                         >
                             {cat}
@@ -259,6 +260,15 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-2xl mx-auto pt-6 pb-20 px-4 space-y-6">
                     {/* Posts */}
+                    <div className="mb-6">
+                        <AiKnowHowCard
+                            category="Prompt Tip"
+                            title="DeepSeek로 리액트 코드 3초 컷 하기"
+                            description="복잡한 설명 필요 없이 이 프롬프트 한 줄이면 구조까지 완벽하게 잡아줍니다. 지금 바로 내 채팅창에 적용해 보세요."
+                            onAction={() => toast.success("Signal 적용됨!")}
+                        />
+                    </div>
+
                     {posts.map((post) => (
                         <PostCard
                             key={post.id}
@@ -296,7 +306,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                     ))}
 
                     {posts.length === 0 && (
-                        <div className="text-center py-20 text-slate-400">
+                        <div className="text-center py-20 text-zinc-500">
                             <p>게시물이 없습니다.</p>
                         </div>
                     )}

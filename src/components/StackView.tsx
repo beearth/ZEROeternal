@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
 import { useNavigate } from "react-router-dom";
-import { RadialMenu, type RadialDirection } from "./RadialMenu";
+import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
 
 interface StackViewProps {
   title: string;
@@ -48,7 +48,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
   const getCurrentStatus = (): "red" | "yellow" | "green" | "orange" => {
     if (title === "Red Signal") return "red";
     if (title === "Yellow Signal") return "yellow";
-    if (title === "Green Signal") return "green";
+    if (title === "Green Signal" || title === "Success Site" || title === "Success" || title === "Success Signal") return "green";
     if (title === "중요 단어장" || title === "Important Words") return "orange";
     return "red"; // default
   };
@@ -112,8 +112,8 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
     }
   };
 
-  // RadialMenu select 핸들러
-  const handleRadialMenuSelect = (direction: RadialDirection) => {
+  // WordOptionMenu select 핸들러
+  const handleOptionSelect = (option: WordOptionType) => {
     if (!menuOpenWord) return;
 
     const wordKey = menuOpenWord.toLowerCase();
@@ -125,8 +125,8 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       itemData = (items as WordData[]).find(item => item.word.toLowerCase() === wordKey);
     }
 
-    switch (direction) {
-      case "left": // 삭제 (List variant: Trash)
+    switch (option) {
+      case "delete": // 삭제
         if (onDeleteWord) {
           onDeleteWord(menuOpenWord);
         } else if (onUpdateWordStatus) {
@@ -134,12 +134,12 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
           onUpdateWordStatus(menuOpenWord, "white");
         }
         break;
-      case "bottom": // 듣기 (List variant: Volume)
+      case "tts": // 듣기
         const utterance = new SpeechSynthesisUtterance(menuOpenWord);
         utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
         break;
-      case "top": // 상세보기 (List variant: Search)
+      case "detail": // 상세보기
         const meaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
         const status = vocabEntry?.status || itemData?.status || "white";
 
@@ -149,29 +149,11 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
           status: status,
         });
         break;
-      case "right": // 중요 저장 (List variant: Star)
-        if (isSentenceStack) {
-          toast.error("문장은 단어장에 저장할 수 없습니다.");
-          break;
-        }
-        if (onSaveImportant) {
-          // Use existing data if available
-          const currentMeaning = vocabEntry?.koreanMeaning || itemData?.koreanMeaning || "";
-          // const currentStatus = vocabEntry?.status || itemData?.status || "white";
-
-          onSaveImportant({
-            id: Date.now().toString(),
-            word: menuOpenWord,
-            koreanMeaning: currentMeaning,
-            status: "orange", // 중요 단어는 주황색으로 저장
-            messageId: "manual",
-            sentence: "",
-            timestamp: new Date()
-          });
-          toast.success("중요 단어장에 저장되었습니다.");
-        }
+      case "sentence":
+        toast.info("이 화면에서는 문장 저장을 지원하지 않습니다.");
         break;
     }
+    setMenuOpenWord(null);
   };
 
   const handlePointerUp = () => {
@@ -400,20 +382,17 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
           />
         )}
 
-        {/* RadialMenu */}
-        {menuOpenWord && menuPosition && (
-          <RadialMenu
-            center={menuPosition}
-            isOpen={!!menuOpenWord}
-            onClose={() => {
-              setMenuOpenWord(null);
-              setMenuPosition(null);
-            }}
-            onSelect={handleRadialMenuSelect}
-            word={menuOpenWord}
-            variant="list"
-          />
-        )}
+        {/* WordOptionMenu */}
+        <WordOptionMenu
+          isOpen={!!menuOpenWord}
+          word={menuOpenWord || ""}
+          onClose={() => {
+            setMenuOpenWord(null);
+            setMenuPosition(null);
+          }}
+          onSelectOption={handleOptionSelect}
+          hideSentenceOption={true}
+        />
       </div>
     </>
   );

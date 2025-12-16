@@ -126,12 +126,26 @@
     }
 }
 
-@layer utilities {
-    .force-word-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-        width: 100%;
+@layer utilities {}
+
+.neon-dot {
+    background-color: #dc2626;
+    box-shadow: 0 0 10px #dc2626, 0 0 20px #dc2626;
+    animation: neo-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes neo-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 10px #dc2626, 0 0 20px #dc2626;
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(0.95);
+        box-shadow: 0 0 5px #dc2626, 0 0 10px #dc2626;
     }
 }

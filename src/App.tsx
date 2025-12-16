@@ -36,6 +36,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  images?: string[]; // 이미지 추가
 }
 
 interface Conversation {
@@ -57,7 +58,6 @@ import { GlobalChatRoom } from "./features/community/GlobalChatRoom";
 import { DirectChat } from "./features/community/DirectChat";
 
 
-
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,8 +70,24 @@ export default function App() {
     },
   ]);
   const [currentConversationId, setCurrentConversationId] = useState("1");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  // Initialize sidebar open state based on screen width (Open on Desktop by default)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [isTyping, setIsTyping] = useState(false);
+
+  // Auto-close sidebar on window resize if small screen
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        // Optional: Auto-open on desktop resize? Let's stick to user preference or default open
+        setIsSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 언어 상태
   // 언어 상태 (LocalStorage에서 초기화하여 새로고침 시 리셋 방지)
@@ -527,14 +543,15 @@ export default function App() {
     (conv) => conv.id === currentConversationId
   );
 
-  const handleSendMessage = async (content: string) => {
-    if (!content.trim() || !currentConversation) return;
+  const handleSendMessage = async (content: string, images?: string[]) => {
+    if ((!content.trim() && (!images || images.length === 0)) || !currentConversation) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content,
       timestamp: new Date(),
+      images: images // 이미지 저장
     };
 
     // 사용자 메시지 추가
@@ -566,6 +583,7 @@ export default function App() {
         .map((msg) => ({
           role: msg.role,
           content: msg.content,
+          images: msg.images // 이미지 전달
         }));
 
       const aiResponse = await sendMessageToGemini(
@@ -794,11 +812,13 @@ export default function App() {
       // Notify user that it's saved but translating
       toast.info(`저장 완료! (뜻 검색 중...)`);
     } else {
-      if (newStatus !== 'white') {
-        // toast.success(`저장 완료`); // Optional: Reduce noise
+      // Meaning already existed (or deleting), just toast result
+      if (newStatus === "white") {
+        toast.success("단어장에서 제거되었습니다.");
+      } else {
+        toast.success(`'${newStatus}' Signal로 저장됨!`);
       }
     }
-
   }, [user, userVocabulary]);
 
   // 단어 상태 초기화 핸들러 (White/Default로 복원)
@@ -1075,7 +1095,6 @@ export default function App() {
       <Toaster position="top-center" richColors />
 
       {/* 온보딩 모달 */}
-      {/* 온보딩 모달 */}
       <OnboardingModal
         isOpen={!targetLang}
         onComplete={async (native, target, contentType) => {
@@ -1115,225 +1134,178 @@ export default function App() {
         onLogout={logout}
       />
 
-      <div className="flex h-[100dvh] bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden">
-        {/* 사이드바 */}
-        <Sidebar
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
-          onDeleteConversation={handleDeleteConversation}
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          counts={{
-            red: redStack.length,
-            yellow: yellowStack.length,
-            green: greenStack.length,
-            important: importantStack.length,
-            sentence: sentenceStack.length,
-          }}
-          onLogout={handleLogout}
-          onResetLanguage={() => {
-            setTargetLang(null);
-            saveLanguageSettings(nativeLang, "");
-          }}
-          onResetVocabulary={handleResetVocabulary}
-        />
+      <Sidebar
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={handleSelectConversation}
+        onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        counts={{
+          red: redStack.length,
+          yellow: yellowStack.length,
+          green: greenStack.length,
+          important: importantStack.length,
+          sentence: sentenceStack.length,
+        }}
+        onLogout={handleLogout}
+        onResetLanguage={() => {
+          setNativeLang("ko");
+          setTargetLang(null);
+          localStorage.removeItem("signal_native_lang");
+          localStorage.removeItem("signal_target_lang");
+        }}
+        onResetVocabulary={handleResetVocabulary}
+      />
 
+      <div className="flex h-[100dvh] bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden relative">
 
-        {/* 메인 컨텐츠 영역 */}
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <MainContent
-                nativeLang={nativeLang}
-                targetLang={targetLang}
-                currentConversation={currentConversation}
-                isTyping={isTyping}
-                onSendMessage={handleSendMessage}
-                isSidebarOpen={isSidebarOpen}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                user={user}
-                onLogout={handleLogout}
-                userVocabulary={userVocabulary}
-                onUpdateWordStatus={handleUpdateWordStatus}
-                onResetWordStatus={handleResetWordStatus}
-                onSaveImportant={handleSaveImportant}
-                onSaveSentence={handleSaveSentence}
-              />
-            }
-          />
-          <Route
-            path="/stack/red"
-            element={
-              <StackView
-                title="Red Signal"
-                color="#ef4444"
-                items={redStack}
-                userVocabulary={userVocabulary}
-                onUpdateVocabulary={(wordKey, meaning) => {
-                  setUserVocabulary((prev) => {
-                    const entry = prev[wordKey];
-                    if (entry) {
-                      return {
-                        ...prev,
-                        [wordKey]: { ...entry, koreanMeaning: meaning },
-                      };
-                    }
-                    return prev;
-                  });
-                }}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onDeleteWord={(word) => handleResetWordStatus(word)}
-                onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
-          <Route
-            path="/stack/yellow"
-            element={
-              <StackView
-                title="Yellow Signal"
-                color="#eab308"
-                items={yellowStack}
-                userVocabulary={userVocabulary}
-                onUpdateVocabulary={(wordKey, meaning) => {
-                  setUserVocabulary((prev) => {
-                    const entry = prev[wordKey];
-                    if (entry) {
-                      return {
-                        ...prev,
-                        [wordKey]: { ...entry, koreanMeaning: meaning },
-                      };
-                    }
-                    return prev;
-                  });
-                }}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onDeleteWord={(word) => handleResetWordStatus(word)}
-                onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
-          <Route
-            path="/stack/green"
-            element={
-              <StackView
-                title="Green Signal"
-                color="#22c55e"
-                items={greenStack}
-                userVocabulary={userVocabulary}
-                onUpdateVocabulary={(wordKey, meaning) => {
-                  setUserVocabulary((prev) => {
-                    const entry = prev[wordKey];
-                    if (entry) {
-                      return {
-                        ...prev,
-                        [wordKey]: { ...entry, koreanMeaning: meaning },
-                      };
-                    }
-                    return prev;
-                  });
-                }}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onDeleteWord={(word) => handleResetWordStatus(word)}
-                onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
-          <Route
-            path="/stack/important"
-            element={
-              <StackView
-                title="Important Stack"
-                color="#3b82f6"
-                items={importantStack}
-                userVocabulary={userVocabulary}
-                onUpdateVocabulary={(wordKey, meaning) => {
-                  setUserVocabulary((prev) => {
-                    const entry = prev[wordKey];
-                    if (entry) {
-                      return {
-                        ...prev,
-                        [wordKey]: { ...entry, koreanMeaning: meaning },
-                      };
-                    }
-                    return prev;
-                  });
-                }}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onDeleteWord={handleResetWordStatus}
-                onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
-          <Route
-            path="/stack/sentence"
-            element={
-              <StackView
-                title="Sentences"
-                color="#f97316"
-                items={sentenceStack}
-                onDeleteWord={(sentence) => {
-                  setSentenceStack((prev) => prev.filter((item) => item !== sentence));
-                }}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onSaveImportant={handleSaveImportant}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
-          <Route
-            path="/toeic-4000"
-            element={
-              <ToeicWordList
-                userVocabulary={userVocabulary}
-                onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                onGenerateStudyTips={handleGenerateStudyTips}
-                onLoadMore={handleLoadMoreToeicWords}
-                onDeleteWord={handleResetWordStatus}
-                onSaveImportant={handleSaveImportant}
-                isLoading={isToeicLoading}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              />
-            }
-          />
+        {/* Main Content Area - Pushed by Sidebar on Desktop */}
+        <div
+          className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isSidebarOpen ? "lg:pl-72" : ""
+            }`}
+        >
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <MainContent
+                  nativeLang={nativeLang}
+                  targetLang={targetLang}
+                  currentConversation={currentConversation}
+                  isTyping={isTyping}
+                  onSendMessage={handleSendMessage}
+                  isSidebarOpen={isSidebarOpen}
+                  onLogout={handleLogout}
+                  user={user}
+                  onToggleSidebar={() => {
+                    console.log("App: Toggle Sidebar clicked. Prev:", isSidebarOpen, "New:", !isSidebarOpen);
+                    setIsSidebarOpen(!isSidebarOpen);
+                  }}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onResetWordStatus={handleResetWordStatus}
+                  onSaveImportant={handleSaveImportant}
+                  onSaveSentence={handleSaveSentence}
+                />
+              }
+            />
+            <Route
+              path="/stack/red"
+              element={
+                <StackView
+                  title="The Unknowns"
+                  color="#ef4444"
+                  items={redStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateVocabulary={(wordKey, meaning) => {
+                    setUserVocabulary((prev) => {
+                      const entry = prev[wordKey];
+                      if (entry) {
+                        return {
+                          ...prev,
+                          [wordKey]: { ...entry, koreanMeaning: meaning },
+                        };
+                      }
+                      return prev;
+                    });
+                  }}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                  onDeleteWord={(word) => handleResetWordStatus(word)}
+                  onSaveImportant={handleSaveImportant}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
+              }
+            />
 
-          {/* Community Routes */}
-          {/* Community Routes */}
-          <Route path="/community" element={<CommunityFeed user={user} nativeLang={nativeLang} targetLang={targetLang} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
-          <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} />
-          <Route path="/edit-post/:postId" element={<EditPostPage />} />
-          <Route path="/profile/:userId" element={<UserProfilePage user={user} />} />
-          <Route
-            path="/community/global-chat"
-            element={
-              <GlobalChatRoom
-                user={user}
-                userVocabulary={userVocabulary}
-                onUpdateWordStatus={(_id, status, word, messageId, sentence) => handleUpdateWordStatus(word, status, word, messageId, sentence)}
-                onResetWordStatus={handleResetWordStatus}
-                nativeLang={nativeLang}
-                onSaveSentence={handleSaveSentence}
-                onSaveImportant={handleSaveImportant}
-                importantStack={importantStack}
-              />
-            }
-          />
-          <Route path="/chat/:userId" element={<DirectChat user={user} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route
+              path="/stack/important"
+              element={
+                <StackView
+                  title="Important Stack"
+                  color="#3b82f6"
+                  items={importantStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateVocabulary={(wordKey, meaning) => {
+                    setUserVocabulary((prev) => {
+                      const entry = prev[wordKey];
+                      if (entry) {
+                        return {
+                          ...prev,
+                          [wordKey]: { ...entry, koreanMeaning: meaning },
+                        };
+                      }
+                      return prev;
+                    });
+                  }}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                  onDeleteWord={handleResetWordStatus}
+                  onSaveImportant={handleSaveImportant}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
+              }
+            />
+            <Route
+              path="/stack/sentence"
+              element={
+                <StackView
+                  title="Sentences"
+                  color="#f97316"
+                  items={sentenceStack}
+                  onDeleteWord={(sentence) => {
+                    setSentenceStack((prev) => prev.filter((item) => item !== sentence));
+                  }}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onSaveImportant={handleSaveImportant}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
+              }
+            />
 
+            <Route
+              path="/toeic-4000"
+              element={
+                <ToeicWordList
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onLoadMore={handleLoadMoreToeicWords}
+                  onDeleteWord={handleResetWordStatus}
+                  onSaveImportant={handleSaveImportant}
+                  isLoading={isToeicLoading}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
+              }
+            />
 
+            {/* Community Routes */}
+            {/* Community Routes */}
+            <Route path="/community" element={<CommunityFeed user={user} nativeLang={nativeLang} targetLang={targetLang} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
+            <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} />
+            <Route path="/edit-post/:postId" element={<EditPostPage />} />
+            <Route path="/profile/:userId" element={<UserProfilePage user={user} />} />
+            <Route
+              path="/community/global-chat"
+              element={
+                <GlobalChatRoom
+                  user={user}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={(_id, status, word, messageId, sentence) => handleUpdateWordStatus(word, status, word, messageId, sentence)}
+                  onResetWordStatus={handleResetWordStatus}
+                  nativeLang={nativeLang}
+                  onSaveSentence={handleSaveSentence}
+                  onSaveImportant={handleSaveImportant}
+                  importantStack={importantStack}
+                />
+              }
+            />
+            <Route path="/chat/:userId" element={<DirectChat user={user} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </div>
     </BrowserRouter>
   );

@@ -13,4 +13,5 @@ export interface WordData {
     timestamp: Date;
     isInteractive?: boolean;
     koreanMeaning?: string;
+    category?: string;
 }

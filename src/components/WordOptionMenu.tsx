@@ -1,13 +1,16 @@
 import React from "react";
-import { BookOpen, Star, Volume2, Search, X } from "lucide-react";
+import { BookOpen, Star, Volume2, Search, X, Trash2 } from "lucide-react";
 
-export type WordOptionType = "sentence" | "important" | "tts" | "detail";
+export type WordOptionType = "sentence" | "important" | "tts" | "detail" | "delete";
 
 interface WordOptionMenuProps {
     isOpen: boolean;
     onClose: () => void;
     word: string;
     onSelectOption: (option: WordOptionType) => void;
+    hideSentenceOption?: boolean;
+    hideDeleteOption?: boolean;
+    hideImportantOption?: boolean;
 }
 
 // WordOptionMenu.tsx Reverted to Centered Modal
@@ -16,6 +19,9 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
     onClose,
     word,
     onSelectOption,
+    hideSentenceOption,
+    hideDeleteOption,
+    hideImportantOption,
 }) => {
     if (!isOpen) return null;
 
@@ -45,24 +51,17 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
 
                 {/* Options List */}
                 <div className="p-2 space-y-1">
-                    <MenuButton
-                        icon={<BookOpen className="w-5 h-5 text-blue-400" />}
-                        label="문장 저장"
-                        subLabel="이 문장을 보관함에 저장"
-                        onClick={() => {
-                            onSelectOption("sentence");
-                            onClose();
-                        }}
-                    />
-                    <MenuButton
-                        icon={<Star className="w-5 h-5 text-yellow-400" />}
-                        label="중요 단어"
-                        subLabel="중요 단어장에 추가"
-                        onClick={() => {
-                            onSelectOption("important");
-                            onClose();
-                        }}
-                    />
+                    {!hideSentenceOption && (
+                        <MenuButton
+                            icon={<BookOpen className="w-5 h-5 text-blue-400" />}
+                            label="문장 저장"
+                            subLabel="이 문장을 보관함에 저장"
+                            onClick={() => {
+                                onSelectOption("sentence");
+                                onClose();
+                            }}
+                        />
+                    )}
                     <MenuButton
                         icon={<Volume2 className="w-5 h-5 text-green-400" />}
                         label="발음 듣기"
@@ -81,6 +80,17 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                             onClose();
                         }}
                     />
+                    {!hideDeleteOption && (
+                        <MenuButton
+                            icon={<Trash2 className="w-5 h-5 text-red-400" />}
+                            label="단어 삭제"
+                            subLabel="목록에서 제거"
+                            onClick={() => {
+                                onSelectOption("delete");
+                                onClose();
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </div>

@@ -80,16 +80,16 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-[#1e1f20] px-4">
+      <div className="max-w-md w-full bg-[#2a2b2c] rounded-2xl shadow-xl p-8 border border-[#3a3b3c]">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
             <Mail className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">
+          <h1 className="text-2xl font-bold text-white mb-2">
             {isLogin ? "로그인" : "회원가입"}
           </h1>
-          <p className="text-slate-500">
+          <p className="text-zinc-400">
             {isLogin
               ? "Signal Voca에 오신 것을 환영합니다"
               : "새 계정을 만들어보세요"}
@@ -98,16 +98,16 @@ export function Auth({ onAuthSuccess }: AuthProps) {
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               이메일
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 bg-[#1e1f20] border border-[#3a3b3c] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder:text-zinc-600"
                 placeholder="your@email.com"
                 disabled={loading}
               />
@@ -115,16 +115,16 @@ export function Auth({ onAuthSuccess }: AuthProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
               비밀번호
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 bg-[#1e1f20] border border-[#3a3b3c] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder:text-zinc-600"
                 placeholder="••••••••"
                 disabled={loading}
               />
@@ -148,17 +148,17 @@ export function Auth({ onAuthSuccess }: AuthProps) {
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-300"></div>
+              <div className="w-full border-t border-[#3a3b3c]"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">또는</span>
+              <span className="px-2 bg-[#2a2b2c] text-zinc-500">또는</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleAuth}
             disabled={loading}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#3a3b3c] bg-[#1e1f20] hover:bg-[#3a3b3c] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Chrome className="w-5 h-5" />
             <span>Google로 로그인</span>

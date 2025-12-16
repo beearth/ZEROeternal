@@ -16,7 +16,8 @@ if (!API_KEY) {
 // 1. 모델 우선순위 리스트 정의
 // 사용자의 요청으로 무료 모델을 모두 제거하고 DeepSeek V3만 사용
 const MODELS = [
-  "deepseek/deepseek-chat", // DeepSeek V3 (유료, 고성능)
+  "google/gemini-2.0-flash-exp:free", // Vision 지원 및 고성능 (이미지 처리를 위해 우선순위 상향 또는 Fallback)
+  "deepseek/deepseek-chat", // DeepSeek V3 (유료, 고성능, 텍스트 전용)
 ];
 
 const openai = new OpenAI({
@@ -32,18 +33,24 @@ const openai = new OpenAI({
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  images?: string[]; // 이미지 데이터 (Base64) 추가
 }
 
 // 2. Fallback Wrapper Function
 // API 호출을 감싸서 실패 시 다음 모델로 자동 재시도하는 함수
-async function createCompletionWithFallback(messages: any[]): Promise<string> {
+async function createCompletionWithFallback(messages: any[], hasImages: boolean = false): Promise<string> {
   if (!API_KEY) throw new Error('OpenRouter API Key Missing');
 
   let lastError: any = null;
 
-  for (const model of MODELS) {
+  // 이미지가 있으면 Gemini 모델만 사용 (DeepSeek은 비전 미지원일 수 있음)
+  const targetModels = hasImages
+    ? MODELS.filter(m => m.includes('gemini') || m.includes('vision'))
+    : MODELS;
+
+  for (const model of targetModels) {
     try {
-      console.log(`🤖 AI 요청 시도: ${model}`); // 현재 시도 중인 모델 로그
+      console.log(`🤖 AI 요청 시도: ${model} (이미지 포함: ${hasImages})`); // 현재 시도 중인 모델 로그
 
       const completion = await openai.chat.completions.create({
         model: model,
@@ -88,17 +95,36 @@ export async function sendMessageToGemini(
 3. 답변에 포함된 모든 핵심 문장에 대해, 반드시 학습 언어(${targetLang})로 번역된 문장을 한 줄씩 덧붙여주세요.
 4. 번역된 문장은 클릭 가능한 학습 재료가 됩니다.
 5. 항상 친절하고 격려하는 태도를 유지하세요.
+이미지가 제공된 경우, 해당 이미지에 대해 설명하거나 관련된 언어 학습 대화를 이어가세요.
 `;
 
+  // 메시지 포맷 변환 (멀티모달 지원)
   const formattedMessages = [
     { role: "system" as const, content: systemPrompt },
-    ...messages.map(msg => ({
-      role: msg.role === 'user' ? "user" as const : "assistant" as const,
-      content: msg.content
-    }))
+    ...messages.map(msg => {
+      // 이미지가 있는 경우 (OpenAI Vision API 포맷)
+      if (msg.images && msg.images.length > 0) {
+        return {
+          role: msg.role === 'user' ? "user" as const : "assistant" as const,
+          content: [
+            { type: "text", text: msg.content || "이 이미지에 대해 설명해줘." },
+            ...msg.images.map(img => ({
+              type: "image_url",
+              image_url: { url: img }
+            }))
+          ]
+        };
+      }
+      // 텍스트만 있는 경우
+      return {
+        role: msg.role === 'user' ? "user" as const : "assistant" as const,
+        content: msg.content
+      };
+    })
   ];
 
-  return await createCompletionWithFallback(formattedMessages);
+  const hasImages = messages.some(m => m.images && m.images.length > 0);
+  return await createCompletionWithFallback(formattedMessages, hasImages);
 }
 
 export async function getKoreanMeaning(word: string): Promise<string> {

@@ -1,5 +1,7 @@
-import { Plus, MessageSquare, Trash2, X, BookOpen, Star, FileText, Users, User } from "lucide-react";
+import { useState } from "react";
+import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
+import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface Message {
@@ -38,27 +40,6 @@ interface SidebarProps {
   onResetVocabulary?: () => void;
 }
 
-interface StackIconProps {
-  active: "red" | "yellow" | "green";
-  className?: string;
-}
-
-function StackIcon({ active, className }: StackIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      <rect x="5" y="2" width="14" height="20" rx="4" fill="#1e1f20" stroke="#3a3b3c" strokeWidth="1.5" />
-      <circle cx="12" cy="7" r="2.5" fill={active === "red" ? "#ef4444" : "#2a2b2c"} className={active === "red" ? "animate-pulse" : ""} />
-      <circle cx="12" cy="12" r="2.5" fill={active === "yellow" ? "#eab308" : "#2a2b2c"} className={active === "yellow" ? "animate-pulse" : ""} />
-      <circle cx="12" cy="17" r="2.5" fill={active === "green" ? "#22c55e" : "#2a2b2c"} className={active === "green" ? "animate-pulse" : ""} />
-    </svg>
-  );
-}
-
 export function Sidebar({
   conversations,
   currentConversationId,
@@ -72,299 +53,272 @@ export function Sidebar({
   onResetLanguage,
   onResetVocabulary,
 }: SidebarProps) {
+  console.log("Sidebar: Rendered. isOpen:", isOpen);
   const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
 
+  const [isGarageOpen, setIsGarageOpen] = useState(true);
+
+  const MenuItem = ({
+    path,
+    icon,
+    label,
+    count,
+    activeColor = "red",
+    isSubItem = false,
+  }: {
+    path: string;
+    icon: React.ReactNode;
+    label: string;
+    count?: number;
+    activeColor?: string;
+    isSubItem?: boolean;
+  }) => {
+    const active = isActive(path);
+    return (
+      <button
+        onClick={() => {
+          navigate(path);
+          onClose();
+        }}
+        className={`w-full flex items-center justify-between text-sm py-2 px-3 transition-colors relative font-mono group
+          ${active
+            ? "bg-zinc-800/50 text-white"
+            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
+          }
+          ${isSubItem ? "pl-8" : ""}
+        `}
+      >
+        {active && (
+          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-600" />
+        )}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {icon}
+          <span className={`${active ? "font-bold" : "font-medium"} truncate`}>{label}</span>
+        </div>
+        {count !== undefined && count > 0 && (
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${active ? `text-${activeColor}-500 bg-${activeColor}-500/10` : "text-zinc-600 bg-zinc-800"
+            }`}>
+            {count}
+          </span>
+        )}
+      </button>
+    );
+  };
+
   return (
     <>
-      {/* 모바일 오버레이 */}
+      {/* Overlay (Mobile) */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* 사이드바 */}
-      <aside
-        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-[#1e1f20] border-r border-[#2a2b2c] flex flex-col transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          }`}
+      <div
+        className={`fixed top-0 left-0 h-full bg-[#09090b] border-r border-[#27272a] transition-transform duration-300 z-[9999] flex flex-col w-72 shadow-2xl
+          ${isOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"}`}
       >
-        {/* 헤더 */}
-        <div className="p-4 border-b border-[#2a2b2c]">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} onResetVocabulary={onResetVocabulary} />
-              <h2 className="font-bold text-xl bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 text-transparent bg-clip-text">SIGNAL VOCA</h2>
+        {/* Header */}
+        <div className="p-5 border-b border-[#27272a]">
+          {/* Header Top Row: Menu Button + Logo */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              {/* Mobile Menu Button - Left aligned */}
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-[#27272a] rounded transition-colors lg:hidden text-zinc-500 hover:text-white"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <EternalLogo />
             </div>
+
             <button
               onClick={onClose}
-              className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors lg:hidden"
+              className="p-1 hover:bg-[#27272a] rounded transition-colors lg:hidden text-zinc-500 hover:text-white"
             >
-              <X className="w-5 h-5 text-[#E3E3E3]" />
+              <X className="w-5 h-5" />
             </button>
           </div>
+
           <button
             onClick={() => {
               onNewConversation();
               navigate("/");
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+            className="group w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-300 rounded hover:border-red-500/50 hover:text-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] transition-all duration-300"
           >
-            <Plus className="w-5 h-5" />
-            <span>새 대화</span>
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
+            <span className="font-mono text-sm font-bold tracking-tight">NEW SIGNAL</span>
           </button>
         </div>
 
-        {/* 스택 통계 */}
-        <div className="p-4 border-b border-[#2a2b2c]">
-          <h3 className="text-sm font-semibold text-[#E3E3E3] mb-3">
-            학습 시그널
-          </h3>
-          <div className="space-y-1">
-            {/* Red Stack */}
+        {/* Main Menu */}
+        <div className="flex-1 overflow-y-auto py-6">
+
+          {/* RED GARAGE Section */}
+          <div className="mb-8 pl-1">
             <button
-              onClick={() => {
-                navigate("/stack/red");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/red") ? "bg-[#2a2b2c]" : "hover:bg-[#2a2b2c]/50"
-                }`}
+              onClick={() => setIsGarageOpen(!isGarageOpen)}
+              className="w-full flex items-center justify-between px-5 mb-3 group"
             >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                  <StackIcon active="red" className="w-5 h-5" />
-                </div>
-                <span className="text-red-400 font-medium truncate">
-                  Red Signal
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-zinc-600 group-hover:text-red-500 transition-colors" />
+                <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest group-hover:text-zinc-300 transition-colors">
+                  RED GARAGE
                 </span>
               </div>
-              {counts.red > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.red}
-                </span>
+              {isGarageOpen ? (
+                <ChevronDown className="w-3 h-3 text-zinc-600" />
+              ) : (
+                <ChevronRight className="w-3 h-3 text-zinc-600" />
               )}
             </button>
 
-            {/* Yellow Stack */}
-            <button
-              onClick={() => {
-                navigate("/stack/yellow");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/yellow")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <StackIcon active="yellow" className="w-5 h-5" />
-                </div>
-                <span className="text-yellow-400 font-medium truncate">
-                  Yellow Signal
-                </span>
+            {isGarageOpen && (
+              <div className="space-y-1">
+                <MenuItem
+                  path="/stack/red"
+                  label="Red Signal"
+                  count={counts.red}
+                  icon={
+                    <div
+                      className="rounded-full flex-shrink-0 neon-dot"
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        backgroundColor: '#dc2626',
+                        boxShadow: '0 0 8px #dc2626'
+                      }}
+                    />
+                  }
+                  isSubItem
+                />
+                <MenuItem
+                  path="/stack/yellow"
+                  label="Yellow Signal"
+                  count={counts.yellow}
+                  icon={
+                    <div
+                      className="rounded-full flex-shrink-0 neon-dot"
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        backgroundColor: '#ca8a04',
+                        boxShadow: '0 0 8px #ca8a04'
+                      }}
+                    />
+                  }
+                  isSubItem
+                  activeColor="yellow"
+                />
+                <MenuItem
+                  path="/stack/green"
+                  label="Green Signal"
+                  count={counts.green}
+                  icon={
+                    <div
+                      className="rounded-full flex-shrink-0 neon-dot"
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        backgroundColor: '#16a34a',
+                        boxShadow: '0 0 8px #16a34a'
+                      }}
+                    />
+                  }
+                  isSubItem
+                  activeColor="green"
+                />
               </div>
-              {counts.yellow > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.yellow}
-                </span>
-              )}
-            </button>
-
-            {/* Green Stack */}
-            <button
-              onClick={() => {
-                navigate("/stack/green");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/green")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                  <StackIcon active="green" className="w-5 h-5" />
-                </div>
-                <span className="text-green-400 font-medium truncate">
-                  Green Signal
-                </span>
-              </div>
-              {counts.green > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.green}
-                </span>
-              )}
-            </button>
-
-            {/* TOEIC 4000 */}
-            <button
-              onClick={() => {
-                navigate("/toeic-4000");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/toeic-4000")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-5 h-5 text-purple-400" />
-                </div>
-                <span className="text-purple-400 font-medium truncate">
-                  TOEIC 4000
-                </span>
-              </div>
-            </button>
-
-            {/* Important Stack */}
-            <button
-              onClick={() => {
-                navigate("/stack/important");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/important")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <Star className="w-5 h-5 text-blue-400" />
-                </div>
-                <span className="text-blue-400 font-medium truncate">
-                  중요 단어장
-                </span>
-              </div>
-              {counts.important > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.important}
-                </span>
-              )}
-            </button>
-
-            {/* Sentence Stack */}
-            <button
-              onClick={() => {
-                navigate("/stack/sentence");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/stack/sentence")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-orange-400" />
-                </div>
-                <span className="text-orange-400 font-medium truncate">
-                  문장 보관소
-                </span>
-              </div>
-              {counts.sentence > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold flex-shrink-0 ml-2">
-                  {counts.sentence}
-                </span>
-              )}
-            </button>
-
-
-
-            {/* Community */}
-            <button
-              onClick={() => {
-                navigate("/community");
-                onClose();
-              }}
-              className={`w-full flex items-center justify-between text-sm p-2 rounded-lg transition-colors ${isActive("/community")
-                ? "bg-[#2a2b2c]"
-                : "hover:bg-[#2a2b2c]/50"
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-pink-400" />
-                </div>
-                <span className="text-pink-400 font-medium truncate">
-                  Community
-                </span>
-              </div>
-            </button>
-
-
-          </div >
-        </div >
-
-        {/* 대화 목록 */}
-        < div className="flex-1 overflow-y-auto p-3 space-y-2" >
-          {
-            conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={`group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${conversation.id === currentConversationId && isActive("/")
-                  ? "bg-[#2a2b2c] border border-[#3a3b3c]"
-                  : "hover:bg-[#2a2b2c]/50 border border-transparent"
-                  }`}
-                onClick={() => {
-                  onSelectConversation(conversation.id);
-                  navigate("/");
-                  onClose();
-                }}
-              >
-                <div
-                  className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${conversation.id === currentConversationId && isActive("/")
-                    ? "bg-gradient-to-br from-blue-500 to-purple-600"
-                    : "bg-[#2a2b2c]"
-                    }`}
-                >
-                  <MessageSquare
-                    className={`w-5 h-5 ${conversation.id === currentConversationId && isActive("/")
-                      ? "text-white"
-                      : "text-[#9ca3af]"
-                      }`}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`truncate ${conversation.id === currentConversationId && isActive("/")
-                      ? "text-[#E3E3E3]"
-                      : "text-[#E3E3E3]"
-                      }`}
-                  >
-                    {conversation.title}
-                  </p>
-                  <p className="text-xs text-[#9ca3af] mt-1">
-                    {conversation.messages.length > 0
-                      ? `메시지 ${conversation.messages.length}개`
-                      : "메시지 없음"}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteConversation(conversation.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#3a3b3c] rounded-lg transition-all"
-                >
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                </button>
-              </div>
-            ))
-          }
-        </div >
-
-        {/* 푸터 */}
-        < div className="p-4 border-t border-[#2a2b2c]" >
-          <div className="text-xs text-[#9ca3af] text-center">
-            AI 채팅 어시스턴트 v1.0
+            )}
           </div>
-        </div >
-      </aside >
+
+          {/* THE ARMORY Section */}
+          <div className="mb-8 pl-1">
+            <div className="px-5 mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4 text-zinc-600" />
+              <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
+                THE ARMORY
+              </span>
+            </div>
+            <div className="space-y-1">
+              <MenuItem
+                path="/stack/sentence"
+                label="Sentence Archive"
+                count={counts.sentence}
+                icon={<FileText className="w-4 h-4 opacity-70" />}
+                isSubItem
+              />
+              <MenuItem
+                path="/toeic-4000"
+                label="TOEIC 4000"
+                icon={<BookOpen className="w-4 h-4 opacity-70" />}
+                isSubItem
+              />
+              <MenuItem
+                path="/community"
+                label="Community"
+                icon={<Users className="w-4 h-4 opacity-70" />}
+                isSubItem
+              />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-[#27272a] mx-5 my-6" />
+
+          {/* Recent Signals */}
+          <div className="px-5">
+            <h3 className="font-mono text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4">
+              RECENT SIGNALS
+            </h3>
+            <div className="space-y-1">
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={`group relative flex items-center gap-3 py-2 px-2 rounded cursor-pointer transition-all font-mono text-xs ${conversation.id === currentConversationId && isActive("/")
+                    ? "text-zinc-200 bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/30"
+                    }`}
+                  onClick={() => {
+                    onSelectConversation(conversation.id);
+                    navigate("/");
+                    onClose();
+                  }}
+                >
+                  <span className="truncate flex-1">
+                    {conversation.title}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConversation(conversation.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded transition-all"
+                  >
+                    <Trash2 className="w-3 h-3 text-red-500/70 hover:text-red-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[#27272a]">
+          <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} onResetVocabulary={onResetVocabulary} />
+
+          <div className="mt-4 flex items-center justify-between opacity-30">
+            <span className="font-mono text-[10px] text-zinc-500">SYSTEM READY</span>
+            <span className="font-mono text-[10px] text-zinc-500">v2.0</span>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

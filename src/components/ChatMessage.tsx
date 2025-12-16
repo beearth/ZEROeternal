@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
+import { EternalLogo } from "./EternalLogo";
 import { toast } from "sonner";
 import { useLongPress } from "../hooks/useLongPress";
-import { RadialMenu } from "./RadialMenu";
 import { WordDetailModal } from "./WordDetailModal";
+import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
+import { format } from "date-fns";
 import { generateStudyTips } from "../services/gemini";
-
 import type { WordData } from "../types";
 
 interface Message {
@@ -13,6 +14,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  images?: string[];
 }
 
 interface ChatMessageProps {
@@ -33,35 +35,20 @@ interface ChatMessageProps {
   userVocabulary?: Record<string, { status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string }>;
 }
 
-// Helper function for styles (moved outside)
+// Helper function for styles
 const getWordStyle = (state: number) => {
   switch (state) {
     case 1:
       return {
-        className: "bg-red-200 text-red-900",
-        style: { backgroundColor: "#fecaca", color: "#7f1d1d" },
-      };
-    case 2:
-      return {
-        className: "bg-yellow-200 text-yellow-900",
-        style: { backgroundColor: "#fef08a", color: "#713f12" },
-      };
-    case 3:
-      return {
-        className: "bg-green-200 text-green-900",
-        style: { backgroundColor: "#bbf7d0", color: "#14532d" },
-      };
-    case 4:
-      return {
-        className: "bg-blue-200 text-blue-900",
-        style: { backgroundColor: "#bfdbfe", color: "#1e3a8a" },
+        className: "group",
+        style: {},
       };
     default:
       return { className: "", style: {} };
   }
 };
 
-// 단어 컴포넌트 (롱프레스 훅 사용) - Top Level로 이동하여 불필요한 재생성 방지
+// 단어 컴포넌트 (롱프레스 훅 사용)
 const WordSpan = React.memo(({
   part,
   partIndex,
@@ -75,6 +62,7 @@ const WordSpan = React.memo(({
   onClick,
   setIsHolding,
   startOffset,
+  koreanMeaning,
 }: {
   part: string;
   partIndex: number;
@@ -88,6 +76,7 @@ const WordSpan = React.memo(({
   onClick: (index: number, word: string) => void;
   setIsHolding: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
   startOffset: number;
+  koreanMeaning?: string;
 }) => {
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
@@ -102,29 +91,24 @@ const WordSpan = React.memo(({
     threshold: 10,
   });
 
-  // Compute styles internally to avoid passing new objects as props
   const styleInfo = getWordStyle(wordState);
 
-  // Compute holding background color internally
   const getHoldingBackgroundColor = (): string => {
     if (!isCurrentlyHolding) return styleInfo.style.backgroundColor || "transparent";
-    // 기존 배경색을 더 어둡게 (약 20% 어둡게)
-    if (wordState === 1) return "#fca5a5"; // red-300
-    if (wordState === 2) return "#fde047"; // yellow-300
-    if (wordState === 3) return "#86efac"; // green-300
-    if (wordState === 4) return "#93c5fd"; // blue-300
-    return "#d1d5db"; // gray-300
+    if (wordState === 1) return "#fca5a5";
+    if (wordState === 2) return "#fde047";
+    if (wordState === 3) return "#86efac";
+    if (wordState === 4) return "#93c5fd";
+    return "#d1d5db";
   };
 
   return (
     <span
       key={partIndex}
       {...longPressHandlers}
-      onContextMenu={(e) => e.preventDefault()} // 모바일 컨텍스트 메뉴 차단
+      onContextMenu={(e) => e.preventDefault()}
       onPointerLeave={(e) => {
-        // 포인터가 떠났을 때는 롱프레스만 취소 (클릭 실행 안 함)
         longPressHandlers.onPointerLeave?.(e);
-        // 홀딩 상태만 해제
         setIsHolding((prev) => {
           const updated = { ...prev };
           delete updated[wordIndex];
@@ -141,17 +125,39 @@ const WordSpan = React.memo(({
         }`}
       style={{
         userSelect: "none",
-        WebkitUserSelect: "none", // Chrome/Safari/Opera
-        MozUserSelect: "none",    // Firefox
-        msUserSelect: "none",     // IE/Edge
-        WebkitTouchCallout: "none", // iOS long-press menu
-        touchAction: "manipulation", // Improve touch response
+        WebkitUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none",
+        WebkitTouchCallout: "none",
+        touchAction: "manipulation",
         ...styleInfo.style,
         backgroundColor: getHoldingBackgroundColor(),
         transform: isCurrentlyHolding ? 'scale(0.98)' : 'scale(1)',
       }}
+      // @ts-ignore
+      onSelectStart={(e) => e.preventDefault()}
     >
       {part}
+      {wordState === 1 && (
+        <>
+          {/* Superscript Red Dot */}
+          <span
+            className="absolute -top-0.5 -right-1 flex rounded-full neon-dot"
+            style={{
+              width: "5px",
+              height: "5px",
+              backgroundColor: "#dc2626",
+              boxShadow: "0 0 5px #dc2626, 0 0 10px #dc2626"
+            }}
+          />
+
+          {/* Tooltip */}
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800/90 backdrop-blur-sm rounded-lg shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/10">
+            {koreanMeaning || "뜻을 불러오는 중..."}
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-800/90 rotate-45 transform border-r border-b border-white/10" />
+          </span>
+        </>
+      )}
     </span>
   );
 });
@@ -159,24 +165,20 @@ const WordSpan = React.memo(({
 // 마크다운 제거 함수
 const cleanMarkdown = (text: string): string => {
   return text
-    .replace(/\*\*/g, "") // ** 제거
-    .replace(/\*/g, "") // * 제거
-    .replace(/`/g, "") // 백틱 제거
-    .replace(/#{1,6}\s/g, "") // 헤더 마크다운 제거
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/`/g, "")
+    .replace(/#{1,6}\s/g, "")
     .trim();
 };
 
-// 의미 있는 단어인지 확인 (모든 언어 지원)
 const isMeaningfulWord = (text: string): boolean => {
   const cleaned = cleanMarkdown(text);
-  // 유니코드 속성 이스케이프를 사용하여 모든 언어의 문자(\p{L})와 숫자(\p{N}) 허용
   return /[\p{L}\p{N}]/u.test(cleaned);
 };
 
-// 텍스트 세그먼트 분리 함수 (일관된 토큰화 보장)
 const getSegments = (text: string) => {
   let parts: string[] = [];
-  // Use Intl.Segmenter for intelligent word segmentation (supports CJK, etc.)
   if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
     const segmenter = new (Intl as any).Segmenter(undefined, { granularity: 'word' });
     const segments = segmenter.segment(text);
@@ -184,35 +186,23 @@ const getSegments = (text: string) => {
       parts.push(segment);
     }
   } else {
-    // Fallback for older browsers
     parts = text.split(/([\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+)/);
   }
   return parts;
 };
 
-// 단어 처리 헬퍼 함수 (renderWords와 useEffect 간의 로직 일치 보장)
 const processPart = (part: string) => {
-  // 1. 공백/문장부호 체크
   if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
     return { isValid: false, finalWord: '', wordKey: '' };
   }
-
-  // 2. 마크다운 제거
   const cleanedPart = cleanMarkdown(part);
-
-  // 3. 의미 있는 단어인지 체크
   if (!isMeaningfulWord(part)) {
     return { isValid: false, finalWord: '', wordKey: '' };
   }
-
-  // 4. 최종 단어 추출
   const finalWord = cleanedPart.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-
-  // 5. 길이 체크 (2글자 미만 제외)
   if (!finalWord || finalWord.length < 2) {
     return { isValid: false, finalWord: '', wordKey: '' };
   }
-
   return { isValid: true, finalWord, wordKey: finalWord.toLowerCase() };
 };
 
@@ -227,11 +217,9 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isAssistant = message.role === "assistant";
   const [wordStates, setWordStates] = useState<Record<number, number>>({});
-
   const [isHolding, setIsHolding] = useState<Record<number, boolean>>({});
   const [highlightWord, setHighlightWord] = useState<number | null>(null);
 
-  // 래디얼 메뉴 상태
   const [radialMenu, setRadialMenu] = useState<{
     showRadialMenu: boolean;
     menuCenter: { x: number; y: number } | null;
@@ -247,7 +235,6 @@ export function ChatMessage({
     selectedWordData: null,
   });
 
-  // Word Detail Modal State
   const [selectedDetailWord, setSelectedDetailWord] = useState<{
     word: string;
     koreanMeaning: string;
@@ -257,196 +244,73 @@ export function ChatMessage({
     wordId: string;
   } | null>(null);
 
-  const startPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  // userVocabulary 변경 시 단어 상태 동기화
-  useEffect(() => {
-    if (!isAssistant || isTyping) return;
-
-    // 메시지 텍스트를 토큰화해서 전역 단어장과 동기화
-    // 중요: renderWords와 동일한 getSegments 함수를 사용하여 인덱스 불일치 방지
-    const parts = getSegments(message.content);
-    let wordIndex = 0;
-    const newWordStates: Record<number, number> = {};
-
-    parts.forEach((part) => {
-      // [CRITICAL FIX] processPart 헬퍼를 사용하여 renderWords와 완벽하게 동일한 로직 적용
-      const { isValid, wordKey } = processPart(part);
-
-      if (!isValid) return;
-
-      const globalEntry = userVocabulary?.[wordKey];
-
-      // [긴급 수정] 사용자가 방금 클릭해서 업데이트 대기 중인 경우 -> 로컬 상태 최우선 (반응성 보장)
-      const isPendingUpdate = !!updateTimeouts.current[wordIndex];
-      const localState = wordStates[wordIndex] || 0;
-      let state = 0;
-
-      if (isPendingUpdate) {
-        state = localState;
-      } else if (globalEntry) {
-        switch (globalEntry.status) {
-          case "red": state = 1; break;
-          case "yellow": state = 2; break;
-          case "green": state = 3; break;
-          case "orange": state = 4; break;
-          default: state = 0; break;
-        }
-      } else {
-        // [STRICT SYNC] If not in vocabulary and not pending update, FORCE WHITE (0).
-        // Do not fallback to localState, which leads to "Ghost Colors".
-        state = 0;
-      }
-
-      newWordStates[wordIndex] = state;
-      wordIndex++;
-    });
-
-    // 기존 상태와 병합 (전역 상태를 우선시하여 덮어쓰기)
-    setWordStates((prev) => {
-      const merged = { ...prev };
-      // 모든 인덱스에 대해 업데이트 (누락된 인덱스가 없도록)
-      Object.keys(newWordStates).forEach((key) => {
-        const numKey = parseInt(key);
-        merged[numKey] = newWordStates[numKey];
-      });
-
-      // 더 이상 유효하지 않은 인덱스 제거
-      const maxIndex = wordIndex;
-      Object.keys(merged).forEach((key) => {
-        const numKey = parseInt(key);
-        if (numKey >= maxIndex) {
-          delete merged[numKey];
-        }
-      });
-
-      return merged;
-    });
-  }, [userVocabulary, message.content, isAssistant, isTyping]);
-
-  // Ref to keep track of wordStates without triggering re-renders in callbacks
+  const updateTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const pendingUpdates = useRef<Record<string, number>>({});
   const wordStatesRef = useRef(wordStates);
+
   useEffect(() => {
     wordStatesRef.current = wordStates;
   }, [wordStates]);
 
-  // Debounce refs for word updates
-  const updateTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  // Optimistic updates tracking (wordKey -> status)
-  const pendingUpdates = useRef<Record<string, number>>({});
-
-  // 단어 클릭 (짧은 탭) - 색상 순환 및 상태 업데이트
   const handleWordClick = useCallback(async (index: number, word: string) => {
-    if (
-      !isAssistant ||
-      isTyping
-    )
-      return;
+    if (!isAssistant || isTyping) return;
 
-    // 순수 텍스트만 사용 (마크다운 제거)
     const cleanWord = cleanMarkdown(word);
     if (!isMeaningfulWord(word)) return;
-
-    // 단어만 추출 (공백이나 문장부호 제거)
     const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
     if (!finalWord || finalWord.length < 2) return;
 
-    // Use ref to get current state without adding dependency
     const currentState = wordStatesRef.current[index] || 0;
-    let nextState: number;
+    const nextState = currentState === 1 ? 0 : 1;
 
-    // 순환 로직: 0(White) -> 1(Red) -> 2(Yellow) -> 3(Green) -> 0(White)
-    // 4(Orange) -> 1(Red) (중요 단어 클릭 시 학습 시작)
-    if (currentState === 0) {
-      nextState = 1; // White -> Red
-    } else if (currentState === 3) {
-      nextState = 0; // Green -> White
-    } else if (currentState === 4) {
-      nextState = 1; // Orange -> Red
-    } else {
-      nextState = currentState + 1; // Red -> Yellow -> Green
-    }
-
-    // 1. 즉시 로컬 상태 업데이트 (UI 반응성 향상)
     setWordStates((prev) => {
       const newStates = { ...prev };
       newStates[index] = nextState;
       return newStates;
     });
 
-    // [CRITICAL FIX] Set pending update immediately to prevent revert
     pendingUpdates.current[finalWord.toLowerCase()] = nextState;
 
-    // 2. API 호출 및 토스트 메시지 Debounce 처리
-    // 기존 타이머가 있다면 취소 (이전 클릭 무시)
     if (updateTimeouts.current[index]) {
       clearTimeout(updateTimeouts.current[index]);
     }
 
-    // 새로운 타이머 설정 (500ms 동안 추가 클릭이 없으면 실행)
     updateTimeouts.current[index] = setTimeout(async () => {
-      // Green -> White로 변경되는 경우 onResetWordStatus 호출
       if (nextState === 0) {
         if (onResetWordStatus) {
           try {
             await Promise.resolve(onResetWordStatus(finalWord));
-            toast.success(`단어 "${finalWord}"이(가) 초기 상태(White)로 복원되었습니다`, {
-              duration: 2000,
-            });
+            toast.success(`단어 "${finalWord}"이(가) 초기 상태(White)로 복원되었습니다`, { duration: 2000 });
           } catch (error) {
-            console.error("단어 상태 초기화 중 오류:", error);
-            toast.error("단어 상태 초기화에 실패했습니다.", {
-              duration: 2000,
-            });
+            console.error(error);
           }
         }
-      }
-      // Red, Yellow, Green, Orange 상태 업데이트
-      else if (onUpdateWordStatus && nextState > 0) {
+      } else if (onUpdateWordStatus && nextState > 0) {
         const statusMap: Record<number, "red" | "yellow" | "green" | "orange"> = {
-          1: "red",
-          2: "yellow",
-          3: "green",
-          4: "orange",
+          1: "red", 2: "yellow", 3: "green", 4: "orange",
         };
-        const statusNames = {
-          1: "Red",
-          2: "Yellow",
-          3: "Green",
-          4: "Important",
-        };
+        const statusNames = { 1: "Red", 2: "Yellow", 3: "Green", 4: "Important" };
         const wordId = `${message.id}-${index}-${finalWord.toLowerCase()}`;
-        const newStatus = statusMap[nextState];
 
         try {
           await onUpdateWordStatus(
             wordId,
-            newStatus,
+            statusMap[nextState],
             finalWord,
             message.id,
             message.content,
-            "", // koreanMeaning: AI로 자동 가져옴
+            "",
             false
           );
-
-          // 피드백 메시지
-          toast.success(
-            `단어 "${finalWord}"이(가) ${statusNames[nextState as keyof typeof statusNames]} Stack에 저장되었습니다`,
-            {
-              duration: 2000,
-            }
-          );
+          toast.success(`단어 "${finalWord}"이(가) ${statusNames[nextState as keyof typeof statusNames]} Stack에 저장되었습니다`, { duration: 2000 });
         } catch (error) {
-          console.error("단어 상태 업데이트 실패:", error);
+          console.error(error);
         }
       }
-
-      // 타이머 참조 제거
       delete updateTimeouts.current[index];
-    }, 600); // 600ms 딜레이 (사용자가 색상을 고를 시간 여유)
+    }, 600);
   }, [isAssistant, isTyping, message.id, message.content, onResetWordStatus, onUpdateWordStatus]);
 
-  // userVocabulary 변경 시 단어 상태 동기화
   useEffect(() => {
     if (!isAssistant || isTyping) return;
 
@@ -456,14 +320,12 @@ export function ChatMessage({
 
     parts.forEach((part) => {
       const { isValid, wordKey } = processPart(part);
-
       if (!isValid) return;
 
       const globalEntry = userVocabulary?.[wordKey];
       const pendingState = pendingUpdates.current[wordKey];
       let state = 0;
 
-      // [CRITICAL FIX] Check if global entry matches pending state to clear pending
       if (pendingState !== undefined) {
         if (globalEntry) {
           let globalStateNum = 0;
@@ -476,10 +338,10 @@ export function ChatMessage({
             delete pendingUpdates.current[wordKey];
             state = globalStateNum;
           } else {
-            state = pendingState; // Keep pending until synced
+            state = pendingState;
           }
         } else {
-          state = pendingState; // Keep pending
+          state = pendingState;
         }
       } else if (globalEntry) {
         switch (globalEntry.status) {
@@ -504,100 +366,21 @@ export function ChatMessage({
       const maxIndex = wordIndex;
       Object.keys(merged).forEach((key) => {
         const numKey = parseInt(key);
-        if (numKey >= maxIndex) {
-          delete merged[numKey];
-        }
+        if (numKey >= maxIndex) delete merged[numKey];
       });
       return merged;
     });
   }, [userVocabulary, message.content, isAssistant, isTyping]);
 
-  const renderWords = (text: string) => {
-    const parts = getSegments(text);
-    let wordIndex = 0;
-    let charCursor = 0;
-
-    return parts.map((part, partIndex) => {
-      const currentStartOffset = charCursor;
-      charCursor += part.length;
-
-      const { isValid, finalWord, wordKey } = processPart(part);
-
-      if (!isValid) {
-        return <span key={partIndex}>{part}</span>;
-      }
-
-      const currentWordIndex = wordIndex;
-      wordIndex++;
-
-      const globalEntry = userVocabulary?.[wordKey];
-      const pendingState = pendingUpdates.current[wordKey];
-      const localState = wordStates[currentWordIndex] || 0;
-
-      let finalState = 0;
-
-      // [CRITICAL FIX] Prioritize pending updates
-      if (pendingState !== undefined) {
-        finalState = pendingState;
-      } else if (globalEntry) {
-        switch (globalEntry.status) {
-          case "red": finalState = 1; break;
-          case "yellow": finalState = 2; break;
-          case "green": finalState = 3; break;
-          case "orange": finalState = 4; break;
-          default: finalState = 0; break;
-        }
-      } else {
-        finalState = localState;
-      }
-
-      const wordState = finalState;
-      const isSelected = radialMenu.showRadialMenu && radialMenu.selectedWordData?.index === currentWordIndex;
-      const isCurrentlyHolding = isHolding[currentWordIndex] || false;
-      const isHighlighted = highlightWord === currentWordIndex;
-
-      return (
-        <WordSpan
-          key={partIndex}
-          part={part}
-          partIndex={partIndex}
-          wordIndex={currentWordIndex}
-          finalWord={finalWord}
-          wordState={wordState}
-          isSelected={isSelected}
-          isCurrentlyHolding={isCurrentlyHolding}
-          isHighlighted={isHighlighted}
-          onLongPress={handleLongPress}
-          onClick={handleWordClick}
-          setIsHolding={setIsHolding}
-          startOffset={currentStartOffset}
-        />
-      );
-    });
-  };
-
-  // 롱프레스 핸들러 - 옵션 메뉴 열기
-  const handleLongPress = useCallback((
-    e: React.PointerEvent,
-    wordIndex: number,
-    word: string,
-    startOffset: number
-  ) => {
+  const handleLongPress = useCallback((e: React.PointerEvent, wordIndex: number, word: string, startOffset: number) => {
     if (!isAssistant || isTyping) return;
 
-    // 클릭된 정확한 지점의 화면 좌표 (이벤트의 clientX, clientY 사용)
     const clickX = e.clientX;
     const clickY = e.clientY;
 
-    // 파란색 하이라이트 애니메이션 시작
     setHighlightWord(wordIndex);
+    if (navigator.vibrate) navigator.vibrate(50);
 
-    // 햅틱 피드백
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
-
-    // 래디얼 메뉴 표시 (클릭된 정확한 지점을 중심으로)
     const cleanWord = cleanMarkdown(word);
     const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
 
@@ -618,29 +401,24 @@ export function ChatMessage({
       return updated;
     });
 
-    // 하이라이트는 조금 더 유지 후 제거
     setTimeout(() => {
       setHighlightWord(null);
     }, 100);
   }, [isAssistant, isTyping, message.id]);
 
-  // 래디얼 메뉴 선택 핸들러
-  const handleRadialSelect = useCallback((direction: "left" | "right" | "top" | "bottom") => {
+  const handleOptionSelect = useCallback((option: WordOptionType) => {
     const selectedWordData = radialMenu.selectedWordData;
     if (!selectedWordData) return;
 
     const { word: finalWord, wordId, startOffset } = selectedWordData;
 
-    switch (direction) {
-      case "left":
-        // 📄 문장 저장 (Left)
+    switch (option) {
+      case "sentence":
         if (onSaveSentence && finalWord && finalWord.length >= 2) {
-          // Find the specific sentence
           const fullText = message.content;
           const targetOffset = startOffset;
           const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
           const parts = fullText.split(sentenceRegex);
-
           let currentPos = 0;
           let foundSentence = "";
 
@@ -648,7 +426,6 @@ export function ChatMessage({
             const part = parts[i];
             const partLength = part.length;
             const endPos = currentPos + partLength;
-
             if (targetOffset >= currentPos && targetOffset < endPos) {
               foundSentence = part;
               break;
@@ -656,42 +433,21 @@ export function ChatMessage({
             currentPos += partLength;
           }
 
-          // 1. Try User Selection first
           const selection = window.getSelection()?.toString().trim();
           if (selection && selection.length > 5) {
             onSaveSentence(selection);
-            toast.success(`선택한 문장이 저장되었습니다.`, { duration: 2000 });
+            toast.success(`선택한 문장이 저장되었습니다.`);
             return;
           }
 
-          // 2. Fallback to extracting sentence containing the word
-          const targetSentence = foundSentence.trim() || message.content.split(/([.?!]\s+)/).map((p, i, a) => i % 2 === 0 ? p + (a[i + 1] || "") : "").find(s => s.includes(finalWord)) || message.content;
-
+          const targetSentence = foundSentence.trim() || message.content;
           if (targetSentence) {
             onSaveSentence(targetSentence.trim());
-            toast.success(`문장이 저장되었습니다.`, { duration: 2000 });
+            toast.success(`문장이 저장되었습니다.`);
           }
         }
         break;
-
-      case "right":
-        // ⭐ 중요 단어 저장 (Right)
-        if (onSaveImportant && finalWord && finalWord.length >= 2) {
-          onSaveImportant({
-            id: wordId,
-            word: finalWord,
-            status: "orange",
-            messageId: message.id,
-            sentence: message.content,
-            timestamp: new Date(),
-            koreanMeaning: userVocabulary?.[finalWord.toLowerCase()]?.koreanMeaning || ""
-          });
-          toast.success(`단어 "${finalWord}"이(가) 중요 단어장에 저장되었습니다`, { duration: 2000 });
-        }
-        break;
-
-      case "bottom":
-        // 🔊 발음 듣기 (Bottom)
+      case "tts":
         if (window.speechSynthesis && finalWord && finalWord.length >= 2) {
           const utterance = new SpeechSynthesisUtterance(finalWord);
           utterance.lang = "en-US";
@@ -700,9 +456,7 @@ export function ChatMessage({
           toast.error("음성 재생을 지원하지 않는 브라우저입니다.");
         }
         break;
-
-      case "top":
-        // 🔍 상세 보기 (Top)
+      case "detail":
         if (finalWord && finalWord.length >= 2) {
           const entry = userVocabulary?.[finalWord.toLowerCase()];
           setSelectedDetailWord({
@@ -717,40 +471,102 @@ export function ChatMessage({
         break;
     }
 
-    // 메뉴 닫기
     setRadialMenu({
       showRadialMenu: false,
       menuCenter: null,
       selectedWordData: null,
     });
+  }, [radialMenu.selectedWordData, onSaveSentence, message.content, message.id, userVocabulary]);
 
-  }, [radialMenu.selectedWordData, onSaveSentence, onSaveImportant, message.content, message.id, userVocabulary]);
+  const renderWords = (text: string) => {
+    const parts = getSegments(text);
+    let wordIndex = 0;
+    let charCursor = 0;
 
+    return parts.map((part, partIndex) => {
+      const currentStartOffset = charCursor;
+      charCursor += part.length;
+      const { isValid, finalWord, wordKey } = processPart(part);
 
+      if (!isValid) return <span key={partIndex}>{part}</span>;
+
+      const currentWordIndex = wordIndex;
+      wordIndex++;
+
+      const globalEntry = userVocabulary?.[wordKey];
+      const pendingState = pendingUpdates.current[wordKey];
+      const localState = wordStates[currentWordIndex] || 0;
+      let finalState = 0;
+
+      if (pendingState !== undefined) finalState = pendingState;
+      else if (globalEntry) {
+        switch (globalEntry.status) {
+          case "red": finalState = 1; break;
+          case "yellow": finalState = 2; break;
+          case "green": finalState = 3; break;
+          case "orange": finalState = 4; break;
+          default: finalState = 0; break;
+        }
+      } else finalState = localState;
+
+      const isSelected = radialMenu.showRadialMenu && radialMenu.selectedWordData?.index === currentWordIndex;
+      const isCurrentlyHolding = isHolding[currentWordIndex] || false;
+      const isHighlighted = highlightWord === currentWordIndex;
+
+      return (
+        <WordSpan
+          key={partIndex}
+          part={part}
+          partIndex={partIndex}
+          wordIndex={currentWordIndex}
+          finalWord={finalWord}
+          wordState={finalState}
+          isSelected={isSelected}
+          isCurrentlyHolding={isCurrentlyHolding}
+          isHighlighted={isHighlighted}
+          onLongPress={handleLongPress}
+          onClick={handleWordClick}
+          setIsHolding={setIsHolding}
+          startOffset={currentStartOffset}
+          koreanMeaning={globalEntry?.koreanMeaning}
+        />
+      );
+    });
+  };
 
   return (
     <div className={`flex ${isAssistant ? "justify-start" : "justify-end"} mb-6`}>
       <div className={`flex flex-col max-w-[85%] ${isAssistant ? "items-start" : "items-end"}`}>
         {isAssistant && (
-          <div className="flex items-center gap-2 mb-1 ml-1">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-sm">
-              <Bot className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-xs font-medium text-slate-500">AI Assistant</span>
+          <div className="mb-2">
+            <EternalLogo textClassName="hidden" dotClassName="w-2.5 h-2.5" />
           </div>
         )}
 
         <div
           className={`relative px-5 py-4 rounded-2xl shadow-sm transition-all duration-200 ${isAssistant
-            ? "bg-white border border-slate-100 text-slate-800 rounded-tl-none hover:shadow-md"
-            : "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-tr-none shadow-blue-200"
+            ? "bg-transparent text-zinc-100 pl-0"
+            : "bg-[#2a2b2c] text-white rounded-tr-2xl"
             }`}
         >
+          {message.images && message.images.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {message.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt="attached"
+                  className="max-w-full h-auto rounded-lg max-h-[300px] object-cover border border-zinc-600/50"
+                />
+              ))}
+            </div>
+          )}
+
           {isTyping ? (
             <div className="flex gap-1.5 items-center h-6 px-2">
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" />
             </div>
           ) : (
             <div className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
@@ -761,24 +577,19 @@ export function ChatMessage({
 
         <span className="text-[11px] text-slate-400 mt-1 px-1">
           {message.timestamp instanceof Date
-            ? message.timestamp.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            ? format(message.timestamp, "HH:mm")
             : ""}
         </span>
       </div>
 
-      {/* Radial Menu */}
-      <RadialMenu
+      <WordOptionMenu
         isOpen={radialMenu.showRadialMenu}
-        center={radialMenu.menuCenter}
         word={radialMenu.selectedWordData?.word || ""}
         onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
-        onSelect={handleRadialSelect}
+        onSelectOption={handleOptionSelect}
+        hideDeleteOption={true}
       />
 
-      {/* Word Detail Modal */}
       {selectedDetailWord && (
         <WordDetailModal
           open={!!selectedDetailWord}
