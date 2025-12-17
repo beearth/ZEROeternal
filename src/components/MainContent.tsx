@@ -124,17 +124,19 @@ export function MainContent({
                             }}
                         >
                             <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                            {/* Embedded Red Dot */}
+                            {/* Embedded Red Dot - Centered in Lens */}
                             <div style={{
                                 position: 'absolute',
-                                top: '12px', // Approximate center of 24px box + padding
-                                left: '12px',
+                                top: '50%',
+                                left: '50%',
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
                                 backgroundColor: '#dc2626',
                                 transform: 'translate(-50%, -50%)',
-                                boxShadow: '0 0 4px #dc2626',
+                                marginTop: '-1px', // Fine-tune for lens center
+                                marginLeft: '-1px',
+                                boxShadow: '0 0 5px #dc2626',
                                 pointerEvents: 'none',
                             }} />
                         </button>
