@@ -170,22 +170,23 @@ html, body, #root {
     -webkit-overflow-scrolling: touch;
 }
 
-/* Make sure scrollbar is visible */
+/* Make sure scrollbar is visible - Custom Thin Style */
 .overflow-y-auto::-webkit-scrollbar {
-    width: 8px;
+    width: 4px; /* Very thin */
+    display: block; /* Ensure visibility */
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-    background: #2a2b2c;
+    background: transparent; /* Cleaner look */
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #4a4b4c;
+    background: #52525b; /* zinc-600 */
     border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: #5a5b5c;
+    background: #71717a; /* zinc-500 */
 }
 
 /* Prevent touch actions from blocking scrolls */

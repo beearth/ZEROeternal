@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search } from "lucide-react";
+import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search, SquarePen, Settings, MoreHorizontal, Pencil } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -20,8 +20,6 @@ interface Conversation {
 
 interface StackCounts {
   red: number;
-  yellow: number;
-  green: number;
   important: number;
   sentence: number;
 }
@@ -79,6 +77,14 @@ export function Sidebar({
   const isActive = (path: string) => location.pathname === path;
 
   const [isGarageOpen, setIsGarageOpen] = useState(true);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const MenuItem = ({
     path,
@@ -129,15 +135,16 @@ export function Sidebar({
 
   return (
     <>
-      {/* Overlay (Mobile only) - blocks clicks behind sidebar */}
+      {/* Overlay (Mobile only) */}
       {!isDesktop && isOpen && (
         <div
+          className="lg:hidden"
           style={{
             position: 'fixed',
             inset: 0,
             backgroundColor: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(4px)',
-            zIndex: 9998,
+            zIndex: 150,
           }}
           onClick={onClose}
         />
@@ -145,37 +152,98 @@ export function Sidebar({
 
       {/* Sidebar container */}
       <aside
+        className="bg-[#09090b] border-r border-[#27272a] flex flex-col transition-all duration-300 ease-in-out"
         style={{
           position: isDesktop ? 'relative' : 'fixed',
           top: 0,
-          left: isDesktop ? 'auto' : (shouldShowSidebar ? 0 : -288),
-          width: shouldShowSidebar ? 288 : 0,
-          minWidth: shouldShowSidebar ? 288 : 0,
-          height: isDesktop ? 'auto' : '100%',
-          backgroundColor: '#09090b',
-          borderRight: shouldShowSidebar ? '1px solid #27272a' : 'none',
-          transition: 'width 0.3s ease-in-out, min-width 0.3s ease-in-out, left 0.3s ease-in-out',
-          zIndex: isDesktop ? 'auto' : 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-          overflowY: 'auto',
-          overflowX: 'hidden',
+          left: isDesktop ? 'auto' : (isOpen ? 0 : '-100%'),
+          // Desktop: Expanded 280px, Collapsed (Mini) 72px. Mobile: 280px or 0.
+          width: isDesktop ? (isOpen ? '280px' : '72px') : '280px',
+          height: '100vh',
+          zIndex: isDesktop ? 30 : 200,
+          // Always visible on desktop (either full or mini)
+          visibility: (isDesktop) ? 'visible' : (isOpen ? 'visible' : 'hidden'),
+          opacity: 1,
         }}
       >
-        {/* Header */}
-        <div style={{ padding: '1.25rem', borderBottom: '1px solid #27272a' }}>
-          {/* Header Top Row: Menu Button only (ETERNAL is in main header) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            {/* 3-Set Header: Hamburger > Search(with Red Dot) > ETERNAL */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Render Mini or Full based on desktop state */}
+        {isDesktop && !isOpen ? (
+            // MINI SIDEBAR CONTENT
+            <div className="flex flex-col h-full items-center py-4">
+                {/* 1. Hamburger (Top) */}
+                <button
+                    onClick={onToggle}
+                    className="p-2 mb-4 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
+
+                {/* 2. New Signal (SquarePen) */}
+                <button
+                    onClick={() => {
+                        onNewConversation();
+                        navigate("/");
+                    }}
+                    className="p-3 bg-[#1e1e20] text-zinc-400 hover:text-white rounded-xl mb-4 transition-colors"
+                >
+                    <SquarePen className="w-5 h-5" />
+                </button>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* 3. Red Signal (Red Dot) */}
+                 <button
+                    onClick={() => navigate("/stack/red")}
+                    className="p-2 mb-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors relative"
+                >
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                    {counts.red > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
+                </button>
+
+                {/* 4. Settings */}
+                <button
+                     // We might need a mini settings menu or just navigate to settings?
+                     // For now, let's just trigger reset language as a placeholder or better yet, make SettingsMenu capable of mini mode?
+                     // Or just a simple gear icon that maybe does nothing or toggles the full menu?
+                     // Let's just put the gear icon. Parent SettingsMenu renders complex UI.
+                     // Simplest: Click -> Open Sidebar? or Navigate to settings page (if exists)?
+                     // The user asked for "Settings Icon".
+                     // Let's just make it toggle sidebar + open settings menu?
+                     // Or just a visual icon for now?
+                     // "아래는 설정아이콘 깔끔하게 똑같이"
+                     onClick={() => {/* Maybe toggle sidebar to show settings? */ onToggle(); }}
+                     className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                >
+                    <Settings className="w-5 h-5" />
+                </button>
+                
+                 {/* System Status Dot */}
+                 <div className="mt-4 mb-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            </div>
+        ) : (
+            // FULL SIDEBAR CONTENT (Existing)
+            <div className="flex flex-col h-full w-full">
+            {/* Header - EXACT MATCH to MainContent Header */}
+            <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.75rem 1rem', // Match MainContent
+            minHeight: '60px',       // Match MainContent
+            borderBottom: '1px solid #27272a',
+        }}>
+           {/* Left Section: Hamburger > Search > ETERNAL */}
+           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               {/* 1. Hamburger Menu */}
               <button
                 onClick={onToggle}
                 style={{
                   padding: '0.5rem',
                   borderRadius: '0.5rem',
-                  color: '#9ca3af', // zinc-400
+                  color: '#9ca3af',
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
@@ -199,11 +267,11 @@ export function Sidebar({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  position: 'relative', // For absolute positioning of the dot
+                  position: 'relative',
                 }}
               >
                 <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                {/* Embedded Red Dot - Centered in Lens */}
+                {/* Embedded Red Dot */}
                 <div style={{
                   position: 'absolute',
                   top: '50%',
@@ -212,15 +280,15 @@ export function Sidebar({
                   height: '6px',
                   borderRadius: '50%',
                   backgroundColor: '#dc2626',
-                  transform: 'translate(-50%, -50%)', // Center perfectly in the button
-                  marginTop: '-1px', // Fine-tune for lens center (cx=11) vs icon center (12)
+                  transform: 'translate(-50%, -50%)',
+                  marginTop: '-1px',
                   marginLeft: '-1px',
-                  boxShadow: '0 0 5px #dc2626', // Slightly increased glow
+                  boxShadow: '0 0 5px #dc2626',
                   pointerEvents: 'none',
                 }} />
               </button>
 
-              {/* 3. ETERNAL brand (No Red Dot) */}
+              {/* 3. ETERNAL brand */}
               <span style={{
                 fontSize: '0.875rem',
                 fontWeight: '500',
@@ -232,8 +300,8 @@ export function Sidebar({
               </span>
             </div>
 
-            {/* Close button - Mobile only */}
-            <button
+             {/* Close button - Mobile only */}
+             <button
               onClick={onClose}
               style={{
                 padding: '0.25rem',
@@ -247,132 +315,114 @@ export function Sidebar({
             >
               <X style={{ width: '1.25rem', height: '1.25rem' }} />
             </button>
-          </div>
+        </div>
 
+        {/* Top Section: New Signal Button */}
+        <div className="px-4 py-4">
           <button
             onClick={() => {
               onNewConversation();
               navigate("/");
+              if (!isDesktop) onClose();
             }}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              padding: '0.625rem 1rem',
-              backgroundColor: '#18181b',
-              border: '1px solid #3f3f46',
-              color: '#d4d4d8',
-              borderRadius: '0.25rem',
-              transition: 'all 0.3s',
-            }}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#18181b] hover:bg-[#27272a] text-[#d4d4d8] rounded-full transition-colors group border border-[#3f3f46]"
           >
-            <Plus style={{ width: '1rem', height: '1rem' }} />
-            <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: 'bold' }}>NEW SIGNAL</span>
+            <Plus className="w-5 h-5 text-[#9ca3af] group-hover:text-white transition-colors" />
+            <span className="font-mono text-sm font-bold tracking-wide">NEW SIGNAL</span>
           </button>
         </div>
 
-        {/* Main Menu */}
-        <div className="flex-1 overflow-y-auto py-6">
+        {/* Scrollable Signal List */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 custom-scrollbar">
+          
+          {/* Recent Signals */}
+          <div className="mb-6">
+            <div className="px-4 mb-2 flex items-center justify-between">
+              <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
+                RECENT SIGNALS
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              {conversations.slice(0, 5).map((conv) => (
+                <div key={conv.id} className="relative group">
+                    <button
+                    onClick={() => {
+                        onSelectConversation(conv.id);
+                        navigate("/");
+                        if (!isDesktop) onClose();
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm truncate rounded-lg transition-colors pr-12 ${
+                        currentConversationId === conv.id
+                        ? "bg-[#27272a] text-white"
+                        : "text-zinc-400 hover:text-zinc-200 hover:bg-[#27272a]/50"
+                    }`}
+                    >
+                    {conv.title}
+                    </button>
+                    
+                    {/* More Options Button (Visible on Hover or if Menu Active) */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuId(activeMenuId === conv.id ? null : conv.id);
+                        }}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors ${
+                            activeMenuId === conv.id ? "opacity-100 bg-zinc-700 text-white" : "opacity-0 group-hover:opacity-100"
+                        }`}
+                    >
+                        <MoreHorizontal className="w-4 h-4" />
+                    </button>
 
-          {/* RED GARAGE Section */}
-          <div style={{ marginBottom: '2rem', paddingLeft: '0.25rem' }}>
-            <button
-              onClick={() => setIsGarageOpen(!isGarageOpen)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 1.25rem',
-                marginBottom: '0.75rem',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <LayoutGrid style={{ width: '1rem', height: '1rem', color: '#52525b' }} />
-                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 'bold', color: '#71717a', letterSpacing: '0.1em' }}>
-                  RED GARAGE
-                </span>
-              </div>
-              {isGarageOpen ? (
-                <ChevronDown style={{ width: '0.75rem', height: '0.75rem', color: '#52525b' }} />
-              ) : (
-                <ChevronRight style={{ width: '0.75rem', height: '0.75rem', color: '#52525b' }} />
-              )}
-            </button>
-
-            {isGarageOpen && (
-              <div className="space-y-1">
-                <MenuItem
-                  path="/stack/red"
-                  label="Red Signal"
-                  count={counts.red}
-                  icon={
-                    <div
-                      className="rounded-full flex-shrink-0 neon-dot"
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        backgroundColor: '#dc2626',
-                        boxShadow: '0 0 8px #dc2626'
-                      }}
-                    />
-                  }
-                  isSubItem
-                />
-                <MenuItem
-                  path="/stack/yellow"
-                  label="Yellow Signal"
-                  count={counts.yellow}
-                  icon={
-                    <div
-                      className="rounded-full flex-shrink-0 neon-dot"
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        backgroundColor: '#ca8a04',
-                        boxShadow: '0 0 8px #ca8a04'
-                      }}
-                    />
-                  }
-                  isSubItem
-                  activeColor="yellow"
-                />
-                <MenuItem
-                  path="/stack/green"
-                  label="Green Signal"
-                  count={counts.green}
-                  icon={
-                    <div
-                      className="rounded-full flex-shrink-0 neon-dot"
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        backgroundColor: '#16a34a',
-                        boxShadow: '0 0 8px #16a34a'
-                      }}
-                    />
-                  }
-                  isSubItem
-                  activeColor="green"
-                />
-              </div>
-            )}
+                    {/* Dropdown Menu */}
+                    {activeMenuId === conv.id && (
+                        <div 
+                            className="absolute right-0 top-full mt-1 w-32 bg-[#1e1f20] border border-[#27272a] rounded-lg shadow-xl z-50 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()} 
+                        >
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Handle Rename (Not implemented yet - maybe just prompt or toast)
+                                    // onRenameConversation(conv.id); 
+                                    setActiveMenuId(null);
+                                    console.log("Rename clicked");
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 hover:bg-[#27272a] hover:text-white text-left"
+                            >
+                                <Pencil className="w-3 h-3" />
+                                이름 변경
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm("정말 삭제하시겠습니까?")) {
+                                        onDeleteConversation(conv.id);
+                                    }
+                                    setActiveMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-[#27272a] hover:text-red-300 text-left"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                                삭제
+                            </button>
+                        </div>
+                    )}
+                </div>
+              ))}
+            </div>
           </div>
 
+
+
           {/* THE ARMORY Section */}
-          <div className="mb-8 pl-1">
-            <div className="px-5 mb-3 flex items-center gap-2">
+          <div className="mb-8">
+            <div className="px-4 mb-2 flex items-center gap-2">
               <Users className="w-4 h-4 text-zinc-600" />
               <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
                 THE ARMORY
               </span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5 px-2">
               <MenuItem
                 path="/stack/sentence"
                 label="Sentence Archive"
@@ -394,56 +444,45 @@ export function Sidebar({
               />
             </div>
           </div>
+        </div>
 
-          {/* Divider */}
-          <div className="border-t border-[#27272a] mx-5 my-6" />
+        {/* Bottom Fixed Section */}
+        <div className="p-4 border-t border-[#27272a] bg-[#09090b]">
+           {/* Red Signal - Fixed Bottom Left */}
+           <button
+            onClick={() => {
+              navigate("/stack/red");
+              if (!isDesktop) onClose();
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-colors mb-2"
+          >
+            <div
+              className="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]"
+            />
+            <span className="text-sm font-medium">Red Signal</span>
+            {counts.red > 0 && (
+               <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                 {counts.red}
+               </span>
+            )}
+          </button>
 
-          {/* Recent Signals */}
-          <div className="px-5">
-            <h3 className="font-mono text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4">
-              RECENT SIGNALS
-            </h3>
-            <div className="space-y-1">
-              {conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={`group relative flex items-center gap-3 py-2 px-2 rounded cursor-pointer transition-all font-mono text-xs ${conversation.id === currentConversationId && isActive("/")
-                    ? "text-zinc-200 bg-zinc-800/50"
-                    : "text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/30"
-                    }`}
-                  onClick={() => {
-                    onSelectConversation(conversation.id);
-                    navigate("/");
-                    onClose();
-                  }}
-                >
-                  <span className="truncate flex-1">
-                    {conversation.title}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteConversation(conversation.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded transition-all"
-                  >
-                    <Trash2 className="w-3 h-3 text-red-500/70 hover:text-red-500" />
-                  </button>
-                </div>
-              ))}
+          <SettingsMenu
+            onLogout={onLogout}
+            onResetLanguage={onResetLanguage}
+            onResetVocabulary={onResetVocabulary}
+          />
+          <div className="mt-4 flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] text-zinc-500 font-mono tracking-wider">SYSTEM READY</span>
             </div>
+            <span className="text-[10px] text-zinc-600 font-mono">v2.0</span>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-[#27272a]">
-          <SettingsMenu onLogout={onLogout} onResetLanguage={onResetLanguage} onResetVocabulary={onResetVocabulary} />
-
-          <div className="mt-4 flex items-center justify-between opacity-30">
-            <span className="font-mono text-[10px] text-zinc-500">SYSTEM READY</span>
-            <span className="font-mono text-[10px] text-zinc-500">v2.0</span>
-          </div>
-        </div>
+            {/* End of Full Sidebar Content */}
+            </div>
+        )}
       </aside>
     </>
   );

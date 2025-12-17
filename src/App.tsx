@@ -122,8 +122,7 @@ export default function App() {
   const lastLoadedVocab = useRef<Record<string, VocabularyEntry> | null>(null);
   const lastLoadedConvs = useRef<Conversation[] | null>(null);
   const lastLoadedRed = useRef<string[] | null>(null);
-  const lastLoadedYellow = useRef<string[] | null>(null);
-  const lastLoadedGreen = useRef<string[] | null>(null);
+  // lastLoadedYellow/Green removed
   const lastLoadedImportant = useRef<WordData[] | null>(null);
   const lastLoadedSentence = useRef<string[] | null>(null);
 
@@ -173,8 +172,7 @@ export default function App() {
   // 5개의 데이터 저장소 (useEffect보다 먼저 선언)
   // Red, Yellow, Green Stack은 깔끔하게 정제된 단어 텍스트만 저장
   const [redStack, setRedStack] = useState<string[]>([]);
-  const [yellowStack, setYellowStack] = useState<string[]>([]);
-  const [greenStack, setGreenStack] = useState<string[]>([]);
+  // Yellow/Green stacks removed
   const [importantStack, setImportantStack] = useState<WordData[]>([]);
   const [sentenceStack, setSentenceStack] = useState<string[]>([]);
 
@@ -352,19 +350,7 @@ export default function App() {
     saveUserStackField(user.uid, "red", redStack);
   }, [redStack, user, isDataLoaded]);
 
-  // Yellow Stack 저장
-  useEffect(() => {
-    if (!isDataLoaded || !user) return;
-    if (JSON.stringify(yellowStack) === JSON.stringify(lastLoadedYellow.current)) return;
-    saveUserStackField(user.uid, "yellow", yellowStack);
-  }, [yellowStack, user, isDataLoaded]);
-
-  // Green Stack 저장
-  useEffect(() => {
-    if (!isDataLoaded || !user) return;
-    if (JSON.stringify(greenStack) === JSON.stringify(lastLoadedGreen.current)) return;
-    saveUserStackField(user.uid, "green", greenStack);
-  }, [greenStack, user, isDataLoaded]);
+  // Yellow/Green Stack Save Effects Removed
 
   // Important Stack 저장
   useEffect(() => {
@@ -445,8 +431,7 @@ export default function App() {
       };
 
       process(stacks.red, 'red');
-      process(stacks.yellow, 'yellow');
-      process(stacks.green, 'green');
+      // Yellow/Green process removed
       process(stacks.important, 'orange');
 
       setUserVocabulary(mergedVocab);
@@ -462,17 +447,7 @@ export default function App() {
       };
 
       const newRedStack = deriveStack('red');
-      const newYellowStack = deriveStack('yellow');
-      const newGreenStack = deriveStack('green');
-
-      setRedStack(newRedStack);
-      lastLoadedRed.current = newRedStack;
-
-      setYellowStack(newYellowStack);
-      lastLoadedYellow.current = newYellowStack;
-
-      setGreenStack(newGreenStack);
-      lastLoadedGreen.current = newGreenStack;
+      // Yellow/Green derive removed
 
       if (Array.isArray(stacks.important)) {
         setImportantStack(stacks.important);
@@ -522,8 +497,7 @@ export default function App() {
         setIsDataLoaded(false); // 로딩 상태 초기화
         setUserVocabulary({});
         setRedStack([]);
-        setYellowStack([]);
-        setGreenStack([]);
+        // Yellow/Green cleanup removed
         setImportantStack([]);
         setSentenceStack([]);
         setConversations([
@@ -643,6 +617,13 @@ export default function App() {
   };
 
   const handleNewConversation = () => {
+    // Prevent duplicate empty conversations
+    if (conversations.length > 0 && conversations[0].messages.length === 0) {
+      setCurrentConversationId(conversations[0].id);
+      // Optional: toast.info("이미 새로운 대화가 열려있습니다.");
+      return;
+    }
+
     const newConversation: Conversation = {
       id: Date.now().toString(),
       title: "새로운 대화",
@@ -786,12 +767,9 @@ export default function App() {
     // Update derived stacks immediately
     if (newStatus !== prevStatus) {
       setRedStack(prev => prev.filter(w => w !== wordKey));
-      setYellowStack(prev => prev.filter(w => w !== wordKey));
-      setGreenStack(prev => prev.filter(w => w !== wordKey));
+      setRedStack(prev => prev.filter(w => w !== wordKey));
 
       if (newStatus === "red") setRedStack(prev => [...prev, wordKey]);
-      else if (newStatus === "yellow") setYellowStack(prev => [...prev, wordKey]);
-      else if (newStatus === "green") setGreenStack(prev => [...prev, wordKey]);
     }
 
     // 2. [Background Process] Fetch Translation if missing
@@ -848,8 +826,6 @@ export default function App() {
     });
 
     setRedStack(prev => prev.filter(w => w !== wordKey));
-    setYellowStack(prev => prev.filter(w => w !== wordKey));
-    setGreenStack(prev => prev.filter(w => w !== wordKey));
     setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
   };
 
@@ -1079,8 +1055,7 @@ export default function App() {
       // 로컬 상태 초기화
       setUserVocabulary({});
       setRedStack([]);
-      setYellowStack([]);
-      setGreenStack([]);
+      // yellow/green removed
       setImportantStack([]);
 
       toast.success("모든 단어 데이터가 초기화되었습니다.");
@@ -1095,8 +1070,7 @@ export default function App() {
     setUser(null);
     setUserVocabulary({});
     setRedStack([]);
-    setYellowStack([]);
-    setGreenStack([]);
+    // yellow/green removed
     setImportantStack([]);
     setSentenceStack([]);
     setConversations([]);
@@ -1162,8 +1136,7 @@ export default function App() {
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
           counts={{
             red: redStack.length,
-            yellow: yellowStack.length,
-            green: greenStack.length,
+            // yellow/green counts removed
             important: importantStack.length,
             sentence: sentenceStack.length,
           }}
@@ -1179,7 +1152,7 @@ export default function App() {
 
         {/* Main Content Area - No padding needed, sidebar takes its own space */}
         <div
-          className="flex-1 flex flex-col min-w-0 transition-all duration-300"
+          className="flex-1 flex flex-col min-w-0 transition-all duration-300 h-full overflow-hidden"
         >
           <Routes>
             <Route
@@ -1231,7 +1204,7 @@ export default function App() {
                 />
               }
             />
-
+            {/* Yellow and Green Routes Removed */}
             <Route
               path="/stack/important"
               element={

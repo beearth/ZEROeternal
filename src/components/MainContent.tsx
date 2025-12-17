@@ -74,7 +74,7 @@ export function MainContent({
         scrollToBottom();
     }, [currentConversation?.messages, isTyping]);
     return (
-        <div className="flex-1 flex flex-col bg-[#1e1f20]">
+        <div className="flex-1 flex flex-col bg-[#1e1f20] h-full overflow-hidden">
             {/* 헤더 - Gemini Style */}
             <header style={{
                 backgroundColor: '#1e1f20',
@@ -83,16 +83,20 @@ export function MainContent({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                position: 'relative',
-                zIndex: 50,
+                position: 'sticky',
+                top: 0,
+                zIndex: 100, // Ensure it stays on top of Sidebar (z-60)
+                minHeight: '60px',
             }}>
                 {/* Left Section: Hamburger > Search > Red dot + ETERNAL (Gemini Style Fixed) */}
                 {/* Only show when sidebar is CLOSED. When open, these elements are shown in the sidebar header. */}
-                {!isSidebarOpen ? (
+                {!isSidebarOpen && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {/* 1. Hamburger Menu */}
+
                         <button
                             onClick={() => onToggleSidebar()}
+                            className="lg:hidden flex items-center justify-center"
                             style={{
                                 padding: '0.5rem',
                                 borderRadius: '0.5rem',
@@ -100,9 +104,6 @@ export function MainContent({
                                 background: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
                             }}
                         >
                             <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
@@ -152,18 +153,18 @@ export function MainContent({
                             ETERNAL
                         </span>
                     </div>
-                ) : (
-                    // Placeholder or empty when sidebar is open to maintain layout if needed? 
-                    // No, justify-content: space-between will push right section to end, which is correct.
-                    // But we might want an empty div to prevent right section from jumping if we want it strictly pinned?
-                    // Actually, if left side is gone, flex-start becomes empty.
-                    // If we want Right Section to stay on Right, space-between works fine.
-                    <div />
                 )}
+
+
+
+                {/* Center: Current Conversation Title */}
+                <div className="absolute left-1/2 transform -translate-x-1/2 font-medium text-sm text-zinc-200 truncate max-w-[200px] text-center hidden md:block">
+                     {currentConversation?.title || "새로운 대화"}
+                </div>
 
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
                         <NotificationsPopover userId={user.uid} />
                         {/* Small profile icon */}
                         <div style={{

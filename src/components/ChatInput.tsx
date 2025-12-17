@@ -54,13 +54,13 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   };
 
   return (
-    <div className="flex flex-col gap-3 bg-[#2a2b2c] rounded-[32px] p-5 shadow-xl transition-all">
+    <div className="flex flex-col gap-2 md:gap-3 bg-[#2a2b2c] rounded-[24px] md:rounded-[32px] p-3 md:p-5 shadow-xl transition-all">
       {/* Image Previews */}
       {images.length > 0 && (
         <div className="flex gap-2 px-2 overflow-x-auto pb-2">
           {images.map((img, index) => (
             <div key={index} className="relative flex-shrink-0">
-              <img src={img} alt="preview" className="h-16 w-16 object-cover rounded-lg border border-zinc-600" />
+              <img src={img} alt="preview" className="h-14 w-14 md:h-16 md:w-16 object-cover rounded-lg border border-zinc-600" />
               <button
                 type="button"
                 onClick={() => removeImage(index)}
@@ -83,7 +83,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           placeholder="매타인지 하기"
           disabled={disabled}
           rows={1}
-          className="w-full resize-none bg-transparent px-2 text-lg text-white placeholder:text-zinc-500 focus:outline-none min-h-[56px]"
+          className="w-full resize-none bg-transparent px-2 text-base md:text-lg text-white placeholder:text-zinc-500 focus:outline-none min-h-[44px] md:min-h-[56px]"
           style={{
             height: 'auto',
           }}

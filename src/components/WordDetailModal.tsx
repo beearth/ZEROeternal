@@ -94,11 +94,9 @@ export function WordDetailModal({
   const handleMoveToNextStatus = () => {
     let nextStatus: "red" | "yellow" | "green" | "white" | "orange";
     if (status === "red") {
-      nextStatus = "yellow";
-    } else if (status === "yellow") {
-      nextStatus = "green";
-    } else if (status === "green") {
-      nextStatus = "white";
+      nextStatus = "white"; // Red -> Complete (Remove)
+    } else if (status === "green" || status === "yellow") {
+        nextStatus = "white";
     } else if (status === "orange") {
       nextStatus = "red"; // 중요 단어 -> 학습 시작
     } else {
@@ -144,18 +142,18 @@ export function WordDetailModal({
   const getNextStatusInfo = () => {
     if (status === "red") {
       return {
-        label: "🟡 Yellow Stack으로 이동",
-        description: "이 단어를 학습 중인 단어로 이동합니다",
-        color: "#eab308",
-        icon: "🟡",
+        label: "✅ 학습 완료 (목록에서 제거)",
+        description: "이 단어를 단어장에서 제거합니다",
+        color: "#ffffff",
+        icon: "✅",
         showButton: true
       };
-    } else if (status === "yellow") {
-      return {
-        label: "🟢 Green Stack으로 이동",
-        description: "이 단어를 마스터 완료 상태로 이동합니다",
-        color: "#22c55e",
-        icon: "🟢",
+    } else if (status === "yellow" || status === "green") {
+         return {
+        label: "✅ 학습 완료 (목록에서 제거)",
+        description: "이 단어를 단어장에서 제거합니다",
+        color: "#ffffff",
+        icon: "✅",
         showButton: true
       };
     } else if (status === "orange") {
