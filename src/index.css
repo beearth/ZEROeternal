@@ -149,3 +149,11 @@
         box-shadow: 0 0 5px #dc2626, 0 0 10px #dc2626;
     }
 }
+
+/* Desktop Sidebar - Always visible on lg+ screens */
+@media (min-width: 1024px) {
+    .sidebar-panel {
+        transform: translateX(0) !important;
+        pointer-events: auto !important;
+    }
+}

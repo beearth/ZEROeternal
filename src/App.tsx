@@ -74,20 +74,20 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Auto-close sidebar on window resize if small screen
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setIsSidebarOpen(false);
-      } else {
-        // Optional: Auto-open on desktop resize? Let's stick to user preference or default open
-        setIsSidebarOpen(true);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // [DISABLED] Auto-close sidebar on window resize was causing sidebar to reset after every click
+  // This was the bug: resize events fire unexpectedly and override user's toggle action
+  // useEffect(() => {
+  //   const handleResize = () => {
+  //     if (window.innerWidth < 1024) {
+  //       setIsSidebarOpen(false);
+  //     } else {
+  //       setIsSidebarOpen(true);
+  //     }
+  //   };
+  //
+  //   window.addEventListener('resize', handleResize);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, []);
 
   // 언어 상태
   // 언어 상태 (LocalStorage에서 초기화하여 새로고침 시 리셋 방지)
@@ -1134,37 +1134,38 @@ export default function App() {
         onLogout={logout}
       />
 
-      <Sidebar
-        conversations={conversations}
-        currentConversationId={currentConversationId}
-        onSelectConversation={handleSelectConversation}
-        onNewConversation={handleNewConversation}
-        onDeleteConversation={handleDeleteConversation}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        counts={{
-          red: redStack.length,
-          yellow: yellowStack.length,
-          green: greenStack.length,
-          important: importantStack.length,
-          sentence: sentenceStack.length,
-        }}
-        onLogout={handleLogout}
-        onResetLanguage={() => {
-          setNativeLang("ko");
-          setTargetLang(null);
-          localStorage.removeItem("signal_native_lang");
-          localStorage.removeItem("signal_target_lang");
-        }}
-        onResetVocabulary={handleResetVocabulary}
-      />
-
       <div className="flex h-[100dvh] bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden relative">
 
-        {/* Main Content Area - Pushed by Sidebar on Desktop */}
+        {/* Sidebar - participates in flex layout on desktop */}
+        <Sidebar
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          counts={{
+            red: redStack.length,
+            yellow: yellowStack.length,
+            green: greenStack.length,
+            important: importantStack.length,
+            sentence: sentenceStack.length,
+          }}
+          onLogout={handleLogout}
+          onResetLanguage={() => {
+            setNativeLang("ko");
+            setTargetLang(null);
+            localStorage.removeItem("signal_native_lang");
+            localStorage.removeItem("signal_target_lang");
+          }}
+          onResetVocabulary={handleResetVocabulary}
+        />
+
+        {/* Main Content Area - No padding needed, sidebar takes its own space */}
         <div
-          className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isSidebarOpen ? "lg:pl-72" : ""
-            }`}
+          className="flex-1 flex flex-col min-w-0 transition-all duration-300"
         >
           <Routes>
             <Route
@@ -1179,10 +1180,7 @@ export default function App() {
                   isSidebarOpen={isSidebarOpen}
                   onLogout={handleLogout}
                   user={user}
-                  onToggleSidebar={() => {
-                    console.log("App: Toggle Sidebar clicked. Prev:", isSidebarOpen, "New:", !isSidebarOpen);
-                    setIsSidebarOpen(!isSidebarOpen);
-                  }}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                   userVocabulary={userVocabulary}
                   onUpdateWordStatus={handleUpdateWordStatus}
                   onResetWordStatus={handleResetWordStatus}

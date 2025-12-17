@@ -18,7 +18,10 @@ export function EternalLogo({ className = "", textClassName = "", dotClassName =
                     boxShadow: '0 0 10px #dc2626, 0 0 20px #dc2626'
                 }}
             ></div>
-            <span className={`text-lg font-bold text-zinc-200 tracking-widest ${textClassName}`}>ETERNAL</span>
+            <span
+                className={`text-lg font-bold tracking-widest ${textClassName}`}
+                style={{ color: '#e4e4e7' }}
+            >ETERNAL</span>
         </div>
     );
 }

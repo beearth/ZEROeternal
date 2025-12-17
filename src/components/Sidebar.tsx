@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
@@ -34,6 +34,7 @@ interface SidebarProps {
   onDeleteConversation: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  onToggle: () => void;
   counts: StackCounts;
   onLogout: () => void;
   onResetLanguage: () => void;
@@ -48,14 +49,30 @@ export function Sidebar({
   onDeleteConversation,
   isOpen,
   onClose,
+  onToggle,
   counts,
   onLogout,
   onResetLanguage,
   onResetVocabulary,
 }: SidebarProps) {
-  console.log("Sidebar: Rendered. isOpen:", isOpen);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Detect desktop screen size
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth >= 1024
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // On desktop, sidebar is always visible. On mobile, it depends on isOpen.
+  const shouldShowSidebar = isDesktop || isOpen;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -110,38 +127,76 @@ export function Sidebar({
 
   return (
     <>
-      {/* Overlay (Mobile) */}
-      {isOpen && (
+      {/* Overlay (Mobile only) - blocks clicks behind sidebar */}
+      {!isDesktop && isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9998,
+          }}
           onClick={onClose}
         />
       )}
 
-      <div
-        className={`fixed top-0 left-0 h-full bg-[#09090b] border-r border-[#27272a] transition-transform duration-300 z-[9999] flex flex-col w-72 shadow-2xl
-          ${isOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"}`}
+      {/* Sidebar container */}
+      <aside
+        style={{
+          position: isDesktop ? 'relative' : 'fixed',
+          top: 0,
+          left: isDesktop ? 'auto' : (shouldShowSidebar ? 0 : -288),
+          width: 288,
+          minWidth: isDesktop ? 288 : 0,
+          height: isDesktop ? 'auto' : '100%',
+          backgroundColor: '#09090b',
+          borderRight: '1px solid #27272a',
+          transition: isDesktop ? 'none' : 'left 0.3s ease-in-out',
+          zIndex: isDesktop ? 'auto' : 9999,
+          display: isDesktop ? 'flex' : (shouldShowSidebar ? 'flex' : 'none'),
+          flexDirection: 'column',
+          flexShrink: 0,
+          overflowY: 'auto',
+        }}
       >
         {/* Header */}
-        <div className="p-5 border-b border-[#27272a]">
-          {/* Header Top Row: Menu Button + Logo */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              {/* Mobile Menu Button - Left aligned */}
+        <div style={{ padding: '1.25rem', borderBottom: '1px solid #27272a' }}>
+          {/* Header Top Row: Menu Button only (ETERNAL is in main header) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Hamburger Menu Button - Always visible, toggles sidebar */}
               <button
-                onClick={onClose}
-                className="p-1 hover:bg-[#27272a] rounded transition-colors lg:hidden text-zinc-500 hover:text-white"
+                onClick={onToggle}
+                style={{
+                  padding: '0.25rem',
+                  borderRadius: '0.25rem',
+                  transition: 'background-color 0.2s',
+                  color: '#71717a',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
               >
-                <Menu className="w-5 h-5" />
+                <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
               </button>
-              <EternalLogo />
+              {/* EternalLogo removed - now in main header */}
             </div>
 
+            {/* Close button - Mobile only */}
             <button
               onClick={onClose}
-              className="p-1 hover:bg-[#27272a] rounded transition-colors lg:hidden text-zinc-500 hover:text-white"
+              style={{
+                padding: '0.25rem',
+                borderRadius: '0.25rem',
+                color: '#71717a',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: isDesktop ? 'none' : 'block',
+              }}
             >
-              <X className="w-5 h-5" />
+              <X style={{ width: '1.25rem', height: '1.25rem' }} />
             </button>
           </div>
 
@@ -150,10 +205,22 @@ export function Sidebar({
               onNewConversation();
               navigate("/");
             }}
-            className="group w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-300 rounded hover:border-red-500/50 hover:text-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] transition-all duration-300"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1rem',
+              backgroundColor: '#18181b',
+              border: '1px solid #3f3f46',
+              color: '#d4d4d8',
+              borderRadius: '0.25rem',
+              transition: 'all 0.3s',
+            }}
           >
-            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="font-mono text-sm font-bold tracking-tight">NEW SIGNAL</span>
+            <Plus style={{ width: '1rem', height: '1rem' }} />
+            <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: 'bold' }}>NEW SIGNAL</span>
           </button>
         </div>
 
@@ -161,21 +228,31 @@ export function Sidebar({
         <div className="flex-1 overflow-y-auto py-6">
 
           {/* RED GARAGE Section */}
-          <div className="mb-8 pl-1">
+          <div style={{ marginBottom: '2rem', paddingLeft: '0.25rem' }}>
             <button
               onClick={() => setIsGarageOpen(!isGarageOpen)}
-              className="w-full flex items-center justify-between px-5 mb-3 group"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 1.25rem',
+                marginBottom: '0.75rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-zinc-600 group-hover:text-red-500 transition-colors" />
-                <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest group-hover:text-zinc-300 transition-colors">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <LayoutGrid style={{ width: '1rem', height: '1rem', color: '#52525b' }} />
+                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 'bold', color: '#71717a', letterSpacing: '0.1em' }}>
                   RED GARAGE
                 </span>
               </div>
               {isGarageOpen ? (
-                <ChevronDown className="w-3 h-3 text-zinc-600" />
+                <ChevronDown style={{ width: '0.75rem', height: '0.75rem', color: '#52525b' }} />
               ) : (
-                <ChevronRight className="w-3 h-3 text-zinc-600" />
+                <ChevronRight style={{ width: '0.75rem', height: '0.75rem', color: '#52525b' }} />
               )}
             </button>
 
@@ -318,7 +395,7 @@ export function Sidebar({
             <span className="font-mono text-[10px] text-zinc-500">v2.0</span>
           </div>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

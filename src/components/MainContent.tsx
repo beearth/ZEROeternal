@@ -75,58 +75,73 @@ export function MainContent({
     }, [currentConversation?.messages, isTyping]);
     return (
         <div className="flex-1 flex flex-col bg-[#1e1f20]">
-            {/* 헤더 */}
-            <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-4 py-4 flex items-center justify-between relative z-50">
-                {/* Left Section: Menu (Visible) & Logo (Hidden on Desktop) */}
-                <div className="flex items-center gap-3">
+            {/* 헤더 - Gemini Style */}
+            <header style={{
+                backgroundColor: '#1e1f20',
+                borderBottom: '1px solid #2a2b2c',
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                position: 'relative',
+                zIndex: 50,
+            }}>
+                {/* Left Section: Hamburger + Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {/* Hamburger - Mobile only */}
                     <button
-                        onClick={() => {
-                            // alert("DEBUG: Clicked");
-                            console.log("MainContent: Button Clicked");
-                            onToggleSidebar();
+                        onClick={() => onToggleSidebar()}
+                        className="lg:hidden"
+                        style={{
+                            padding: '0.5rem',
+                            borderRadius: '0.375rem',
+                            color: '#a1a1aa',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
                         }}
-                        className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors text-zinc-400 hover:text-white"
                     >
-                        {isSidebarOpen ? (
-                            <Menu className="w-5 h-5" />
-                        ) : (
-                            <Menu className="w-5 h-5" />
-                        )}
+                        <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
                     </button>
 
-                    {/* Logo: Visible on Mobile, Hidden on Desktop to prevent duplication with Sidebar */}
-                    <div className="lg:hidden">
-                        <EternalLogo />
+                    {/* Title - ETERNAL brand or chat title */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* Red dot - brand element */}
+                        <div style={{
+                            width: '0.75rem',
+                            height: '0.75rem',
+                            borderRadius: '50%',
+                            backgroundColor: '#dc2626',
+                            boxShadow: '0 0 10px #dc2626, 0 0 20px #dc2626',
+                            flexShrink: 0,
+                        }} />
+                        <span style={{
+                            fontSize: '1rem',
+                            fontWeight: '500',
+                            color: '#e4e4e7',
+                        }}>
+                            {currentConversation?.title || 'ETERNAL'}
+                        </span>
                     </div>
                 </div>
 
-                {/* User Section: Forced to right with ml-auto */}
+                {/* Right Section: Notifications + Profile Icon */}
                 {user && (
-                    <div className="flex items-center gap-3 ml-auto">
-                        <div className="mr-1">
-                            <NotificationsPopover userId={user.uid} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <NotificationsPopover userId={user.uid} />
+                        {/* Small profile icon */}
+                        <div style={{
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #3b82f6, #9333ea)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                        }}>
+                            <User style={{ width: '1rem', height: '1rem', color: 'white' }} />
                         </div>
-                        <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-[#2a2b2c] rounded-lg">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                <User className="w-4 h-4 text-white" />
-                            </div>
-                            <div className="text-sm">
-                                <p className="text-white font-medium">
-                                    {user.displayName || user.email?.split("@")[0] || "사용자"}
-                                </p>
-                                <p className="text-xs text-zinc-500">{user.email}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={async () => {
-                                await onLogout();
-                                toast.success("로그아웃되었습니다.");
-                            }}
-                            className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
-                            title="로그아웃"
-                        >
-                            <LogOut className="w-5 h-5 text-zinc-400" />
-                        </button>
                     </div>
                 )}
             </header>
