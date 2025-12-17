@@ -88,10 +88,9 @@ export function MainContent({
             }}>
                 {/* Left Section: Hamburger + Title */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {/* Hamburger - Mobile only */}
+                    {/* Hamburger - Always visible */}
                     <button
                         onClick={() => onToggleSidebar()}
-                        className="lg:hidden"
                         style={{
                             padding: '0.5rem',
                             borderRadius: '0.375rem',

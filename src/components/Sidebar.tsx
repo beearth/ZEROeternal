@@ -65,14 +65,16 @@ export function Sidebar({
 
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
+      const nowDesktop = window.innerWidth >= 1024;
+      setIsDesktop(nowDesktop);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // On desktop, sidebar is always visible. On mobile, it depends on isOpen.
-  const shouldShowSidebar = isDesktop || isOpen;
+  // Sidebar visibility is controlled by isOpen prop from parent
+  // Parent (App.tsx) manages the state and auto-opens on resize to desktop
+  const shouldShowSidebar = isOpen;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -147,17 +149,18 @@ export function Sidebar({
           position: isDesktop ? 'relative' : 'fixed',
           top: 0,
           left: isDesktop ? 'auto' : (shouldShowSidebar ? 0 : -288),
-          width: 288,
-          minWidth: isDesktop ? 288 : 0,
+          width: shouldShowSidebar ? 288 : 0,
+          minWidth: shouldShowSidebar ? 288 : 0,
           height: isDesktop ? 'auto' : '100%',
           backgroundColor: '#09090b',
-          borderRight: '1px solid #27272a',
-          transition: isDesktop ? 'none' : 'left 0.3s ease-in-out',
+          borderRight: shouldShowSidebar ? '1px solid #27272a' : 'none',
+          transition: 'width 0.3s ease-in-out, min-width 0.3s ease-in-out, left 0.3s ease-in-out',
           zIndex: isDesktop ? 'auto' : 9999,
-          display: isDesktop ? 'flex' : (shouldShowSidebar ? 'flex' : 'none'),
+          display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
           overflowY: 'auto',
+          overflowX: 'hidden',
         }}
       >
         {/* Header */}

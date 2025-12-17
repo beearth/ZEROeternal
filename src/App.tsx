@@ -74,20 +74,34 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
   const [isTyping, setIsTyping] = useState(false);
 
-  // [DISABLED] Auto-close sidebar on window resize was causing sidebar to reset after every click
-  // This was the bug: resize events fire unexpectedly and override user's toggle action
-  // useEffect(() => {
-  //   const handleResize = () => {
-  //     if (window.innerWidth < 1024) {
-  //       setIsSidebarOpen(false);
-  //     } else {
-  //       setIsSidebarOpen(true);
-  //     }
-  //   };
-  //
-  //   window.addEventListener('resize', handleResize);
-  //   return () => window.removeEventListener('resize', handleResize);
-  // }, []);
+  // Gemini-style: Auto-toggle sidebar based on screen width
+  // Uses debounce to prevent rapid firing during resize
+  useEffect(() => {
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastWidth = window.innerWidth;
+
+    const handleResize = () => {
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      
+      resizeTimeout = setTimeout(() => {
+        const currentWidth = window.innerWidth;
+        const wasDesktop = lastWidth >= 1024;
+        const isDesktop = currentWidth >= 1024;
+        
+        // Only auto-toggle when crossing the breakpoint
+        if (wasDesktop !== isDesktop) {
+          setIsSidebarOpen(isDesktop);
+        }
+        lastWidth = currentWidth;
+      }, 100); // 100ms debounce
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+    };
+  }, []);
 
   // 언어 상태
   // 언어 상태 (LocalStorage에서 초기화하여 새로고침 시 리셋 방지)
