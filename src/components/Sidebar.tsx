@@ -167,7 +167,7 @@ export function Sidebar({
         <div style={{ padding: '1.25rem', borderBottom: '1px solid #27272a' }}>
           {/* Header Top Row: Menu Button only (ETERNAL is in main header) */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            {/* 3-Set Header: Hamburger > Search > ETERNAL */}
+            {/* 3-Set Header: Hamburger > Search(with Red Dot) > ETERNAL */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               {/* 1. Hamburger Menu */}
               <button
@@ -175,7 +175,7 @@ export function Sidebar({
                 style={{
                   padding: '0.5rem',
                   borderRadius: '0.5rem',
-                  color: '#9ca3af',
+                  color: '#9ca3af', // zinc-400
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
@@ -187,7 +187,7 @@ export function Sidebar({
                 <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
               </button>
 
-              {/* 2. Search Icon */}
+              {/* 2. Search Icon with Red Dot inside */}
               <button
                 style={{
                   padding: '0.5rem',
@@ -199,30 +199,35 @@ export function Sidebar({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  position: 'relative', // For absolute positioning of the dot
                 }}
               >
                 <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-              </button>
-
-              {/* 3. Red dot + ETERNAL brand */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
+                {/* Embedded Red Dot */}
                 <div style={{
-                  width: '0.625rem',
-                  height: '0.625rem',
+                  position: 'absolute',
+                  top: '12px', // Approximate center of the lens (11px is svg center, + padding)
+                  left: '12px',
+                  width: '6px',
+                  height: '6px',
                   borderRadius: '50%',
                   backgroundColor: '#dc2626',
-                  boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
-                  flexShrink: 0,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: '0 0 4px #dc2626',
+                  pointerEvents: 'none',
                 }} />
-                <span style={{
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  color: '#e4e4e7',
-                  letterSpacing: '0.05em',
-                }}>
-                  ETERNAL
-                </span>
-              </div>
+              </button>
+
+              {/* 3. ETERNAL brand (No Red Dot) */}
+              <span style={{
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                color: '#e4e4e7',
+                letterSpacing: '0.05em',
+                marginLeft: '0.25rem'
+              }}>
+                ETERNAL
+              </span>
             </div>
 
             {/* Close button - Mobile only */}

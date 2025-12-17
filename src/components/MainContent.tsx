@@ -108,7 +108,7 @@ export function MainContent({
                             <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
                         </button>
 
-                        {/* 2. Search Icon (no function yet) */}
+                        {/* 2. Search Icon with Red Dot inside */}
                         <button
                             style={{
                                 padding: '0.5rem',
@@ -120,30 +120,35 @@ export function MainContent({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                position: 'relative', // For absolute positioning of the dot
                             }}
                         >
                             <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                        </button>
-
-                        {/* 3. Red dot + ETERNAL brand */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
+                            {/* Embedded Red Dot */}
                             <div style={{
-                                width: '0.625rem',
-                                height: '0.625rem',
+                                position: 'absolute',
+                                top: '12px', // Approximate center of 24px box + padding
+                                left: '12px',
+                                width: '6px',
+                                height: '6px',
                                 borderRadius: '50%',
                                 backgroundColor: '#dc2626',
-                                boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
-                                flexShrink: 0,
+                                transform: 'translate(-50%, -50%)',
+                                boxShadow: '0 0 4px #dc2626',
+                                pointerEvents: 'none',
                             }} />
-                            <span style={{
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                color: '#e4e4e7',
-                                letterSpacing: '0.05em',
-                            }}>
-                                ETERNAL
-                            </span>
-                        </div>
+                        </button>
+
+                        {/* 3. ETERNAL brand (No Red Dot) */}
+                        <span style={{
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            color: '#e4e4e7',
+                            letterSpacing: '0.05em',
+                            marginLeft: '0.25rem'
+                        }}>
+                            ETERNAL
+                        </span>
                     </div>
                 ) : (
                     // Placeholder or empty when sidebar is open to maintain layout if needed? 
