@@ -87,62 +87,72 @@ export function MainContent({
                 zIndex: 50,
             }}>
                 {/* Left Section: Hamburger > Search > Red dot + ETERNAL (Gemini Style Fixed) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {/* 1. Hamburger Menu */}
-                    <button
-                        onClick={() => onToggleSidebar()}
-                        style={{
-                            padding: '0.5rem',
-                            borderRadius: '0.5rem',
-                            color: '#9ca3af',
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
-                    </button>
+                {/* Only show when sidebar is CLOSED. When open, these elements are shown in the sidebar header. */}
+                {!isSidebarOpen ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* 1. Hamburger Menu */}
+                        <button
+                            onClick={() => onToggleSidebar()}
+                            style={{
+                                padding: '0.5rem',
+                                borderRadius: '0.5rem',
+                                color: '#9ca3af',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
+                        </button>
 
-                    {/* 2. Search Icon (no function yet) */}
-                    <button
-                        style={{
-                            padding: '0.5rem',
-                            borderRadius: '0.5rem',
-                            color: '#9ca3af',
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                    </button>
+                        {/* 2. Search Icon (no function yet) */}
+                        <button
+                            style={{
+                                padding: '0.5rem',
+                                borderRadius: '0.5rem',
+                                color: '#9ca3af',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <Search style={{ width: '1.25rem', height: '1.25rem' }} />
+                        </button>
 
-                    {/* 3. Red dot + ETERNAL brand */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
-                        <div style={{
-                            width: '0.625rem',
-                            height: '0.625rem',
-                            borderRadius: '50%',
-                            backgroundColor: '#dc2626',
-                            boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
-                            flexShrink: 0,
-                        }} />
-                        <span style={{
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            color: '#e4e4e7',
-                            letterSpacing: '0.05em',
-                        }}>
-                            ETERNAL
-                        </span>
+                        {/* 3. Red dot + ETERNAL brand */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
+                            <div style={{
+                                width: '0.625rem',
+                                height: '0.625rem',
+                                borderRadius: '50%',
+                                backgroundColor: '#dc2626',
+                                boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                color: '#e4e4e7',
+                                letterSpacing: '0.05em',
+                            }}>
+                                ETERNAL
+                            </span>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    // Placeholder or empty when sidebar is open to maintain layout if needed? 
+                    // No, justify-content: space-between will push right section to end, which is correct.
+                    // But we might want an empty div to prevent right section from jumping if we want it strictly pinned?
+                    // Actually, if left side is gone, flex-start becomes empty.
+                    // If we want Right Section to stay on Right, space-between works fine.
+                    <div />
+                )}
 
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (

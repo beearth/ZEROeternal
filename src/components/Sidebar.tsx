@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu } from "lucide-react";
+import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -167,23 +167,62 @@ export function Sidebar({
         <div style={{ padding: '1.25rem', borderBottom: '1px solid #27272a' }}>
           {/* Header Top Row: Menu Button only (ETERNAL is in main header) */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {/* Hamburger Menu Button - Always visible, toggles sidebar */}
+            {/* 3-Set Header: Hamburger > Search > ETERNAL */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* 1. Hamburger Menu */}
               <button
                 onClick={onToggle}
                 style={{
-                  padding: '0.25rem',
-                  borderRadius: '0.25rem',
-                  transition: 'background-color 0.2s',
-                  color: '#71717a',
+                  padding: '0.5rem',
+                  borderRadius: '0.5rem',
+                  color: '#9ca3af',
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
                 <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
               </button>
-              {/* EternalLogo removed - now in main header */}
+
+              {/* 2. Search Icon */}
+              <button
+                style={{
+                  padding: '0.5rem',
+                  borderRadius: '0.5rem',
+                  color: '#9ca3af',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Search style={{ width: '1.25rem', height: '1.25rem' }} />
+              </button>
+
+              {/* 3. Red dot + ETERNAL brand */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
+                <div style={{
+                  width: '0.625rem',
+                  height: '0.625rem',
+                  borderRadius: '50%',
+                  backgroundColor: '#dc2626',
+                  boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
+                  flexShrink: 0,
+                }} />
+                <span style={{
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#e4e4e7',
+                  letterSpacing: '0.05em',
+                }}>
+                  ETERNAL
+                </span>
+              </div>
             </div>
 
             {/* Close button - Mobile only */}
