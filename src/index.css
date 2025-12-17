@@ -157,3 +157,47 @@
         pointer-events: auto !important;
     }
 }
+
+/* Fix scrolling issues */
+html, body, #root {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Ensure scrollable areas work properly */
+.overflow-y-auto {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Make sure scrollbar is visible */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #2a2b2c;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #4a4b4c;
+    border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #5a5b5c;
+}
+
+/* Prevent touch actions from blocking scrolls */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* No scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
