@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 // 환경 변수에서 API 키 가져오기
 const getApiKey = () => {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  const key = import.meta.env.VITE_OPENROUTER_API_KEY;
   if (!key) return '';
   return String(key).trim().replace(/^["']+|["']+$/g, '');
 };
@@ -10,7 +10,7 @@ const getApiKey = () => {
 const API_KEY = getApiKey();
 
 if (!API_KEY) {
-  console.error('⚠️ VITE_GEMINI_API_KEY가 설정되지 않았습니다.');
+  console.error('⚠️ VITE_OPENROUTER_API_KEY가 설정되지 않았습니다.');
 }
 
 // 1. 모델 우선순위 리스트 정의
