@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Menu, X, User, LogOut, Send } from "lucide-react";
+import { Menu, X, User, LogOut, Send, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
 import { EternalLogo } from "./EternalLogo";
@@ -86,40 +86,60 @@ export function MainContent({
                 position: 'relative',
                 zIndex: 50,
             }}>
-                {/* Left Section: Hamburger + Title */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {/* Hamburger - Always visible */}
+                {/* Left Section: Hamburger > Search > Red dot + ETERNAL (Gemini Style Fixed) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* 1. Hamburger Menu */}
                     <button
                         onClick={() => onToggleSidebar()}
                         style={{
                             padding: '0.5rem',
-                            borderRadius: '0.375rem',
-                            color: '#a1a1aa',
+                            borderRadius: '0.5rem',
+                            color: '#9ca3af',
                             background: 'transparent',
                             border: 'none',
                             cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                         }}
                     >
                         <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
                     </button>
 
-                    {/* Title - ETERNAL brand or chat title */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {/* Red dot - brand element */}
+                    {/* 2. Search Icon (no function yet) */}
+                    <button
+                        style={{
+                            padding: '0.5rem',
+                            borderRadius: '0.5rem',
+                            color: '#9ca3af',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Search style={{ width: '1.25rem', height: '1.25rem' }} />
+                    </button>
+
+                    {/* 3. Red dot + ETERNAL brand */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.25rem' }}>
                         <div style={{
-                            width: '0.75rem',
-                            height: '0.75rem',
+                            width: '0.625rem',
+                            height: '0.625rem',
                             borderRadius: '50%',
                             backgroundColor: '#dc2626',
-                            boxShadow: '0 0 10px #dc2626, 0 0 20px #dc2626',
+                            boxShadow: '0 0 8px #dc2626, 0 0 16px #dc2626',
                             flexShrink: 0,
                         }} />
                         <span style={{
-                            fontSize: '1rem',
+                            fontSize: '0.875rem',
                             fontWeight: '500',
                             color: '#e4e4e7',
+                            letterSpacing: '0.05em',
                         }}>
-                            {currentConversation?.title || 'ETERNAL'}
+                            ETERNAL
                         </span>
                     </div>
                 </div>
