@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Menu, X, User, LogOut, Send, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
@@ -65,14 +65,24 @@ export function MainContent({
     onSaveSentence,
 }: MainContentProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const prevMessageCountRef = useRef<number>(0);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    // Only scroll to bottom when NEW messages are added, not on vocabulary updates
     useEffect(() => {
-        scrollToBottom();
-    }, [currentConversation?.messages, isTyping]);
+        const currentMessageCount = currentConversation?.messages?.length || 0;
+        const prevCount = prevMessageCountRef.current;
+        
+        // Scroll only when message count increases or when typing starts
+        if (currentMessageCount > prevCount || isTyping) {
+            scrollToBottom();
+        }
+        
+        prevMessageCountRef.current = currentMessageCount;
+    }, [currentConversation?.messages?.length, isTyping]);
     return (
         <div className="flex-1 flex flex-col bg-[#1e1f20] h-full overflow-hidden">
             {/* 헤더 - Gemini Style */}

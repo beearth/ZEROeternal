@@ -30,6 +30,7 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation: (id: string, newTitle: string) => void;
   isOpen: boolean;
   onClose: () => void;
   onToggle: () => void;
@@ -45,6 +46,7 @@ export function Sidebar({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onRenameConversation,
   isOpen,
   onClose,
   onToggle,
@@ -85,6 +87,24 @@ export function Sidebar({
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
+
+  const [editingId, setEditingId] = useState<string | null>(null); // Legacy (Removed)
+  const [editTitle, setEditTitle] = useState("");
+  const [renameModalId, setRenameModalId] = useState<string | null>(null);
+  const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+
+  const startEditing = (id: string, currentTitle: string) => {
+    setRenameModalId(id);
+    setEditTitle(currentTitle);
+    setActiveMenuId(null);
+  };
+
+  const handleRenameSubmit = () => {
+    if (renameModalId && editTitle.trim()) {
+      onRenameConversation(renameModalId, editTitle.trim());
+      setRenameModalId(null);
+    }
+  };
 
   const MenuItem = ({
     path,
@@ -152,7 +172,7 @@ export function Sidebar({
 
       {/* Sidebar container */}
       <aside
-        className="bg-[#09090b] border-r border-[#27272a] flex flex-col transition-all duration-300 ease-in-out"
+        className="bg-[#09090b] flex flex-col transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
           position: isDesktop ? 'relative' : 'fixed',
           top: 0,
@@ -166,321 +186,339 @@ export function Sidebar({
           opacity: 1,
         }}
       >
-        {/* Render Mini or Full based on desktop state */}
-        {isDesktop && !isOpen ? (
-            // MINI SIDEBAR CONTENT
-            <div className="flex flex-col h-full items-center py-4">
-                {/* 1. Hamburger (Top) */}
-                <button
-                    onClick={onToggle}
-                    className="p-2 mb-4 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                >
-                    <Menu className="w-5 h-5" />
-                </button>
-
-                {/* 2. New Signal (SquarePen) */}
-                <button
-                    onClick={() => {
-                        onNewConversation();
-                        navigate("/");
-                    }}
-                    className="p-3 bg-[#1e1e20] text-zinc-400 hover:text-white rounded-xl mb-4 transition-colors"
-                >
-                    <SquarePen className="w-5 h-5" />
-                </button>
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* 3. Red Signal (Red Dot) */}
-                 <button
-                    onClick={() => navigate("/stack/red")}
-                    className="p-2 mb-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors relative"
-                >
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
-                    {counts.red > 0 && (
-                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    )}
-                </button>
-
-                {/* 4. Settings */}
-                <button
-                     // We might need a mini settings menu or just navigate to settings?
-                     // For now, let's just trigger reset language as a placeholder or better yet, make SettingsMenu capable of mini mode?
-                     // Or just a simple gear icon that maybe does nothing or toggles the full menu?
-                     // Let's just put the gear icon. Parent SettingsMenu renders complex UI.
-                     // Simplest: Click -> Open Sidebar? or Navigate to settings page (if exists)?
-                     // The user asked for "Settings Icon".
-                     // Let's just make it toggle sidebar + open settings menu?
-                     // Or just a visual icon for now?
-                     // "아래는 설정아이콘 깔끔하게 똑같이"
-                     onClick={() => {/* Maybe toggle sidebar to show settings? */ onToggle(); }}
-                     className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                >
-                    <Settings className="w-5 h-5" />
-                </button>
-                
-                 {/* System Status Dot */}
-                 <div className="mt-4 mb-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            </div>
-        ) : (
-            // FULL SIDEBAR CONTENT (Existing)
-            <div className="flex flex-col h-full w-full">
-            {/* Header - EXACT MATCH to MainContent Header */}
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.75rem 1rem', // Match MainContent
-            minHeight: '60px',       // Match MainContent
-            borderBottom: '1px solid #27272a',
-        }}>
-           {/* Left Section: Hamburger > Search > ETERNAL */}
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {/* 1. Hamburger Menu */}
+        {/* UNIFIED SIDEBAR CONTENT - Single structure that transitions smoothly */}
+        <div className="flex flex-col h-full w-full overflow-hidden">
+          {/* Header - Icon position fixed */}
+          <div className="flex items-center justify-between py-3 px-4" style={{ minHeight: '60px' }}>
+            {/* Left Section - Icons always left-aligned */}
+            <div className="flex items-center gap-2">
+              {/* Hamburger Menu */}
               <button
                 onClick={onToggle}
-                style={{
-                  padding: '0.5rem',
-                  borderRadius: '0.5rem',
-                  color: '#9ca3af',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
               >
-                <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
+                <Menu className="w-5 h-5" />
               </button>
 
-              {/* 2. Search Icon with Red Dot inside */}
+              {/* Search Icon with Red Dot - Only visible when expanded */}
               <button
+                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-all duration-300 flex-shrink-0 relative"
                 style={{
-                  padding: '0.5rem',
-                  borderRadius: '0.5rem',
-                  color: '#9ca3af',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  width: (isDesktop && !isOpen) ? 0 : '40px',
+                  overflow: 'hidden',
                 }}
               >
-                <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                {/* Embedded Red Dot */}
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: '#dc2626',
-                  transform: 'translate(-50%, -50%)',
-                  marginTop: '-1px',
-                  marginLeft: '-1px',
-                  boxShadow: '0 0 5px #dc2626',
-                  pointerEvents: 'none',
-                }} />
+                <Search className="w-5 h-5" />
+                <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2" 
+                     style={{ boxShadow: '0 0 5px #dc2626' }} />
               </button>
 
-              {/* 3. ETERNAL brand */}
-              <span style={{
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                color: '#e4e4e7',
-                letterSpacing: '0.05em',
-                marginLeft: '0.25rem'
-              }}>
+              {/* ETERNAL brand - Only visible when expanded */}
+              <span 
+                className="text-sm font-medium text-zinc-200 tracking-wide whitespace-nowrap transition-all duration-300"
+                style={{
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  width: (isDesktop && !isOpen) ? 0 : 'auto',
+                  overflow: 'hidden',
+                }}
+              >
                 ETERNAL
               </span>
             </div>
 
-             {/* Close button - Mobile only */}
-             <button
-              onClick={onClose}
-              style={{
-                padding: '0.25rem',
-                borderRadius: '0.25rem',
-                color: '#71717a',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: isDesktop ? 'none' : 'block',
+            {/* Close button - Mobile only */}
+            {!isDesktop && (
+              <button
+                onClick={onClose}
+                className="p-1 text-zinc-500 hover:text-white rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* New Signal Button - Icon position fixed */}
+          <div className="py-3 px-4">
+            <button
+              onClick={() => {
+                onNewConversation();
+                navigate("/");
+                if (!isDesktop) onClose();
               }}
+              className="w-10 h-10 flex items-center justify-center bg-[#1e1f20] hover:bg-[#333333] text-zinc-400 hover:text-white rounded-full transition-colors flex-shrink-0"
             >
-              <X style={{ width: '1.25rem', height: '1.25rem' }} />
+              <Plus className="w-5 h-5" />
             </button>
-        </div>
+          </div>
 
-        {/* Top Section: New Signal Button */}
-        <div className="px-4 py-4">
-          <button
-            onClick={() => {
-              onNewConversation();
-              navigate("/");
-              if (!isDesktop) onClose();
+          {/* Scrollable Content - Only visible when expanded */}
+          <div 
+            className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 custom-scrollbar transition-all duration-300"
+            style={{
+              opacity: (isDesktop && !isOpen) ? 0 : 1,
+              visibility: (isDesktop && !isOpen) ? 'hidden' : 'visible',
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-[#18181b] hover:bg-[#27272a] text-[#d4d4d8] rounded-full transition-colors group border border-[#3f3f46]"
           >
-            <Plus className="w-5 h-5 text-[#9ca3af] group-hover:text-white transition-colors" />
-            <span className="font-mono text-sm font-bold tracking-wide">NEW SIGNAL</span>
-          </button>
-        </div>
-
-        {/* Scrollable Signal List */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 custom-scrollbar">
-          
-          {/* Recent Signals */}
-          <div className="mb-6">
-            <div className="px-4 mb-2 flex items-center justify-between">
-              <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
-                RECENT SIGNALS
-              </span>
+            {/* THE ARMORY Section */}
+            <div className="mb-6">
+              <div className="px-4 mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4 text-zinc-600" />
+                <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
+                  THE ARMORY
+                </span>
+              </div>
+              <div className="space-y-0.5 px-2">
+                <MenuItem
+                  path="/stack/sentence"
+                  label="Sentence Archive"
+                  count={counts.sentence}
+                  icon={<FileText className="w-4 h-4 opacity-70" />}
+                  isSubItem
+                />
+                <MenuItem
+                  path="/toeic-4000"
+                  label="TOEIC 4000"
+                  icon={<BookOpen className="w-4 h-4 opacity-70" />}
+                  isSubItem
+                />
+                <MenuItem
+                  path="/community"
+                  label="Community"
+                  icon={<Users className="w-4 h-4 opacity-70" />}
+                  isSubItem
+                />
+              </div>
             </div>
-            <div className="space-y-0.5">
-              {conversations.slice(0, 5).map((conv) => (
-                <div key={conv.id} className="relative group">
+
+            {/* Recent Rooms */}
+            <div className="mb-6">
+              <div className="px-4 mb-2 flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
+                  RECENT ROOM
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                {conversations.map((conv) => (
+                  <div key={conv.id} className="relative group">
                     <button
-                    onClick={() => {
+                      onClick={() => {
                         onSelectConversation(conv.id);
                         navigate("/");
                         if (!isDesktop) onClose();
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm truncate rounded-lg transition-colors pr-12 ${
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm truncate rounded-lg transition-colors pr-12 ${
                         currentConversationId === conv.id
-                        ? "bg-[#27272a] text-white"
-                        : "text-zinc-400 hover:text-zinc-200 hover:bg-[#27272a]/50"
-                    }`}
+                          ? "bg-[#27272a] text-white"
+                          : "text-zinc-400 hover:text-zinc-200 hover:bg-[#27272a]/50"
+                      }`}
                     >
-                    {conv.title}
+                      {conv.title}
                     </button>
                     
-                    {/* More Options Button (Visible on Hover or if Menu Active) */}
+                    {/* More Options Button */}
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuId(activeMenuId === conv.id ? null : conv.id);
-                        }}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors ${
-                            activeMenuId === conv.id ? "opacity-100 bg-zinc-700 text-white" : "opacity-0 group-hover:opacity-100"
-                        }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(activeMenuId === conv.id ? null : conv.id);
+                      }}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors ${
+                        activeMenuId === conv.id ? "opacity-100 bg-zinc-700 text-white" : "opacity-0 group-hover:opacity-100"
+                      }`}
                     >
-                        <MoreHorizontal className="w-4 h-4" />
+                      <MoreHorizontal className="w-4 h-4" />
                     </button>
 
                     {/* Dropdown Menu */}
                     {activeMenuId === conv.id && (
-                        <div 
-                            className="absolute right-0 top-full mt-1 w-32 bg-[#1e1f20] border border-[#27272a] rounded-lg shadow-xl z-50 overflow-hidden"
-                            onClick={(e) => e.stopPropagation()} 
+                      <div 
+                        className="absolute right-0 top-full mt-1 w-32 bg-[#1e1f20] border border-[#27272a] rounded-lg shadow-xl z-50 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()} 
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(conv.id, conv.title);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 hover:bg-[#27272a] hover:text-white text-left"
                         >
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Handle Rename (Not implemented yet - maybe just prompt or toast)
-                                    // onRenameConversation(conv.id); 
-                                    setActiveMenuId(null);
-                                    console.log("Rename clicked");
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 hover:bg-[#27272a] hover:text-white text-left"
-                            >
-                                <Pencil className="w-3 h-3" />
-                                이름 변경
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (window.confirm("정말 삭제하시겠습니까?")) {
-                                        onDeleteConversation(conv.id);
-                                    }
-                                    setActiveMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-[#27272a] hover:text-red-300 text-left"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                                삭제
-                            </button>
-                        </div>
+                          <Pencil className="w-3 h-3" />
+                          이름 변경
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteModalId(conv.id);
+                            setActiveMenuId(null);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-[#27272a] hover:text-red-300 text-left"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          삭제
+                        </button>
+                      </div>
                     )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
+          {/* Spacer for mini mode */}
+          {isDesktop && !isOpen && <div className="flex-1" />}
 
+          {/* Bottom Section - Icon position fixed */}
+          <div className="bg-[#09090b] flex flex-col py-3 px-4 gap-1">
+            {/* Red Signal Button */}
+            <button
+              onClick={() => {
+                navigate("/stack/red");
+                if (!isDesktop) onClose();
+              }}
+              className="flex items-center gap-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300"
+            >
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                <div className="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+              </div>
+              <span 
+                className="text-sm font-medium whitespace-nowrap transition-all duration-300 overflow-hidden"
+                style={{
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  maxWidth: (isDesktop && !isOpen) ? 0 : '200px',
+                }}
+              >
+                Red Room
+              </span>
+              {counts.red > 0 && !(isDesktop && !isOpen) && (
+                <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                  {counts.red}
+                </span>
+              )}
+            </button>
 
-          {/* THE ARMORY Section */}
-          <div className="mb-8">
-            <div className="px-4 mb-2 flex items-center gap-2">
-              <Users className="w-4 h-4 text-zinc-600" />
-              <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
-                THE ARMORY
+            {/* Settings Button */}
+            <button
+              onClick={() => {
+                if (isDesktop && !isOpen) {
+                  onToggle();
+                }
+              }}
+              className="flex items-center gap-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300"
+            >
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                <Settings className="w-5 h-5" />
+              </div>
+              <span 
+                className="text-sm font-medium whitespace-nowrap transition-all duration-300 overflow-hidden"
+                style={{
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  maxWidth: (isDesktop && !isOpen) ? 0 : '200px',
+                }}
+              >
+                설정 및 도움말
+              </span>
+            </button>
+
+            {/* System Status - Green Point */}
+            <div className="flex items-center gap-3 py-2 transition-all duration-300">
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              </div>
+              <span 
+                className="text-[10px] text-zinc-500 font-mono tracking-wider whitespace-nowrap transition-all duration-300 overflow-hidden"
+                style={{
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  maxWidth: (isDesktop && !isOpen) ? 0 : '150px',
+                }}
+              >
+                SYSTEM READY
+              </span>
+              <span 
+                className="text-[10px] text-zinc-600 font-mono transition-all duration-300 overflow-hidden ml-auto"
+                style={{
+                  opacity: (isDesktop && !isOpen) ? 0 : 1,
+                  maxWidth: (isDesktop && !isOpen) ? 0 : '50px',
+                }}
+              >
+                v2.0
               </span>
             </div>
-            <div className="space-y-0.5 px-2">
-              <MenuItem
-                path="/stack/sentence"
-                label="Sentence Archive"
-                count={counts.sentence}
-                icon={<FileText className="w-4 h-4 opacity-70" />}
-                isSubItem
-              />
-              <MenuItem
-                path="/toeic-4000"
-                label="TOEIC 4000"
-                icon={<BookOpen className="w-4 h-4 opacity-70" />}
-                isSubItem
-              />
-              <MenuItem
-                path="/community"
-                label="Community"
-                icon={<Users className="w-4 h-4 opacity-70" />}
-                isSubItem
-              />
-            </div>
           </div>
         </div>
-
-        {/* Bottom Fixed Section */}
-        <div className="p-4 border-t border-[#27272a] bg-[#09090b]">
-           {/* Red Signal - Fixed Bottom Left */}
-           <button
-            onClick={() => {
-              navigate("/stack/red");
-              if (!isDesktop) onClose();
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-colors mb-2"
-          >
-            <div
-              className="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]"
-            />
-            <span className="text-sm font-medium">Red Signal</span>
-            {counts.red > 0 && (
-               <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
-                 {counts.red}
-               </span>
-            )}
-          </button>
-
-          <SettingsMenu
-            onLogout={onLogout}
-            onResetLanguage={onResetLanguage}
-            onResetVocabulary={onResetVocabulary}
-          />
-          <div className="mt-4 flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] text-zinc-500 font-mono tracking-wider">SYSTEM READY</span>
+        {/* Rename Modal (Gemini Style) */}
+        {renameModalId && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setRenameModalId(null)}>
+                <div 
+                    className="w-[400px] bg-[#1e1f20] border border-[#27272a] rounded-2xl shadow-2xl p-6"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <h3 className="text-lg font-semibold text-white mb-4">채팅 이름 변경</h3>
+                    <p className="text-sm text-zinc-400 mb-4">
+                        채팅의 새로운 이름을 입력해주세요. 명확하고 기억하기 쉬운 이름이 좋습니다.
+                    </p>
+                    <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                             if (e.key === "Enter") handleRenameSubmit();
+                             if (e.key === "Escape") setRenameModalId(null);
+                        }}
+                        autoFocus
+                        className="w-full bg-[#27272a] text-white px-4 py-3 rounded-xl border border-zinc-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all mb-6 placeholder-zinc-500"
+                        placeholder="채팅 이름 입력"
+                    />
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={() => setRenameModalId(null)}
+                            className="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-lg hover:bg-white/5"
+                        >
+                            취소
+                        </button>
+                        <button 
+                            onClick={handleRenameSubmit}
+                            className="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-lg hover:bg-white/5"
+                        >
+                            이름 변경
+                        </button>
+                    </div>
+                </div>
             </div>
-            <span className="text-[10px] text-zinc-600 font-mono">v2.0</span>
-          </div>
-        </div>
-            {/* End of Full Sidebar Content */}
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteModalId && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setDeleteModalId(null)}>
+                <div
+                    className="w-[480px] bg-[#1e1f20] border border-[#27272a] rounded-2xl shadow-2xl p-6"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <h3 className="text-lg font-semibold text-white mb-4">채팅을 삭제하시겠습니까?</h3>
+                    <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                        프롬프트, 대답, 의견이 Gemini 앱 활동에서 삭제될 뿐만 아니라, 사용자가 만든 콘텐츠도 삭제됩니다.
+                        <br />
+                        <button className="text-blue-400 hover:text-blue-300 mt-2 block text-sm font-medium">자세히 알아보기</button>
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setDeleteModalId(null)}
+                            className="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-lg hover:bg-white/5"
+                        >
+                            취소
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (deleteModalId) {
+                                    onDeleteConversation(deleteModalId);
+                                    setDeleteModalId(null);
+                                }
+                            }}
+                            className="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors rounded-lg hover:bg-white/5"
+                        >
+                            삭제
+                        </button>
+                    </div>
+                </div>
             </div>
         )}
       </aside>

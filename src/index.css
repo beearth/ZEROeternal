@@ -150,6 +150,18 @@
     }
 }
 
+/* Sidebar content fade animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
 /* Desktop Sidebar - Always visible on lg+ screens */
 @media (min-width: 1024px) {
     .sidebar-panel {
@@ -172,16 +184,16 @@ html, body, #root {
 
 /* Make sure scrollbar is visible - Custom Thin Style */
 .overflow-y-auto::-webkit-scrollbar {
-    width: 4px; /* Very thin */
+    width: 6px; /* Slightly thicker */
     display: block; /* Ensure visibility */
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent; /* Cleaner look */
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #52525b; /* zinc-600 */
+    background: #71717a; /* zinc-500 */
     border-radius: 4px;
 }
 

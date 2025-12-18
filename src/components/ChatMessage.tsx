@@ -63,6 +63,7 @@ const WordSpan = React.memo(({
   setIsHolding,
   startOffset,
   koreanMeaning,
+  onRedSignalClick,
 }: {
   part: string;
   partIndex: number;
@@ -77,7 +78,11 @@ const WordSpan = React.memo(({
   setIsHolding: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
   startOffset: number;
   koreanMeaning?: string;
+  onRedSignalClick: (word: string) => Promise<void>;
 }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
       setIsHolding((prev) => ({ ...prev, [wordIndex]: true }));
@@ -94,7 +99,7 @@ const WordSpan = React.memo(({
   const styleInfo = getWordStyle(wordState);
 
   const getHoldingBackgroundColor = (): string => {
-    if (!isCurrentlyHolding) return styleInfo.style.backgroundColor || "transparent";
+    if (!isCurrentlyHolding) return (styleInfo.style as any).backgroundColor || "transparent";
     if (wordState === 1) return "#fca5a5";
     if (wordState === 2) return "#fde047";
     if (wordState === 3) return "#86efac";
@@ -115,7 +120,7 @@ const WordSpan = React.memo(({
           return updated;
         });
       }}
-      className={`inline-block rounded px-1 cursor-pointer transition-all duration-[150ms] relative ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100"
+      className={`inline-flex items-center gap-[3px] whitespace-nowrap rounded px-1 cursor-pointer transition-all duration-[150ms] relative align-middle ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100"
         } ${isCurrentlyHolding
           ? "scale-[0.98] shadow-inner"
           : ""
@@ -137,26 +142,39 @@ const WordSpan = React.memo(({
       // @ts-ignore
       onSelectStart={(e) => e.preventDefault()}
     >
-      {part}
+      <span>{part}</span>
+      {wordState === 1 && !isConfirmed && (
+        <span
+          onClick={async (e) => {
+             e.stopPropagation();
+             if (isProcessing) return;
+             setIsProcessing(true);
+             try {
+                await onRedSignalClick(finalWord);
+                setIsConfirmed(true); 
+             } catch (err) {
+                console.error(err);
+             } finally {
+                setIsProcessing(false);
+             }
+          }}
+          className={`flex shrink-0 rounded-full cursor-pointer transition-all duration-500 ${
+            isProcessing ? "bg-blue-500 scale-125" : "bg-[#FF3B30] animate-pulse shadow-[0_0_8px_rgba(255,59,48,0.5)]"
+          }`}
+          style={{
+            width: "4px",
+            height: "4px",
+            boxShadow: isProcessing ? "0 0 8px #3b82f6" : "0 0 8px rgba(255, 59, 48, 0.5)",
+          }}
+        />
+      )}
+      
+      {/* Tooltip */}
       {wordState === 1 && (
-        <>
-          {/* Superscript Red Dot */}
-          <span
-            className="absolute -top-0.5 -right-1 flex rounded-full neon-dot"
-            style={{
-              width: "5px",
-              height: "5px",
-              backgroundColor: "#dc2626",
-              boxShadow: "0 0 5px #dc2626, 0 0 10px #dc2626"
-            }}
-          />
-
-          {/* Tooltip */}
-          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800/90 backdrop-blur-sm rounded-lg shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/10">
+         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800/90 backdrop-blur-sm rounded-lg shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/10">
             {koreanMeaning || "뜻을 불러오는 중..."}
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-800/90 rotate-45 transform border-r border-b border-white/10" />
-          </span>
-        </>
+         </span>
       )}
     </span>
   );
@@ -280,7 +298,7 @@ export function ChatMessage({
         if (onResetWordStatus) {
           try {
             await Promise.resolve(onResetWordStatus(finalWord));
-            toast.success(`단어 "${finalWord}"이(가) 초기 상태(White)로 복원되었습니다`, { duration: 2000 });
+            // No toast - just visual change
           } catch (error) {
             console.error(error);
           }
@@ -289,7 +307,6 @@ export function ChatMessage({
         const statusMap: Record<number, "red" | "yellow" | "green" | "orange"> = {
           1: "red", 2: "yellow", 3: "green", 4: "orange",
         };
-        const statusNames = { 1: "Red", 2: "Yellow", 3: "Green", 4: "Important" };
         const wordId = `${message.id}-${index}-${finalWord.toLowerCase()}`;
 
         try {
@@ -302,7 +319,7 @@ export function ChatMessage({
             "",
             false
           );
-          toast.success(`단어 "${finalWord}"이(가) ${statusNames[nextState as keyof typeof statusNames]} Stack에 저장되었습니다`, { duration: 2000 });
+          // No toast - just visual red dot appears
         } catch (error) {
           console.error(error);
         }
@@ -529,6 +546,26 @@ export function ChatMessage({
           setIsHolding={setIsHolding}
           startOffset={currentStartOffset}
           koreanMeaning={globalEntry?.koreanMeaning}
+          onRedSignalClick={async (word) => {
+              // 'Red Room' (Unknown Stack) API 호출
+              // status 1(Red)로 확실히 저장.
+              // 이미 Red 상태일 수 있으나, 명시적 '클릭'은 '저장/확인'의 의미.
+             
+              // 1. 상태 업데이트 호출
+              const wordId = `${message.id}-${currentWordIndex}-${word.toLowerCase()}`;
+              if (onUpdateWordStatus) {
+                  await onUpdateWordStatus(
+                      wordId,
+                      "red",
+                      word,
+                      message.id,
+                      message.content, // 전체 문장 (임시) - 실제로는 getFullSentence 로직 필요 가능
+                      globalEntry?.koreanMeaning || "",
+                      false
+                  );
+                  toast.success(`'${word}' 가 Red Room에 저장되었습니다.`);
+              }
+          }}
         />
       );
     });

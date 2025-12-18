@@ -661,6 +661,12 @@ export default function App() {
     });
   };
 
+  const handleRenameConversation = (id: string, newTitle: string) => {
+    setConversations((prev) =>
+      prev.map((conv) => (conv.id === id ? { ...conv, title: newTitle } : conv))
+    );
+  };
+
   // 실시간 사용자 프로필 동기화
   useEffect(() => {
     if (!user?.uid) return;
@@ -1131,6 +1137,7 @@ export default function App() {
           onSelectConversation={handleSelectConversation}
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
+          onRenameConversation={handleRenameConversation}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)}

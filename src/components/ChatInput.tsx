@@ -1,5 +1,5 @@
 import { useState, useRef, KeyboardEvent } from 'react';
-import { Send, Plus, X, Mic } from 'lucide-react';
+import { Send, Plus, X, Mic, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatInputProps {
@@ -54,7 +54,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3 bg-[#2a2b2c] rounded-[24px] md:rounded-[32px] p-3 md:p-5 shadow-xl transition-all">
+    <div className="flex flex-col gap-2 bg-[#1e1f20] rounded-[32px] p-4 transition-all border border-[#27272a] shadow-lg max-w-4xl mx-auto w-full">
       {/* Image Previews */}
       {images.length > 0 && (
         <div className="flex gap-2 px-2 overflow-x-auto pb-2">
@@ -74,16 +74,16 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
       )}
 
       {/* Top: Text Area */}
-      <div className="w-full">
+      <div className="w-full px-2">
         <textarea
           ref={textareaRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="매타인지 하기"
+          placeholder="메타인지 하기"
           disabled={disabled}
           rows={1}
-          className="w-full resize-none bg-transparent px-2 text-base md:text-lg text-white placeholder:text-zinc-500 focus:outline-none min-h-[44px] md:min-h-[56px]"
+          className="w-full resize-none bg-transparent text-base md:text-lg text-white placeholder:text-zinc-500 focus:outline-none min-h-[24px] max-h-[200px]"
           style={{
             height: 'auto',
           }}
@@ -96,15 +96,14 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
       </div>
 
       {/* Bottom: Controls */}
-      <div className="flex items-center justify-between mt-1">
-
+      <div className="flex items-center justify-between mt-2 pl-1 pr-1">
         {/* Left Side: + and Tools */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
-            className="p-2.5 text-zinc-400 hover:text-white hover:bg-[#3a3b3c] rounded-full transition-colors bg-transparent"
+            className="p-2 text-zinc-400 hover:text-[#d4d4d8] hover:bg-[#27272a] rounded-full transition-colors"
             title="파일 추가"
           >
             <Plus className="w-5 h-5" />
@@ -114,10 +113,12 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
             type="button"
             onClick={() => toast.info("도구 기능은 준비 중입니다.")}
             disabled={disabled}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-zinc-400 hover:text-white hover:bg-[#3a3b3c] rounded-full transition-colors bg-transparent text-sm font-medium"
+            className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-[#d4d4d8] hover:bg-[#27272a] rounded-full transition-colors text-sm font-medium"
           >
-            <span className="">도구</span>
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>도구</span>
           </button>
+          
           <input
             type="file"
             ref={fileInputRef}
@@ -135,7 +136,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
             type="button"
             onClick={() => toast.info("음성 입력은 준비 중입니다.")}
             disabled={disabled}
-            className="p-2.5 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 text-zinc-400 hover:text-white transition-colors"
             title="음성 입력"
           >
             <Mic className="w-6 h-6" />
@@ -146,7 +147,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
             type="button"
             onClick={handleSend}
             disabled={disabled || (!message.trim() && images.length === 0)}
-            className="flex-shrink-0 w-11 h-11 bg-white text-black rounded-full hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+            className="flex-shrink-0 w-10 h-10 bg-white text-black rounded-full hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center"
           >
             <Send className="w-5 h-5 ml-0.5" />
           </button>
