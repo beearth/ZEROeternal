@@ -123,6 +123,29 @@
 
     body {
         @apply bg-background text-foreground;
+        font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        letter-spacing: -0.01em;
+    }
+
+    /* Gemini 스타일 텍스트 */
+    p, span, div {
+        line-height: 1.7;
+    }
+
+    /* AI 응답 메시지 스타일 */
+    .prose {
+        line-height: 1.8;
+        color: #E3E3E3;
+    }
+
+    .prose p {
+        margin-bottom: 1em;
+    }
+
+    .prose li {
+        margin-bottom: 0.5em;
     }
 }
 

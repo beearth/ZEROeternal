@@ -1,10 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Menu, X, User, LogOut, Send, Search } from "lucide-react";
+import { Menu, X, User, LogOut, Send, Search, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ChatMessage } from "./ChatMessage";
 import { EternalLogo } from "./EternalLogo";
 import { ChatInput } from "./ChatInput";
 import { NotificationsPopover } from "./NotificationsPopover";
+import { ModelSelector } from "./ModelSelector";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { WordData, VocabularyEntry } from "../types";
 
@@ -28,7 +30,7 @@ interface MainContentProps {
     targetLang: string | null;
     currentConversation?: Conversation;
     isTyping: boolean;
-    onSendMessage: (content: string, images?: string[]) => Promise<void>;
+    onSendMessage: (content: string, images?: string[]) => Promise<string | void> | void;
     isSidebarOpen: boolean;
     onToggleSidebar: () => void;
     user: FirebaseUser | null;
@@ -66,6 +68,20 @@ export function MainContent({
 }: MainContentProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const prevMessageCountRef = useRef<number>(0);
+    const navigate = useNavigate();
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    // 프로필 메뉴 외부 클릭 시 닫기
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setShowProfileMenu(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,96 +115,84 @@ export function MainContent({
                 minHeight: '60px',
             }}>
                 {/* Left Section: Hamburger > Search > Red dot + ETERNAL (Gemini Style Fixed) */}
-                {/* Only show when sidebar is CLOSED. When open, these elements are shown in the sidebar header. */}
-                {!isSidebarOpen && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {/* 1. Hamburger Menu */}
-
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* 1. Hamburger Menu (Mobile Only - or based on sidebar state) */}
+                    {!isSidebarOpen && (
                         <button
                             onClick={() => onToggleSidebar()}
-                            className="lg:hidden flex items-center justify-center"
-                            style={{
-                                padding: '0.5rem',
-                                borderRadius: '0.5rem',
-                                color: '#9ca3af',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                            }}
+                            className="lg:hidden flex items-center justify-center p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors"
                         >
-                            <Menu style={{ width: '1.25rem', height: '1.25rem' }} />
+                            <Menu className="w-5 h-5" />
                         </button>
+                    )}
 
-                        {/* 2. Search Icon with Red Dot inside */}
-                        <button
-                            style={{
-                                padding: '0.5rem',
-                                borderRadius: '0.5rem',
-                                color: '#9ca3af',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative', // For absolute positioning of the dot
-                            }}
-                        >
-                            <Search style={{ width: '1.25rem', height: '1.25rem' }} />
-                            {/* Embedded Red Dot - Centered in Lens */}
-                            <div style={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                width: '6px',
-                                height: '6px',
-                                borderRadius: '50%',
-                                backgroundColor: '#dc2626',
-                                transform: 'translate(-50%, -50%)',
-                                marginTop: '-1px', // Fine-tune for lens center
-                                marginLeft: '-1px',
-                                boxShadow: '0 0 5px #dc2626',
-                                pointerEvents: 'none',
-                            }} />
-                        </button>
-
-                        {/* 3. ETERNAL brand (No Red Dot) */}
-                        <span style={{
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            color: '#e4e4e7',
-                            letterSpacing: '0.05em',
-                            marginLeft: '0.25rem'
-                        }}>
-                            ETERNAL
-                        </span>
+                    {/* 2. ETERNAL Logo and Model Selector */}
+                    <div className="flex items-center gap-4">
+                         {/* Sidebar가 닫혀있거나 모바일일 때 로고 표시 */}
+                        {(!isSidebarOpen || window.innerWidth < 1024) && (
+                            <EternalLogo />
+                        )}
                     </div>
-                )}
-
-
-
-                {/* Center: Current Conversation Title */}
-                <div className="absolute left-1/2 transform -translate-x-1/2 font-medium text-sm text-zinc-200 truncate max-w-[200px] text-center hidden md:block">
-                     {currentConversation?.title || "새로운 대화"}
                 </div>
 
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+                    <div ref={profileMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', position: 'relative' }}>
                         <NotificationsPopover userId={user.uid} />
-                        {/* Small profile icon */}
-                        <div style={{
-                            width: '2rem',
-                            height: '2rem',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #3b82f6, #9333ea)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                        }}>
+                        {/* Small profile icon with dropdown */}
+                        <div 
+                            onClick={() => setShowProfileMenu(!showProfileMenu)}
+                            style={{
+                                width: '2rem',
+                                height: '2rem',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #3b82f6, #9333ea)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                            }}>
                             <User style={{ width: '1rem', height: '1rem', color: 'white' }} />
                         </div>
+
+                        {/* Profile Dropdown Menu */}
+                        {showProfileMenu && (
+                            <div className="absolute right-0 top-10 w-48 bg-[#2a2b2c] rounded-xl shadow-xl border border-zinc-700 py-2 z-50">
+                                <button
+                                    onClick={() => {
+                                        navigate(`/profile/${user.uid}`);
+                                        setShowProfileMenu(false);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-[#3f3f46] flex items-center gap-3"
+                                >
+                                    <User className="w-4 h-4" />
+                                    <span>내 프로필</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        import("../services/auth").then(({ signInWithGoogle }) => {
+                                            signInWithGoogle().catch(() => toast.error("계정 전환 실패"));
+                                        });
+                                        setShowProfileMenu(false);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-[#3f3f46] flex items-center gap-3"
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    <span>계정 추가/전환</span>
+                                </button>
+                                <div className="border-t border-zinc-700 my-1" />
+                                <button
+                                    onClick={() => {
+                                        onLogout();
+                                        setShowProfileMenu(false);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-[#3f3f46] flex items-center gap-3"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>로그아웃</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </header>
@@ -212,16 +216,44 @@ export function MainContent({
                         </div>
                     </div>
                 ) : !currentConversation?.messages.length ? (
-                    /* 빈 상태 (제미니 스타일) */
-                    <div className="h-full flex flex-col items-center justify-center p-4">
+                    /* 빈 상태 (지식인 스타일) */
+                    <div className="h-full flex flex-col items-center justify-center p-4 overflow-y-auto">
                         <div className="w-full max-w-3xl space-y-8">
                             <div className="space-y-2">
                                 <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 text-transparent bg-clip-text">
                                     안녕하세요, {user?.displayName || "사용자"}님
                                 </h1>
                                 <p className="text-2xl md:text-3xl text-[#444746] font-medium">
-                                    무엇을 도와드릴까요?
+                                    무엇이든 물어보세요
                                 </p>
+                            </div>
+
+                            {/* 오늘의 지식 추천 */}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                    <span className="text-lg">💡</span>
+                                    <span className="font-medium">오늘의 추천 질문</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {[
+                                        { icon: "🧠", title: "인공지능이란?", desc: "AI의 기본 원리와 활용 분야" },
+                                        { icon: "🌍", title: "기후변화의 원인", desc: "지구 온난화가 일어나는 이유" },
+                                        { icon: "💰", title: "주식 투자 기초", desc: "초보자를 위한 투자 가이드" },
+                                        { icon: "🚀", title: "우주 탐사의 미래", desc: "화성 이주는 가능할까?" },
+                                    ].map((item, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => onSendMessage(item.title)}
+                                            className="flex items-start gap-3 p-4 bg-[#27272a] hover:bg-[#3f3f46] rounded-xl transition-colors text-left group"
+                                        >
+                                            <span className="text-2xl">{item.icon}</span>
+                                            <div>
+                                                <p className="text-white font-medium group-hover:text-blue-400 transition-colors">{item.title}</p>
+                                                <p className="text-sm text-zinc-500">{item.desc}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="w-full">
@@ -229,11 +261,6 @@ export function MainContent({
                                     onSendMessage={onSendMessage}
                                     disabled={!targetLang}
                                 />
-                            </div>
-
-                            {/* 추천 질문 예시 (선택 사항) */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-4">
-                                {/* 추후 칩 추가 가능 */}
                             </div>
                         </div>
                     </div>

@@ -531,7 +531,7 @@ export default function App() {
     (conv) => conv.id === currentConversationId
   );
 
-  const handleSendMessage = async (content: string, images?: string[]) => {
+  const handleSendMessage = async (content: string, images?: string[]): Promise<string | void> => {
     if ((!content.trim() && (!images || images.length === 0)) || !currentConversation) return;
 
     const userMessage: Message = {
@@ -594,13 +594,17 @@ export default function App() {
             : conv
         )
       );
+      
+      return aiResponse; // AI 응답 반환
+
     } catch (error) {
       console.error("AI 응답 오류:", error);
+      const errorMessageText = "죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. API 키가 올바르게 설정되어 있는지 확인해주세요.";
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. API 키가 올바르게 설정되어 있는지 확인해주세요.",
+        content: errorMessageText,
         timestamp: new Date(),
       };
 
@@ -611,6 +615,8 @@ export default function App() {
             : conv
         )
       );
+      
+      return errorMessageText; // 에러 메시지 반환
     } finally {
       setIsTyping(false);
     }
@@ -778,45 +784,8 @@ export default function App() {
       if (newStatus === "red") setRedStack(prev => [...prev, wordKey]);
     }
 
-    // 2. [Background Process] Fetch Translation if missing
-    // User can continue working while this happens.
-    if (!prevMeaning && newStatus !== 'white') {
-      // Don't await this inside the main flow
-      getKoreanMeaning(cleanWord).then(fetchedMeaning => {
-        if (fetchedMeaning) {
-          // Translation arrived! Update State & DB again.
-          console.log(`[Background] Translated ${cleanWord}: ${fetchedMeaning}`);
-
-          setUserVocabulary(currentVocab => {
-            // Check if the word still exists and hasn't been deleted/changed by user since
-            const currentEntry = currentVocab[wordKey];
-            if (!currentEntry || currentEntry.status === 'white') return currentVocab;
-
-            const updatedEntry = { ...currentEntry, koreanMeaning: fetchedMeaning };
-            const updatedVocab = { ...currentVocab, [wordKey]: updatedEntry };
-
-            // Save updated meaning to DB
-            if (user) {
-              saveVocabularyToDB(user.uid, updatedVocab);
-              toast.success(`"${cleanWord}" 뜻 자동완성: ${fetchedMeaning}`);
-            }
-            return updatedVocab;
-          });
-        }
-      }).catch(err => {
-        console.error(`[Background] Translation failed for ${cleanWord}`, err);
-      });
-
-      // Notify user that it's saved but translating
-      toast.info(`저장 완료! (뜻 검색 중...)`);
-    } else {
-      // Meaning already existed (or deleting), just toast result
-      if (newStatus === "white") {
-        toast.success("단어장에서 제거되었습니다.");
-      } else {
-        toast.success(`'${newStatus}' Signal로 저장됨!`);
-      }
-    }
+    // 자동 번역 제거됨 - 사용자가 요청할 때만 번역
+    // (API 호출 감소로 속도 향상)
   }, [user, userVocabulary]);
 
   // 단어 상태 초기화 핸들러 (White/Default로 복원)
@@ -917,43 +886,7 @@ export default function App() {
       return updatedVocabulary;
     });
 
-    toast.success("중요 단어장에 추가되었습니다.");
-
-    // 3. [Background] Fetch Meaning if missing
-    if (!initialMeaning) {
-      getKoreanMeaning(word.word).then(fetchedMeaning => {
-        if (fetchedMeaning) {
-          console.log(`[Important Check] Fetched: ${fetchedMeaning}`);
-
-          // Update Important Stack with meaning
-          setImportantStack(prevStack =>
-            prevStack.map(item =>
-              item.word.toLowerCase() === wordKey
-                ? { ...item, koreanMeaning: fetchedMeaning }
-                : item
-            )
-          );
-
-          // Update Global Vocab with meaning
-          setUserVocabulary(prevVocab => {
-            const currentEntry = prevVocab[wordKey];
-            if (!currentEntry) return prevVocab;
-
-            const updatedVocab = {
-              ...prevVocab,
-              [wordKey]: { ...currentEntry, koreanMeaning: fetchedMeaning }
-            };
-
-            if (user) saveVocabularyToDB(user.uid, updatedVocab);
-            return updatedVocab;
-          });
-
-          toast.info(`"${word.word}" 중요 단어 뜻 업데이트 완료`);
-        }
-      }).catch(err => {
-        console.error("중요 단어 뜻 가져오기 실패:", err);
-      });
-    }
+    // 자동 번역 제거됨 - 사용자가 요청할 때만 번역
   };
 
   // 문장 저장 핸들러

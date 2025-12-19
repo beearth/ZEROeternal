@@ -1,7 +1,7 @@
 import React from "react";
-import { BookOpen, Star, Volume2, Search, X, Trash2 } from "lucide-react";
+import { BookOpen, Star, Volume2, Search, X, Trash2, Languages } from "lucide-react";
 
-export type WordOptionType = "sentence" | "important" | "tts" | "detail" | "delete";
+export type WordOptionType = "sentence" | "translate" | "important" | "tts" | "detail" | "delete";
 
 interface WordOptionMenuProps {
     isOpen: boolean;
@@ -58,6 +58,17 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                             subLabel="이 문장을 보관함에 저장"
                             onClick={() => {
                                 onSelectOption("sentence");
+                                onClose();
+                            }}
+                        />
+                    )}
+                    {!hideSentenceOption && (
+                        <MenuButton
+                            icon={<Languages className="w-5 h-5 text-cyan-400" />}
+                            label="문장 번역"
+                            subLabel="이 문장을 한국어로 번역"
+                            onClick={() => {
+                                onSelectOption("translate");
                                 onClose();
                             }}
                         />

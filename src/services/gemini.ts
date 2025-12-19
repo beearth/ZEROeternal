@@ -20,6 +20,29 @@ const MODELS = [
   "deepseek/deepseek-chat", // DeepSeek V3 (유료, 고성능, 텍스트 전용)
 ];
 
+// 사용 가능한 모델 목록 (UI에서 선택 가능)
+export const AVAILABLE_MODELS = [
+  { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", provider: "Google", free: true },
+  { id: "deepseek/deepseek-chat", name: "DeepSeek V3", provider: "DeepSeek", free: false },
+  { id: "anthropic/claude-sonnet-4", name: "Claude Sonnet 4", provider: "Anthropic", free: false },
+  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", free: false },
+  { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI", free: false },
+  { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B", provider: "Meta", free: false },
+  { id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", provider: "Alibaba", free: false },
+];
+
+// 선택된 모델 저장/불러오기
+let selectedModel = localStorage.getItem('selectedModel') || MODELS[0];
+
+export function getSelectedModel(): string {
+  return selectedModel;
+}
+
+export function setSelectedModel(modelId: string): void {
+  selectedModel = modelId;
+  localStorage.setItem('selectedModel', modelId);
+}
+
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: API_KEY,
@@ -85,17 +108,16 @@ export async function sendMessageToGemini(
   targetLang: string = "en"
 ): Promise<string> {
   const systemPrompt = `
-당신은 언어 학습 파트너입니다.
-사용자의 모국어: ${nativeLang}
-사용자가 학습 중인 언어: ${targetLang}
+당신은 전문 지식인 AI 어시스턴트입니다.
+사용자의 언어: ${nativeLang}
 
 규칙:
-1. **절대로 슬래시('/') 문자를 사용하지 마십시오.** 품사 구분 등 필요한 경우 괄호나 쉼표를 사용하십시오.
-2. 당신은 사용자의 모국어(${nativeLang})로 자연스럽게 대화해야 합니다.
-3. 답변에 포함된 모든 핵심 문장에 대해, 반드시 학습 언어(${targetLang})로 번역된 문장을 한 줄씩 덧붙여주세요.
-4. 번역된 문장은 클릭 가능한 학습 재료가 됩니다.
-5. 항상 친절하고 격려하는 태도를 유지하세요.
-이미지가 제공된 경우, 해당 이미지에 대해 설명하거나 관련된 언어 학습 대화를 이어가세요.
+1. 사용자가 질문하면 정확하고 상세한 답변을 제공하세요.
+2. 복잡한 개념은 쉽게 설명하고, 필요하면 예시를 들어주세요.
+3. 한국어로 자연스럽게 대화하세요.
+4. 모르는 것은 모른다고 솔직히 말하세요.
+5. 항상 친절하고 도움이 되는 태도를 유지하세요.
+이미지가 제공된 경우, 해당 이미지에 대해 분석하고 설명해주세요.
 `;
 
   // 메시지 포맷 변환 (멀티모달 지원)

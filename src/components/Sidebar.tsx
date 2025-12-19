@@ -92,6 +92,7 @@ export function Sidebar({
   const [editTitle, setEditTitle] = useState("");
   const [renameModalId, setRenameModalId] = useState<string | null>(null);
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const startEditing = (id: string, currentTitle: string) => {
     setRenameModalId(id);
@@ -180,19 +181,19 @@ export function Sidebar({
           // Desktop: Expanded 280px, Collapsed (Mini) 72px. Mobile: 280px or 0.
           width: isDesktop ? (isOpen ? '280px' : '72px') : '280px',
           height: '100vh',
-          zIndex: isDesktop ? 30 : 200,
+          zIndex: isDesktop ? 50 : 200,
           // Always visible on desktop (either full or mini)
           visibility: (isDesktop) ? 'visible' : (isOpen ? 'visible' : 'hidden'),
           opacity: 1,
         }}
       >
         {/* UNIFIED SIDEBAR CONTENT - Single structure that transitions smoothly */}
-        <div className="flex flex-col h-full w-full overflow-hidden">
+        <div className="flex flex-col h-full w-full">
           {/* Header - Icon position fixed */}
           <div className="flex items-center justify-between py-3 px-4" style={{ minHeight: '60px' }}>
             {/* Left Section - Icons always left-aligned */}
             <div className="flex items-center gap-2">
-              {/* Hamburger Menu */}
+              {/* Hamburger Menu - Always visible */}
               <button
                 onClick={onToggle}
                 className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
@@ -200,31 +201,17 @@ export function Sidebar({
                 <Menu className="w-5 h-5" />
               </button>
 
-              {/* Search Icon with Red Dot - Only visible when expanded */}
-              <button
-                className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-all duration-300 flex-shrink-0 relative"
-                style={{
-                  opacity: (isDesktop && !isOpen) ? 0 : 1,
-                  width: (isDesktop && !isOpen) ? 0 : '40px',
-                  overflow: 'hidden',
-                }}
-              >
-                <Search className="w-5 h-5" />
-                <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2" 
-                     style={{ boxShadow: '0 0 5px #dc2626' }} />
-              </button>
-
-              {/* ETERNAL brand - Only visible when expanded */}
-              <span 
-                className="text-sm font-medium text-zinc-200 tracking-wide whitespace-nowrap transition-all duration-300"
+              {/* Eternal Logo - Only visible when expanded */}
+              <div 
+                className="transition-all duration-300 overflow-hidden flex items-center"
                 style={{
                   opacity: (isDesktop && !isOpen) ? 0 : 1,
                   width: (isDesktop && !isOpen) ? 0 : 'auto',
-                  overflow: 'hidden',
+                  marginLeft: (isDesktop && !isOpen) ? 0 : '0.5rem',
                 }}
               >
-                ETERNAL
-              </span>
+                 <EternalLogo />
+              </div>
             </div>
 
             {/* Close button - Mobile only */}
@@ -396,28 +383,13 @@ export function Sidebar({
               )}
             </button>
 
-            {/* Settings Button */}
-            <button
-              onClick={() => {
-                if (isDesktop && !isOpen) {
-                  onToggle();
-                }
-              }}
-              className="flex items-center gap-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300"
-            >
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                <Settings className="w-5 h-5" />
-              </div>
-              <span 
-                className="text-sm font-medium whitespace-nowrap transition-all duration-300 overflow-hidden"
-                style={{
-                  opacity: (isDesktop && !isOpen) ? 0 : 1,
-                  maxWidth: (isDesktop && !isOpen) ? 0 : '200px',
-                }}
-              >
-                설정 및 도움말
-              </span>
-            </button>
+            {/* Settings - Using SettingsMenu Component */}
+            <SettingsMenu
+              onLogout={onLogout}
+              onResetLanguage={onResetLanguage}
+              onResetVocabulary={onResetVocabulary}
+              isCollapsed={isDesktop && !isOpen}
+            />
 
             {/* System Status - Green Point */}
             <div className="flex items-center gap-3 py-2 transition-all duration-300">

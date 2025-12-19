@@ -486,6 +486,43 @@ export function ChatMessage({
           });
         }
         break;
+      case "translate":
+        // 문장 번역 - 해당 문장을 찾아서 번역 요청
+        if (finalWord && finalWord.length >= 2) {
+          const fullText = message.content;
+          const targetOffset = startOffset;
+          const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
+          const parts = fullText.split(sentenceRegex);
+          let currentPos = 0;
+          let foundSentence = "";
+
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            const partLength = part.length;
+            const endPos = currentPos + partLength;
+            if (targetOffset >= currentPos && targetOffset < endPos) {
+              foundSentence = part;
+              break;
+            }
+            currentPos += partLength;
+          }
+
+          const targetSentence = foundSentence.trim() || message.content;
+          if (targetSentence) {
+            // 번역 API 호출 (gemini 서비스 사용)
+            import("../services/gemini").then(({ generateText }) => {
+              generateText(`다음 영어 문장을 한국어로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n"${targetSentence}"`)
+                .then(translation => {
+                  toast.success(`번역: ${translation}`, { duration: 8000 });
+                })
+                .catch(() => {
+                  toast.error("번역에 실패했습니다.");
+                });
+            });
+            toast.info("번역 중...");
+          }
+        }
+        break;
     }
 
     setRadialMenu({
@@ -576,7 +613,7 @@ export function ChatMessage({
       <div className={`flex flex-col max-w-[85%] ${isAssistant ? "items-start" : "items-end"}`}>
         {isAssistant && (
           <div className="mb-2">
-            <EternalLogo textClassName="hidden" dotClassName="w-2.5 h-2.5" />
+            <EternalLogo textClassName="hidden" dotClassName="w-2.5 h-2.5" onlyDot />
           </div>
         )}
 
