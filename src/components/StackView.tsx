@@ -17,9 +17,10 @@ interface StackViewProps {
   onDeleteWord?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
   onToggleSidebar: () => void;
+  learningMode?: 'knowledge' | 'language';
 }
 
-export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant, onToggleSidebar }: StackViewProps) {
+export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant, onToggleSidebar, learningMode = 'knowledge' }: StackViewProps) {
   const navigate = useNavigate();
   // Red, Yellow, Green Stack은 string[] 타입, Important는 WordData[], Sentences는 string[]
   const isStringArray = items.length > 0 && typeof items[0] === "string";
@@ -213,7 +214,7 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
     let nextStatus: "red" | "yellow" | "green" | "white" = "white";
 
-    // 현재 스택에 따라 다음 상태 결정 (Red -> Yellow -> Green -> White)
+    // 현재 스택의 상태 결정 (Red -> Yellow -> Green -> White)
     if (currentStatus === "red") nextStatus = "yellow";
     else if (currentStatus === "yellow") nextStatus = "green";
     else if (currentStatus === "green") nextStatus = "white";
@@ -246,7 +247,9 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
               />
             </div>
             <div>
-              <h1 className="text-[#E3E3E3] text-xl font-semibold">{title}</h1>
+              <h1 className="text-[#E3E3E3] text-xl font-semibold">
+                {title === "Red Signal" && learningMode === "language" ? "Word Room" : title}
+              </h1>
               <p className="text-sm text-[#9ca3af]">
                 {items.length}개의 항목
               </p>

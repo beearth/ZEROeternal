@@ -4,6 +4,8 @@ import { ChatMessage } from "./components/ChatMessage";
 import { ChatInput } from "./components/ChatInput";
 import { StackView } from "./components/StackView";
 import { Auth } from "./components/Auth";
+import { WordDetailModal } from "./components/WordDetailModal";
+import { SettingsMenu } from "./components/SettingsMenu";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { MainContent } from "./components/MainContent";
 import { ToeicWordList } from "./components/ToeicWordList";
@@ -27,6 +29,7 @@ import {
   getUserConversations,
   saveUserConversations
 } from "./services/userData";
+import { eternalSystemDefaults } from "./constants/system";
 import type { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
@@ -109,6 +112,17 @@ export default function App() {
   const [targetLang, setTargetLang] = useState<string | null>(() => localStorage.getItem("signal_target_lang"));
   const [isToeicLoading, setIsToeicLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false); // 데이터 로딩 완료 여부
+  const [showResetConfirm, setShowResetConfirm] = useState(false); // 학습 모드 리셋 확인 모달 상태
+
+  // 학습 모드 상태 ('knowledge' | 'language') - 기본값은 'knowledge'
+  const [learningMode, setLearningMode] = useState<'knowledge' | 'language'>(() => 
+    (localStorage.getItem("signal_learning_mode") as 'knowledge' | 'language') || "knowledge"
+  );
+
+  const saveLearningMode = (mode: 'knowledge' | 'language') => {
+    localStorage.setItem("signal_learning_mode", mode);
+    setLearningMode(mode);
+  };
 
   // ... (existing code)
 
@@ -172,7 +186,8 @@ export default function App() {
   // 5개의 데이터 저장소 (useEffect보다 먼저 선언)
   // Red, Yellow, Green Stack은 깔끔하게 정제된 단어 텍스트만 저장
   const [redStack, setRedStack] = useState<string[]>([]);
-  // Yellow/Green stacks removed
+  const [greenStack, setGreenStack] = useState<string[]>([]); // Completed words
+  // Yellow stacks removed
   const [importantStack, setImportantStack] = useState<WordData[]>([]);
   const [sentenceStack, setSentenceStack] = useState<string[]>([]);
 
@@ -325,8 +340,14 @@ export default function App() {
 
     if (user) {
       // 로그인 상태이고 데이터가 있을 때만: Firebase에 저장 (Debounce 적용)
-      console.log('💾 단어장 저장 예약됨 (500ms 후)');
-      saveVocabularyToDB(user.uid, userVocabulary);
+      if (saveVocabularyTimeoutRef.current) {
+        clearTimeout(saveVocabularyTimeoutRef.current);
+      }
+
+      saveVocabularyTimeoutRef.current = setTimeout(() => {
+        console.log('💾 단어장 저장 실행');
+        saveVocabularyToDB(user.uid, userVocabulary);
+      }, 1000); // 1초 Debounce
     }
 
     // cleanup: 컴포넌트 언마운트 시 타이머 정리
@@ -390,6 +411,11 @@ export default function App() {
     const userRef = doc(db, "users", user.uid);
 
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      // 로컬 변경사항이 아직 서버에 반영되지 않은 상태라면 무시 (무한 루프 방지)
+      if (snapshot.metadata.hasPendingWrites) {
+        return;
+      }
+
       if (!snapshot.exists()) {
         setUserVocabulary({});
         setIsDataLoaded(true);
@@ -470,7 +496,28 @@ export default function App() {
         }))
       }));
 
-      setConversations(loadedConvs);
+      setConversations(prev => {
+        const serverMap = new Map(loadedConvs.map((c: any) => [c.id, c]));
+        const localIds = new Set(prev.map(c => c.id));
+
+        // 1. Merge existing (preserve local if newer/more messages)
+        const merged = prev.map(localConv => {
+            const serverConv = serverMap.get(localConv.id);
+            if (!serverConv) return localConv; // Keep unsynced new convs
+            
+            // If local has more messages (optimistic update pending), keep local
+            if (localConv.messages.length > serverConv.messages.length) {
+                // console.log(`Preserving local messages for conversation ${localConv.id}`);
+                return localConv;
+            }
+            return serverConv;
+        });
+
+        // 2. Add new from server
+        const newFromServer = loadedConvs.filter((c: any) => !localIds.has(c.id));
+        
+        return [...merged, ...newFromServer].sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime());
+      });
       lastLoadedConvs.current = loadedConvs;
 
       if (loadedConvs.length > 0 && !currentConversationId) {
@@ -532,38 +579,110 @@ export default function App() {
   );
 
   const handleSendMessage = async (content: string, images?: string[]): Promise<string | void> => {
-    if ((!content.trim() && (!images || images.length === 0)) || !currentConversation) return;
+    if (!content.trim() && (!images || images.length === 0)) return;
+
+    let targetConversationId = currentConversationId;
+    let isNewConversation = false;
+
+    // 만약 현재 선택된 대화가 없거나(초기 상태), 대화 목록에 없다면 새 ID 생성
+    if (!currentConversation) {
+      targetConversationId = Date.now().toString();
+      isNewConversation = true;
+      setCurrentConversationId(targetConversationId);
+    }
+
+    // Check for predefined system answers (Bypass API)
+    const systemRecommendation = eternalSystemDefaults.recommendations.find(
+      r => r.question.trim() === content.trim()
+    );
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content,
       timestamp: new Date(),
-      images: images // 이미지 저장
+      images
     };
 
-    // 사용자 메시지 추가
-    setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === currentConversationId
-          ? {
-            ...conv,
-            messages: [...conv.messages, userMessage],
-            title:
-              conv.messages.length === 0
-                ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
-                : conv.title,
-          }
-          : conv
-      )
-    );
+    if (systemRecommendation) {
+      const systemMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: systemRecommendation.answer,
+        timestamp: new Date(),
+      };
+
+      setConversations((prev) => {
+        const existing = prev.find(c => c.id === targetConversationId);
+        if (existing) {
+          return prev.map((conv) =>
+            conv.id === targetConversationId
+              ? {
+                  ...conv,
+                  messages: [...conv.messages, userMessage, systemMessage],
+                  title: conv.messages.length === 0
+                      ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
+                      : conv.title,
+                }
+              : conv
+          );
+        } else {
+          // 새 대화 생성
+          const newConv: Conversation = {
+            id: targetConversationId,
+            title: content.slice(0, 30) + (content.length > 30 ? "..." : ""),
+            messages: [userMessage, systemMessage],
+            timestamp: new Date(),
+          };
+          // 새 대화는 보통 목록의 맨 앞에 추가
+          return [newConv, ...prev];
+        }
+      });
+      
+      return systemRecommendation.answer;
+    }
+
+    // 사용자 메시지 추가 (API 호출 전)
+    setConversations((prev) => {
+      const existing = prev.find(c => c.id === targetConversationId);
+      if (existing) {
+        return prev.map((conv) =>
+          conv.id === targetConversationId
+            ? {
+              ...conv,
+              messages: [...conv.messages, userMessage],
+              title: conv.messages.length === 0
+                  ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
+                  : conv.title,
+            }
+            : conv
+        );
+      } else {
+        const newConv: Conversation = {
+          id: targetConversationId,
+          title: content.slice(0, 30) + (content.length > 30 ? "..." : ""),
+          messages: [userMessage],
+          timestamp: new Date(),
+        };
+        return [newConv, ...prev];
+      }
+    });
 
     // AI 응답 받기
     setIsTyping(true);
 
     try {
       // 현재 대화의 모든 메시지를 Gemini 형식으로 변환
-      const allMessages = [...currentConversation.messages, userMessage];
+      // 주의: currentConversation 변수는 stale 할 수 있으므로, conversations state에서 찾거나
+      // isNewConversation 플래그를 이용해 판단.
+      let historyMessages: Message[] = [];
+      if (isNewConversation) {
+        historyMessages = [];
+      } else if (currentConversation) {
+        historyMessages = currentConversation.messages;
+      }
+      
+      const allMessages = [...historyMessages, userMessage];
 
       // 에러 메시지("죄송합니다. 응답을 생성하는 중 오류가 발생했습니다...")는 AI 문맥에 포함시키지 않음
       const geminiMessages: GeminiChatMessage[] = allMessages
@@ -589,7 +708,7 @@ export default function App() {
 
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.id === currentConversationId
+          conv.id === targetConversationId
             ? { ...conv, messages: [...conv.messages, aiMessage] }
             : conv
         )
@@ -610,7 +729,7 @@ export default function App() {
 
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.id === currentConversationId
+          conv.id === targetConversationId
             ? { ...conv, messages: [...conv.messages, errorMessage] }
             : conv
         )
@@ -722,71 +841,105 @@ export default function App() {
     koreanMeaningParam?: string,
     isReturningToRed: boolean = false
   ) => {
+    // 1. Validate Input
     const word = wordParam || wordOrId;
-    let cleanWord = word.trim();
-    let wordKey = cleanWord.toLowerCase();
+    if (!word) return;
 
-    // ID Parsing & Cleaning Logic matches existing pattern
-    if (/^\d{10,}-\d+-.+/.test(word)) {
-      const match = word.match(/^\d{10,}-\d+-(.+)$/);
-      if (match && match[1]) {
-        cleanWord = match[1].trim();
-        wordKey = cleanWord.toLowerCase();
-      }
-    } else {
-      if (!userVocabulary[wordKey]) {
-        try {
-          const extracted = extractCleanWord(cleanWord);
-          if (extracted) {
-            cleanWord = extracted;
-            wordKey = cleanWord.toLowerCase();
+    // 2. Limit Removed as requested
+    // if (newStatus === 'red' && !isReturningToRed) {
+    //   if (redStack.length >= 15) { ... }
+    // }
+
+    try {
+      let cleanWord = word.trim();
+      let wordKey = cleanWord.toLowerCase();
+
+      // ID Parsing Logic
+      if (/^\d{10,}-\d+-.+/.test(word)) {
+        const match = word.match(/^\d{10,}-\d+-(.+)$/);
+        if (match && match[1]) {
+          cleanWord = match[1].trim();
+          wordKey = cleanWord.toLowerCase();
+        }
+      } else {
+        if (!userVocabulary[wordKey]) {
+          try {
+            const extracted = extractCleanWord(cleanWord);
+            if (extracted) {
+              cleanWord = extracted;
+              wordKey = cleanWord.toLowerCase();
+            }
+          } catch (e) {
+            console.log("extractCleanWord skipped");
           }
-        } catch (e) {
-          console.log("extractCleanWord skipped");
         }
       }
-    }
 
-    if (!cleanWord || cleanWord.length < 2 || cleanWord.length > 50) {
-      toast.error(`단어가 유효하지 않습니다: ${cleanWord}`);
-      return;
-    }
-
-    // Capture previous state values for optimistic update
-    const prevEntry = userVocabulary[wordKey];
-    const prevMeaning = prevEntry?.koreanMeaning || koreanMeaningParam || "";
-    const prevStatus = prevEntry?.status;
-
-    // 1. [Optimistic Update] Update State & DB IMMEDIATELY with available data
-    // Do NOT wait for translation here.
-    const optimisticEntry: VocabularyEntry = {
-      status: newStatus,
-      koreanMeaning: prevMeaning, // Might be empty initially
-      category: prevEntry?.category || "general"
-    };
-
-    // Update Local State
-    setUserVocabulary((prev) => {
-      const updated = { ...prev, [wordKey]: optimisticEntry };
-
-      // Update DB Immediately (Fire and Forget)
-      if (user) {
-        saveVocabularyToDB(user.uid, updated);
+      if (!cleanWord || cleanWord.length < 2 || cleanWord.length > 50) {
+        toast.error(`단어가 유효하지 않습니다: ${cleanWord}`);
+        return;
       }
-      return updated;
-    });
 
-    // Update derived stacks immediately
-    if (newStatus !== prevStatus) {
-      setRedStack(prev => prev.filter(w => w !== wordKey));
-      setRedStack(prev => prev.filter(w => w !== wordKey));
+      // Capture previous state
+      const prevEntry = userVocabulary[wordKey] as any;
+      const prevMeaning = prevEntry?.koreanMeaning || koreanMeaningParam || "";
+      const prevStatus = prevEntry?.status;
 
-      if (newStatus === "red") setRedStack(prev => [...prev, wordKey]);
+      // Optimistic Entry
+      // Use 'as any' to avoid rigid type checks during quick fix
+      const optimisticEntry: any = {
+        status: newStatus,
+        koreanMeaning: prevMeaning,
+        category: prevEntry?.category || "general",
+        timestamp: Date.now(),
+        count: (prevEntry?.count || 0) + 1,
+        originalWord: cleanWord,
+        context: {
+          sentence: sentence || prevEntry?.context?.sentence || "",
+          messageId: messageId || prevEntry?.context?.messageId || "",
+        },
+        meaning: prevMeaning
+      };
+
+      // 3. Update State & DB
+      setUserVocabulary((prev) => {
+        const updated = { ...prev, [wordKey]: optimisticEntry };
+        
+        // Fire and Forget DB save
+        if (user) {
+          saveVocabularyToDB(user.uid, updated).catch(err => {
+             console.error("Failed to save vocabulary:", err);
+             // toast.error("저장 중 오류가 발생했지만, 학습은 계속할 수 있습니다.");
+          });
+        }
+        return updated;
+      });
+
+      // 4. Update Derived Stacks
+      if (newStatus !== prevStatus) {
+        // Red Stack
+        setRedStack(prev => {
+             const filtered = prev.filter(w => w !== wordKey);
+             return newStatus === "red" ? [...filtered, wordKey] : filtered;
+        });
+        
+        // Green Stack (Completed words)
+        setGreenStack(prev => {
+             const filtered = prev.filter(w => w !== wordKey);
+             return newStatus === "green" ? [...filtered, wordKey] : filtered;
+        });
+      }
+
+      // 5. Generate Translation/Meaning if missing (Async)
+      if (!prevMeaning && newStatus === 'red') {
+         // Background translation logic could go here if needed
+      }
+
+    } catch (error) {
+      console.error("Critical Error in handleUpdateWordStatus:", error);
+      toast.error("단어 저장 중 오류가 발생했습니다.");
     }
-
-    // 자동 번역 제거됨 - 사용자가 요청할 때만 번역
-    // (API 호출 감소로 속도 향상)
-  }, [user, userVocabulary]);
+  }, [user, userVocabulary, redStack]);
 
   // 단어 상태 초기화 핸들러 (White/Default로 복원)
   const handleResetWordStatus = (word: string) => {
@@ -1004,6 +1157,8 @@ export default function App() {
     }
   };
 
+
+
   const handleLogout = async () => {
     await logout();
     setUser(null);
@@ -1028,6 +1183,10 @@ export default function App() {
           setNativeLang(native);
           setTargetLang(target);
           saveLanguageSettings(native, target);
+
+          // 모드 설정 저장
+          const mode = contentType === 'toeic' ? 'language' : 'knowledge';
+          saveLearningMode(mode);
 
           if (contentType === 'toeic') {
             toast.info("토익 필수 단어를 불러오는 중입니다...");
@@ -1061,6 +1220,38 @@ export default function App() {
         onLogout={logout}
       />
 
+      {/* Custom Reset Confirm Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-[400px] bg-[#1e1f20] border border-[#27272a] rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-white mb-3">학습 모드 재설정</h3>
+            <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+              학습 모드를 다시 설정하시겠습니까?<br />
+              설정 화면으로 이동하기 위해 앱이 새로고침됩니다.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("signal_native_lang");
+                  localStorage.removeItem("signal_target_lang");
+                  localStorage.removeItem("signal_learning_mode");
+                  window.location.reload();
+                }}
+                className="px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors rounded-lg"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex h-[100dvh] bg-[#1e1f20] text-[#E3E3E3] font-sans overflow-hidden relative">
 
         {/* Sidebar - participates in flex layout on desktop */}
@@ -1073,27 +1264,22 @@ export default function App() {
           onRenameConversation={handleRenameConversation}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          onToggle={() => setIsSidebarOpen((prev) => !prev)}
           counts={{
             red: redStack.length,
-            // yellow/green counts removed
+            green: greenStack.length,
             important: importantStack.length,
             sentence: sentenceStack.length,
           }}
           onLogout={handleLogout}
-          onResetLanguage={() => {
-            setNativeLang("ko");
-            setTargetLang(null);
-            localStorage.removeItem("signal_native_lang");
-            localStorage.removeItem("signal_target_lang");
-          }}
+          onResetLanguage={() => setShowResetConfirm(true)}
           onResetVocabulary={handleResetVocabulary}
+          learningMode={learningMode}
         />
 
-        {/* Main Content Area - No padding needed, sidebar takes its own space */}
-        <div
-          className="flex-1 flex flex-col min-w-0 transition-all duration-300 h-full overflow-hidden"
-        >
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#1e1f20] relative transition-all duration-300 ease-in-out">
+          
           <Routes>
             <Route
               path="/"
@@ -1105,133 +1291,137 @@ export default function App() {
                   isTyping={isTyping}
                   onSendMessage={handleSendMessage}
                   isSidebarOpen={isSidebarOpen}
-                  onLogout={handleLogout}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   user={user}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                  onLogout={handleLogout}
                   userVocabulary={userVocabulary}
                   onUpdateWordStatus={handleUpdateWordStatus}
                   onResetWordStatus={handleResetWordStatus}
                   onSaveImportant={handleSaveImportant}
                   onSaveSentence={handleSaveSentence}
+                  learningMode={learningMode}
                 />
               }
             />
-            <Route
-              path="/stack/red"
-              element={
-                <StackView
-                  title="The Unknowns"
-                  color="#ef4444"
-                  items={redStack}
-                  userVocabulary={userVocabulary}
-                  onUpdateVocabulary={(wordKey, meaning) => {
-                    setUserVocabulary((prev) => {
-                      const entry = prev[wordKey];
-                      if (entry) {
-                        return {
-                          ...prev,
-                          [wordKey]: { ...entry, koreanMeaning: meaning },
-                        };
-                      }
-                      return prev;
-                    });
-                  }}
-                  onGenerateStudyTips={handleGenerateStudyTips}
-                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                  onDeleteWord={(word) => handleResetWordStatus(word)}
-                  onSaveImportant={handleSaveImportant}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                />
-              }
-            />
-            {/* Yellow and Green Routes Removed */}
-            <Route
-              path="/stack/important"
-              element={
-                <StackView
-                  title="Important Stack"
-                  color="#3b82f6"
-                  items={importantStack}
-                  userVocabulary={userVocabulary}
-                  onUpdateVocabulary={(wordKey, meaning) => {
-                    setUserVocabulary((prev) => {
-                      const entry = prev[wordKey];
-                      if (entry) {
-                        return {
-                          ...prev,
-                          [wordKey]: { ...entry, koreanMeaning: meaning },
-                        };
-                      }
-                      return prev;
-                    });
-                  }}
-                  onGenerateStudyTips={handleGenerateStudyTips}
-                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                  onDeleteWord={handleResetWordStatus}
-                  onSaveImportant={handleSaveImportant}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                />
-              }
-            />
-            <Route
-              path="/stack/sentence"
-              element={
-                <StackView
-                  title="Sentences"
-                  color="#f97316"
-                  items={sentenceStack}
-                  onDeleteWord={(sentence) => {
-                    setSentenceStack((prev) => prev.filter((item) => item !== sentence));
-                  }}
-                  onGenerateStudyTips={handleGenerateStudyTips}
-                  onSaveImportant={handleSaveImportant}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                />
-              }
-            />
-
-            <Route
-              path="/toeic-4000"
-              element={
-                <ToeicWordList
-                  userVocabulary={userVocabulary}
-                  onUpdateWordStatus={(word, status) => handleUpdateWordStatus(word, status)}
-                  onGenerateStudyTips={handleGenerateStudyTips}
-                  onLoadMore={handleLoadMoreToeicWords}
-                  onDeleteWord={handleResetWordStatus}
-                  onSaveImportant={handleSaveImportant}
-                  isLoading={isToeicLoading}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                />
-              }
-            />
-
+            
             {/* Community Routes */}
-            {/* Community Routes */}
-            <Route path="/community" element={<CommunityFeed user={user} nativeLang={nativeLang} targetLang={targetLang} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />} />
-            <Route path="/create-post" element={<CreatePostPage user={user} onSubmit={() => { }} />} />
-            <Route path="/edit-post/:postId" element={<EditPostPage />} />
-            <Route path="/profile/:userId" element={<UserProfilePage user={user} />} />
-            <Route
-              path="/community/global-chat"
+            <Route 
+              path="/community" 
               element={
-                <GlobalChatRoom
+                <CommunityFeed 
+                  user={user} 
+                  nativeLang={nativeLang}
+                  targetLang={targetLang}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                />
+              } 
+            />
+            <Route 
+              path="/community/post" 
+              element={
+                <CreatePostPage 
+                  user={user} 
+                  onSubmit={() => { /* Navigation handled by component or manually */ }}
+                />
+              } 
+            />
+            <Route 
+              path="/community/edit/:postId" 
+              element={<EditPostPage />} 
+            />
+            <Route 
+              path="/profile/:userId" 
+              element={<UserProfilePage />} 
+            />
+            
+            <Route 
+              path="/chat/global" 
+              element={
+                <GlobalChatRoom 
                   user={user}
                   userVocabulary={userVocabulary}
-                  onUpdateWordStatus={(_id, status, word, messageId, sentence) => handleUpdateWordStatus(word, status, word, messageId, sentence)}
+                  onUpdateWordStatus={handleUpdateWordStatus}
                   onResetWordStatus={handleResetWordStatus}
                   nativeLang={nativeLang}
                   onSaveSentence={handleSaveSentence}
                   onSaveImportant={handleSaveImportant}
                   importantStack={importantStack}
                 />
-              }
+              } 
             />
+            
             <Route path="/chat/:userId" element={<DirectChat user={user} />} />
+            
+            <Route 
+              path="/toeic-4000" 
+              element={
+                <ToeicWordList
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onLoadMore={handleLoadMoreToeicWords}
+                  isLoading={isToeicLoading}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                  onDeleteWord={handleResetWordStatus}
+                  onSaveImportant={handleSaveImportant}
+                />
+              } 
+            />
+
+            {/* Stack Views */}
+            <Route 
+              path="/stack/red" 
+              element={
+                <StackView
+                  title={learningMode === 'language' ? 'Word Room' : 'Red Room'}
+                  color="#ef4444" 
+                  items={redStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onDeleteWord={handleResetWordStatus}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                  learningMode={learningMode}
+                />
+              } 
+            />
+            <Route 
+              path="/stack/sentence" 
+              element={
+                <StackView
+                  title="Sentences"
+                  color="#3b82f6" 
+                  items={sentenceStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus} // 문장 스택에서 단어 클릭 시 필요할 수 있음
+                  onDeleteWord={(sentence) => setSentenceStack(prev => prev.filter(s => s !== sentence))}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                  learningMode={learningMode}
+                />
+              } 
+            />
+            <Route 
+              path="/stack/green" 
+              element={
+                <StackView
+                  title="Green Room"
+                  color="#22c55e" 
+                  items={greenStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onDeleteWord={(word) => setGreenStack(prev => prev.filter(w => w !== word))}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                  learningMode={learningMode}
+                />
+              } 
+            />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
+
     </BrowserRouter>
   );
 }

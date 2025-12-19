@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Globe, LogOut, BookOpen, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface OnboardingModalProps {
     isOpen: boolean;
@@ -23,6 +24,7 @@ export function OnboardingModal({ isOpen, onComplete, onLogout }: OnboardingModa
     const [targetLang, setTargetLang] = useState<string | null>(null);
     const [step, setStep] = useState<'language' | 'content'>('language');
     const [mounted, setMounted] = useState(false);
+    const navigate = useNavigate(); // Hook usage
 
     useEffect(() => {
         setMounted(true);
@@ -40,6 +42,12 @@ export function OnboardingModal({ isOpen, onComplete, onLogout }: OnboardingModa
     const handleContentSelect = (type: 'free' | 'toeic') => {
         if (targetLang) {
             onComplete(nativeLang, targetLang, type);
+            // Navigate based on selection
+            if (type === 'toeic') {
+                navigate('/toeic-4000');
+            } else {
+                navigate('/');
+            }
         }
     };
 

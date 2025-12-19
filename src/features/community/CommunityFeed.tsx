@@ -201,7 +201,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
 
                         {/* Open Chat Pill */}
                         <Button
-                            onClick={() => navigate('/community/global-chat')}
+                            onClick={() => navigate('/chat/global')}
                             className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-[#2a2b2c] hover:bg-[#3a3b3c] text-white border border-[#2a2b2c] shadow-sm transition-colors"
                             title="Global Open Chat"
                         >
@@ -211,7 +211,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
 
                         {/* Create Post Pill */}
                         <Button
-                            onClick={() => navigate('/create-post')}
+                            onClick={() => navigate('/community/post')}
                             className="flex items-center gap-2 h-9 w-9 p-0 sm:w-auto sm:px-4 rounded-full bg-[#2a2b2c] hover:bg-[#3a3b3c] text-white border border-[#2a2b2c] shadow-sm transition-colors"
                         >
                             <Plus className="w-5 h-5" />

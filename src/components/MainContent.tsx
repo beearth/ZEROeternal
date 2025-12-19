@@ -9,6 +9,8 @@ import { NotificationsPopover } from "./NotificationsPopover";
 import { ModelSelector } from "./ModelSelector";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { WordData, VocabularyEntry } from "../types";
+import { eternalSystemDefaults } from "../constants/system";
+import { Brain, Activity, Layers, RefreshCw } from "lucide-react";
 
 interface Message {
     id: string;
@@ -48,6 +50,7 @@ interface MainContentProps {
     onResetWordStatus: (word: string) => void;
     onSaveImportant: (word: WordData) => void;
     onSaveSentence: (sentence: string) => void;
+    learningMode?: 'knowledge' | 'language';
 }
 
 export function MainContent({
@@ -65,6 +68,7 @@ export function MainContent({
     onResetWordStatus,
     onSaveImportant,
     onSaveSentence,
+    learningMode = 'knowledge',
 }: MainContentProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const prevMessageCountRef = useRef<number>(0);
@@ -234,26 +238,28 @@ export function MainContent({
                                     <span className="text-lg">💡</span>
                                     <span className="font-medium">오늘의 추천 질문</span>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {[
-                                        { icon: "🧠", title: "인공지능이란?", desc: "AI의 기본 원리와 활용 분야" },
-                                        { icon: "🌍", title: "기후변화의 원인", desc: "지구 온난화가 일어나는 이유" },
-                                        { icon: "💰", title: "주식 투자 기초", desc: "초보자를 위한 투자 가이드" },
-                                        { icon: "🚀", title: "우주 탐사의 미래", desc: "화성 이주는 가능할까?" },
-                                    ].map((item, i) => (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {eternalSystemDefaults.recommendations.map((item, i) => {
+                                    const icons = [Brain, Activity, Layers, RefreshCw];
+                                    const Icon = icons[i % icons.length];
+                                    
+                                    return (
                                         <button
-                                            key={i}
-                                            onClick={() => onSendMessage(item.title)}
+                                            key={item.id}
+                                            onClick={() => onSendMessage(item.question)}
                                             className="flex items-start gap-3 p-4 bg-[#27272a] hover:bg-[#3f3f46] rounded-xl transition-colors text-left group"
                                         >
-                                            <span className="text-2xl">{item.icon}</span>
+                                            <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
+                                                <Icon className="w-5 h-5 text-zinc-400 group-hover:text-white" />
+                                            </div>
                                             <div>
-                                                <p className="text-white font-medium group-hover:text-blue-400 transition-colors">{item.title}</p>
-                                                <p className="text-sm text-zinc-500">{item.desc}</p>
+                                                <p className="text-white font-medium group-hover:text-blue-400 transition-colors">{item.question}</p>
+                                                <p className="text-sm text-zinc-500">{item.philosophy}</p>
                                             </div>
                                         </button>
-                                    ))}
-                                </div>
+                                    );
+                                })}
+                            </div>
                             </div>
 
                             <div className="w-full">
@@ -278,6 +284,7 @@ export function MainContent({
                                         onSaveImportant={onSaveImportant}
                                         onSaveSentence={onSaveSentence}
                                         userVocabulary={userVocabulary}
+                                        learningMode={learningMode}
                                     />
                                 ))}
                                 {isTyping && (

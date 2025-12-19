@@ -20,6 +20,7 @@ interface Conversation {
 
 interface StackCounts {
   red: number;
+  green: number;
   important: number;
   sentence: number;
 }
@@ -38,6 +39,7 @@ interface SidebarProps {
   onLogout: () => void;
   onResetLanguage: () => void;
   onResetVocabulary?: () => void;
+  learningMode?: 'knowledge' | 'language';
 }
 
 export function Sidebar({
@@ -54,6 +56,7 @@ export function Sidebar({
   onLogout,
   onResetLanguage,
   onResetVocabulary,
+  learningMode = 'knowledge',
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -354,32 +357,55 @@ export function Sidebar({
           {/* Spacer for mini mode */}
           {isDesktop && !isOpen && <div className="flex-1" />}
 
-          {/* Bottom Section - Icon position fixed */}
-          <div className="bg-[#09090b] flex flex-col py-3 px-4 gap-1">
+          {/* Bottom Section */}
+          <div className={`bg-[#09090b] flex flex-col py-2 gap-1 ${(isDesktop && !isOpen) ? 'items-center w-full' : 'px-3'}`}>
             {/* Red Signal Button */}
             <button
               onClick={() => {
                 navigate("/stack/red");
                 if (!isDesktop) onClose();
               }}
-              className="flex items-center gap-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300"
+              className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
             >
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                <div className="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] ${learningMode === 'language' ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-600 shadow-red-600/50'}`} />
               </div>
-              <span 
-                className="text-sm font-medium whitespace-nowrap transition-all duration-300 overflow-hidden"
-                style={{
-                  opacity: (isDesktop && !isOpen) ? 0 : 1,
-                  maxWidth: (isDesktop && !isOpen) ? 0 : '200px',
-                }}
-              >
-                Red Room
-              </span>
-              {counts.red > 0 && !(isDesktop && !isOpen) && (
-                <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
-                  {counts.red}
-                </span>
+              {!(isDesktop && !isOpen) && (
+                <>
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    {learningMode === 'language' ? 'Word Room' : 'Red Room'}
+                  </span>
+                  {counts.red > 0 && (
+                    <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                      {counts.red}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+
+            {/* Green Room Button */}
+            <button
+              onClick={() => {
+                navigate("/stack/green");
+                if (!isDesktop) onClose();
+              }}
+              className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+              </div>
+              {!(isDesktop && !isOpen) && (
+                <>
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    Green Room
+                  </span>
+                  {counts.green > 0 && (
+                    <span className="ml-auto text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                      {counts.green}
+                    </span>
+                  )}
+                </>
               )}
             </button>
 
@@ -390,31 +416,6 @@ export function Sidebar({
               onResetVocabulary={onResetVocabulary}
               isCollapsed={isDesktop && !isOpen}
             />
-
-            {/* System Status - Green Point */}
-            <div className="flex items-center gap-3 py-2 transition-all duration-300">
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              </div>
-              <span 
-                className="text-[10px] text-zinc-500 font-mono tracking-wider whitespace-nowrap transition-all duration-300 overflow-hidden"
-                style={{
-                  opacity: (isDesktop && !isOpen) ? 0 : 1,
-                  maxWidth: (isDesktop && !isOpen) ? 0 : '150px',
-                }}
-              >
-                SYSTEM READY
-              </span>
-              <span 
-                className="text-[10px] text-zinc-600 font-mono transition-all duration-300 overflow-hidden ml-auto"
-                style={{
-                  opacity: (isDesktop && !isOpen) ? 0 : 1,
-                  maxWidth: (isDesktop && !isOpen) ? 0 : '50px',
-                }}
-              >
-                v2.0
-              </span>
-            </div>
           </div>
         </div>
         {/* Rename Modal (Gemini Style) */}

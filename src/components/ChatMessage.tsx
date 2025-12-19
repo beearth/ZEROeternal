@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
+import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw, Languages } from "lucide-react";
 import { EternalLogo } from "./EternalLogo";
 import { toast } from "sonner";
 import { useLongPress } from "../hooks/useLongPress";
 import { WordDetailModal } from "./WordDetailModal";
 import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
 import { format } from "date-fns";
-import { generateStudyTips } from "../services/gemini";
+import { generateStudyTips, generateText } from "../services/gemini";
 import type { WordData } from "../types";
 
 interface Message {
@@ -33,6 +33,7 @@ interface ChatMessageProps {
   onSaveImportant?: (word: WordData) => void;
   onSaveSentence?: (sentence: string) => void;
   userVocabulary?: Record<string, { status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string }>;
+  learningMode?: 'knowledge' | 'language';
 }
 
 // Helper function for styles
@@ -64,6 +65,7 @@ const WordSpan = React.memo(({
   startOffset,
   koreanMeaning,
   onRedSignalClick,
+  isBold,
 }: {
   part: string;
   partIndex: number;
@@ -79,7 +81,9 @@ const WordSpan = React.memo(({
   startOffset: number;
   koreanMeaning?: string;
   onRedSignalClick: (word: string) => Promise<void>;
+  isBold?: boolean;
 }) => {
+  // ...
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
@@ -120,14 +124,14 @@ const WordSpan = React.memo(({
           return updated;
         });
       }}
-      className={`inline-flex items-center gap-[3px] whitespace-nowrap rounded px-1 cursor-pointer transition-all duration-[150ms] relative align-middle ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100"
+      className={`inline-block whitespace-pre-wrap px-0.5 cursor-pointer transition-all duration-[150ms] relative align-baseline ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100 rounded"
         } ${isCurrentlyHolding
           ? "scale-[0.98] shadow-inner"
           : ""
         } ${isHighlighted
           ? "ring-2 ring-blue-500 shadow-lg shadow-blue-500/40 animate-pulse"
           : ""
-        }`}
+        } ${isBold ? "font-bold text-blue-300" : ""}`}
       style={{
         userSelect: "none",
         WebkitUserSelect: "none",
@@ -139,14 +143,14 @@ const WordSpan = React.memo(({
         backgroundColor: getHoldingBackgroundColor(),
         transform: isCurrentlyHolding ? 'scale(0.98)' : 'scale(1)',
       }}
-      // @ts-ignore
-      onSelectStart={(e) => e.preventDefault()}
     >
-      <span>{part}</span>
+      <span>{cleanMarkdown(part, false)}</span>
       {wordState === 1 && !isConfirmed && (
         <span
-          onClick={async (e) => {
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={async (e) => {
              e.stopPropagation();
+             // Handle click logic here directly for better responsiveness
              if (isProcessing) return;
              setIsProcessing(true);
              try {
@@ -158,7 +162,7 @@ const WordSpan = React.memo(({
                 setIsProcessing(false);
              }
           }}
-          className={`flex shrink-0 rounded-full cursor-pointer transition-all duration-500 ${
+          className={`absolute -top-0.5 -right-1 flex shrink-0 rounded-full cursor-pointer transition-all duration-500 ${
             isProcessing ? "bg-blue-500 scale-125" : "bg-[#FF3B30] animate-pulse shadow-[0_0_8px_rgba(255,59,48,0.5)]"
           }`}
           style={{
@@ -180,14 +184,18 @@ const WordSpan = React.memo(({
   );
 });
 
-// 마크다운 제거 함수
-const cleanMarkdown = (text: string): string => {
-  return text
+// 마크다운 제거 함수 (Display용)
+const cleanMarkdown = (text: string, trim = true): string => {
+  // Bold, Header, Backticks 등 모든 특수문자 제거하고 텍스트만 남김
+  const cleaned = text
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/`/g, "")
     .replace(/#{1,6}\s/g, "")
-    .trim();
+    .replace(/\[.*\]\(.*\)/g, "") // 링크 제거
+    .replace(/[\[\]]/g, ""); // 대괄호 제거
+  
+  return trim ? cleaned.trim() : cleaned;
 };
 
 const isMeaningfulWord = (text: string): boolean => {
@@ -213,15 +221,16 @@ const processPart = (part: string) => {
   if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
     return { isValid: false, finalWord: '', wordKey: '' };
   }
+  const isBold = part.includes('**');
   const cleanedPart = cleanMarkdown(part);
   if (!isMeaningfulWord(part)) {
-    return { isValid: false, finalWord: '', wordKey: '' };
+    return { isValid: false, finalWord: '', wordKey: '', isBold: false };
   }
   const finalWord = cleanedPart.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
   if (!finalWord || finalWord.length < 2) {
-    return { isValid: false, finalWord: '', wordKey: '' };
+    return { isValid: false, finalWord: '', wordKey: '', isBold: false };
   }
-  return { isValid: true, finalWord, wordKey: finalWord.toLowerCase() };
+  return { isValid: true, finalWord, wordKey: finalWord.toLowerCase(), isBold };
 };
 
 export function ChatMessage({
@@ -232,11 +241,24 @@ export function ChatMessage({
   onSaveImportant,
   onSaveSentence,
   userVocabulary = {},
+  learningMode = 'knowledge',
 }: ChatMessageProps) {
   const isAssistant = message.role === "assistant";
   const [wordStates, setWordStates] = useState<Record<number, number>>({});
   const [isHolding, setIsHolding] = useState<Record<number, boolean>>({});
   const [highlightWord, setHighlightWord] = useState<number | null>(null);
+  const [translation, setTranslation] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (learningMode === 'language' && isAssistant && !isTyping && !translation && message.content && message.content.length > 0) {
+      const timer = setTimeout(() => {
+        generateText(`Translate the following English text to natural Korean. Output only the Korean translation:\n\n"${message.content}"`)
+          .then(text => setTranslation(text))
+          .catch(err => console.error("Auto-translation failed:", err));
+      }, 500); // 딜레이를 주어 너무 빠른 요청 방지
+      return () => clearTimeout(timer);
+    }
+  }, [learningMode, isAssistant, isTyping, translation, message.content]);
 
   const [radialMenu, setRadialMenu] = useState<{
     showRadialMenu: boolean;
@@ -540,9 +562,14 @@ export function ChatMessage({
     return parts.map((part, partIndex) => {
       const currentStartOffset = charCursor;
       charCursor += part.length;
-      const { isValid, finalWord, wordKey } = processPart(part);
+      const { isValid, finalWord, wordKey, isBold } = processPart(part);
 
-      if (!isValid) return <span key={partIndex}>{part}</span>;
+      // Handle non-valid parts (whitespace, punctuation, symbols)
+      if (!isValid) {
+        // preserve formatting for newlines and spaces, but clean markdown characters
+        const displayPart = cleanMarkdown(part, false);
+        return <span key={partIndex} className={`align-baseline whitespace-pre-wrap ${part.includes('**') ? 'font-bold text-blue-300' : ''}`}>{displayPart}</span>;
+      }
 
       const currentWordIndex = wordIndex;
       wordIndex++;
@@ -583,6 +610,7 @@ export function ChatMessage({
           setIsHolding={setIsHolding}
           startOffset={currentStartOffset}
           koreanMeaning={globalEntry?.koreanMeaning}
+          isBold={isBold}
           onRedSignalClick={async (word) => {
               // 'Red Room' (Unknown Stack) API 호출
               // status 1(Red)로 확실히 저장.
@@ -610,7 +638,7 @@ export function ChatMessage({
 
   return (
     <div className={`flex ${isAssistant ? "justify-start" : "justify-end"} mb-6`}>
-      <div className={`flex flex-col max-w-[85%] ${isAssistant ? "items-start" : "items-end"}`}>
+      <div className={`flex flex-col ${isAssistant ? "w-full max-w-full" : "max-w-[85%]"} ${isAssistant ? "items-start" : "items-end"}`}>
         {isAssistant && (
           <div className="mb-2">
             <EternalLogo textClassName="hidden" dotClassName="w-2.5 h-2.5" onlyDot />
@@ -619,7 +647,7 @@ export function ChatMessage({
 
         <div
           className={`relative px-5 py-4 rounded-2xl shadow-sm transition-all duration-200 ${isAssistant
-            ? "bg-transparent text-zinc-100 pl-0"
+            ? "bg-transparent text-zinc-50 pl-0 text-left w-full"
             : "bg-[#2a2b2c] text-white rounded-tr-2xl"
             }`}
         >
@@ -643,10 +671,21 @@ export function ChatMessage({
               <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" />
             </div>
           ) : (
-            <div className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+            <div className="text-[16px] leading-7 whitespace-pre-wrap break-words font-normal tracking-normal text-zinc-100">
               {isAssistant ? renderWords(message.content) : message.content}
             </div>
           )}
+
+          {/* Auto Translation Display */}
+          {translation && (
+            <div className="mt-4 pt-3 border-t border-zinc-700/50 animate-in fade-in duration-500">
+              <div className="flex items-start gap-2.5 text-zinc-300/90 text-[15px] leading-7">
+                <Languages className="w-4 h-4 mt-1.5 text-blue-400 shrink-0" />
+                <p>{translation}</p>
+              </div>
+            </div>
+          )}
+
         </div>
 
         <span className="text-[11px] text-slate-400 mt-1 px-1">
