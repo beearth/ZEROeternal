@@ -2,6 +2,12 @@ export interface VocabularyEntry {
     status: "red" | "yellow" | "green" | "white" | "orange";
     koreanMeaning: string;
     category?: string;
+    word?: string;
+    lastUpdated?: string;
+    // Crystallized Entity (linked concepts)
+    linkedConcept?: boolean;
+    linkedFrom?: string[];
+    linkedTo?: string;
 }
 
 export interface WordData {

@@ -411,10 +411,10 @@ export default function App() {
     const userRef = doc(db, "users", user.uid);
 
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
-      // 로컬 변경사항이 아직 서버에 반영되지 않은 상태라면 무시 (무한 루프 방지)
-      if (snapshot.metadata.hasPendingWrites) {
-        return;
-      }
+      // 로컬 변경사항이 아직 서버에 반영되지 않은 상태라도 반영 (UI 반응성 및 데이터 보존)
+      // if (snapshot.metadata.hasPendingWrites) {
+      //   return;
+      // }
 
       if (!snapshot.exists()) {
         setUserVocabulary({});
@@ -445,7 +445,13 @@ export default function App() {
       const process = (list: any[], status: any) => {
         (list || []).forEach(item => {
           const wordText = typeof item === 'string' ? item : item.word;
-          const clean = extractCleanWord(wordText);
+          // Fix: Handle phrases (preserve spaces) vs single words
+          let clean = "";
+          if (wordText && typeof wordText === 'string' && wordText.includes(' ')) {
+            clean = cleanMarkdown(wordText).trim();
+          } else {
+            clean = extractCleanWord(wordText);
+          }
           if (!clean) return;
           const key = clean.toLowerCase();
           mergedVocab[key] = {
@@ -473,7 +479,10 @@ export default function App() {
       };
 
       const newRedStack = deriveStack('red');
-      // Yellow/Green derive removed
+      
+      // Apply derived red stack to state and update lastLoaded to prevent save loop
+      setRedStack(newRedStack);
+      lastLoadedRed.current = newRedStack;
 
       if (Array.isArray(stacks.important)) {
         setImportantStack(stacks.important);
@@ -535,12 +544,16 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChange((currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+
+      // Loading is handled differently: 
+      // If user exists, keep loading until onSnapshot fires
+      // If no user, stop loading immediately
 
       if (currentUser) {
         // 로그인 시: 사용자 변경만 처리, 데이터 로딩은 useEffect가 담당
       } else {
         // 로그아웃 시: 모든 데이터 초기화
+        setLoading(false); // Stop loading immediately if no user
         setIsDataLoaded(false); // 로딩 상태 초기화
         setUserVocabulary({});
         setRedStack([]);
@@ -862,7 +875,15 @@ export default function App() {
           wordKey = cleanWord.toLowerCase();
         }
       } else {
-        if (!userVocabulary[wordKey]) {
+
+        // Fix: If wordParam is provided (explicitly passed phrase), use it directly without extraction
+        // This prevents "Complex System" from being parsed as "Complex" if extractCleanWord is called by mistake
+        const isPhrase = cleanWord.includes(' ');
+        
+        // wordParam이 있거나 구문인 경우 extractCleanWord 스킵
+        if (wordParam || isPhrase) {
+           // Keep cleanWord as is (just trimmed)
+        } else if (!userVocabulary[wordKey]) {
           try {
             const extracted = extractCleanWord(cleanWord);
             if (extracted) {
@@ -956,6 +977,60 @@ export default function App() {
     setRedStack(prev => prev.filter(w => w !== wordKey));
     setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
   };
+
+  // Crystallized Entity: 단어 합치기 핸들러
+  const handleMergeWords = useCallback((words: string[]) => {
+    if (!words || words.length < 2) return;
+    
+    // 합쳐진 단어 생성 (띄어쓰기로 연결)
+    const mergedWord = words.join(' ');
+    const mergedWordKey = mergedWord.toLowerCase();
+    
+    // 기존 단어들을 vocabulary에서 의미 가져오기
+    const meanings = words.map(w => {
+      const entry = userVocabulary[w.toLowerCase()];
+      return entry?.koreanMeaning || '';
+    }).filter(Boolean);
+    const mergedMeaning = meanings.join(' ');
+    
+    // 새로운 합쳐진 단어를 vocabulary에 추가
+    setUserVocabulary(prev => {
+      const updated = { ...prev };
+      updated[mergedWordKey] = {
+        word: mergedWord,
+        status: 'red',
+        koreanMeaning: mergedMeaning,
+        linkedConcept: true, // Crystallized Entity 표시
+        linkedFrom: words,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // 기존 단어들은 삭제하지 않고 유지 (연결 정보만 추가)
+      words.forEach(w => {
+        const key = w.toLowerCase();
+        if (updated[key]) {
+          updated[key] = {
+            ...updated[key],
+            linkedTo: mergedWordKey
+          };
+        }
+      });
+      
+      if (user) saveVocabularyToDB(user.uid, updated);
+      return updated;
+    });
+    
+    // 합쳐진 단어를 Red Stack에 추가하고 기존 단어들은 제거
+    setRedStack(prev => {
+      // 기존 단어들 제거
+      const filtered = prev.filter(w => !words.map(x => x.toLowerCase()).includes(w.toLowerCase()));
+      // 합쳐진 단어 추가
+      if (filtered.includes(mergedWordKey)) return filtered;
+      return [...filtered, mergedWordKey];
+    });
+    
+    toast.success(`✨ "${mergedWord}" 결정체 생성 완료!`);
+  }, [user, userVocabulary]);
 
   // 학습 팁 생성 핸들러
   const handleGenerateStudyTips = useCallback(async (word: string, status: "red" | "yellow" | "green" | "white" | "orange") => {
@@ -1137,9 +1212,14 @@ export default function App() {
     try {
       if (user) {
         const userRef = doc(db, "users", user.uid);
-        // DB에서 vocabulary 필드를 빈 객체로 업데이트 (덮어쓰기)
+        // DB에서 vocabulary와 stacks 필드를 빈 상태로 업데이트 (덮어쓰기)
         await updateDoc(userRef, {
           vocabulary: {},
+          stacks: {
+            red: [],
+            important: [],
+            sentences: []
+          },
           updatedAt: new Date()
         });
       }
@@ -1149,6 +1229,7 @@ export default function App() {
       setRedStack([]);
       // yellow/green removed
       setImportantStack([]);
+      setSentenceStack([]);
 
       toast.success("모든 단어 데이터가 초기화되었습니다.");
     } catch (error) {
@@ -1382,6 +1463,7 @@ export default function App() {
                   onDeleteWord={handleResetWordStatus}
                   onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   learningMode={learningMode}
+                  onMergeWords={handleMergeWords}
                 />
               } 
             />

@@ -40,7 +40,7 @@ export function SettingsMenu({ onLogout, onResetLanguage, onResetVocabulary, isC
 
     return (
         <>
-            <div className="relative w-full" ref={menuRef}>
+            <div className={`relative ${isCollapsed ? 'w-full flex justify-center' : 'w-full'}`} ref={menuRef}>
             <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${

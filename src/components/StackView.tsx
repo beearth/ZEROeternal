@@ -18,9 +18,10 @@ interface StackViewProps {
   onSaveImportant?: (word: WordData) => void;
   onToggleSidebar: () => void;
   learningMode?: 'knowledge' | 'language';
+  onMergeWords?: (words: string[]) => void; // Crystallized Entity merge callback
 }
 
-export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant, onToggleSidebar, learningMode = 'knowledge' }: StackViewProps) {
+export function StackView({ title, color, items, userVocabulary = {}, onUpdateVocabulary, onGenerateStudyTips, onUpdateWordStatus, onDeleteWord, onSaveImportant, onToggleSidebar, learningMode = 'knowledge', onMergeWords }: StackViewProps) {
   const navigate = useNavigate();
   // Red, Yellow, Green Stack은 string[] 타입, Important는 WordData[], Sentences는 string[]
   const isStringArray = items.length > 0 && typeof items[0] === "string";
@@ -44,6 +45,16 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
   // 삭제 중인 단어 추적 (애니메이션용)
   const [deletingWords, setDeletingWords] = useState<Set<string>>(new Set());
+  
+  // Crystallized Entity: 합치기 위한 선택된 단어들
+  const [selectedForMerge, setSelectedForMerge] = useState<string[]>([]);
+  const [mergeMode, setMergeMode] = useState(false);
+  
+  // Auto-merge: 연속 클릭 감지
+  const lastClickedWord = useRef<string | null>(null);
+  const lastClickTime = useRef<number>(0);
+  const [showMergePrompt, setShowMergePrompt] = useState(false);
+  const [pendingMerge, setPendingMerge] = useState<string[]>([]);
 
   // 현재 스택의 상태 결정
   const getCurrentStatus = (): "red" | "yellow" | "green" | "orange" => {
@@ -197,7 +208,33 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
     }
   };
 
-  // 단어 클릭 핸들러 (상태 순환)
+  // 단어 합치기 핸들러
+  const handleMergeWords = () => {
+    if (selectedForMerge.length >= 2 && onMergeWords) {
+      onMergeWords(selectedForMerge);
+      setSelectedForMerge([]);
+      setMergeMode(false);
+      toast.success(`"${selectedForMerge.join(' ')}" 통합 완료!`);
+    }
+  };
+  
+  // 자동 합치기 확인
+  const confirmAutoMerge = () => {
+    if (pendingMerge.length >= 2 && onMergeWords) {
+      onMergeWords(pendingMerge);
+      setShowMergePrompt(false);
+      setPendingMerge([]);
+      lastClickedWord.current = null;
+    }
+  };
+  
+  const cancelAutoMerge = () => {
+    setShowMergePrompt(false);
+    setPendingMerge([]);
+    lastClickedWord.current = null;
+  };
+  
+  // 단어 클릭 핸들러 (상태 순환 또는 합치기 선택)
   const handleWordClick = (word: string, currentStatus: string) => {
     // 롱프레스였거나 메뉴가 열려있으면 클릭 무시
     if (isLongPress.current) return;
@@ -211,6 +248,35 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
     if (menuOpenWord) {
       setMenuOpenWord(null);
     }
+
+    // 합치기 모드인 경우
+    if (mergeMode) {
+      setSelectedForMerge(prev => {
+        if (prev.includes(word)) {
+          return prev.filter(w => w !== word);
+        } else {
+          return [...prev, word];
+        }
+      });
+      return;
+    }
+    
+    // Auto-merge: 2초 이내에 다른 단어를 클릭하면 합치기 제안
+    const now = Date.now();
+    const timeDiff = now - lastClickTime.current;
+    
+    if (lastClickedWord.current && lastClickedWord.current !== word && timeDiff < 2000 && onMergeWords) {
+      // 연속 클릭 감지! 합치기 제안
+      setPendingMerge([lastClickedWord.current, word]);
+      setShowMergePrompt(true);
+      lastClickedWord.current = null;
+      lastClickTime.current = 0;
+      return;
+    }
+    
+    // 현재 클릭 기록
+    lastClickedWord.current = word;
+    lastClickTime.current = now;
 
     let nextStatus: "red" | "yellow" | "green" | "white" = "white";
 
@@ -227,32 +293,69 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
   return (
     <>
+      {/* Auto-merge Prompt Modal */}
+      {showMergePrompt && pendingMerge.length >= 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1e1f20] border border-[#2a2b2c] rounded-2xl p-6 max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-white mb-3">✨ 단어 합치기</h3>
+            <p className="text-zinc-400 mb-4">
+              다음 단어들을 하나의 결정체로 합칠까요?
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <span className="px-3 py-1.5 bg-red-600 text-white rounded-full font-bold text-sm">
+                {pendingMerge[0]}
+              </span>
+              <span className="text-zinc-500">+</span>
+              <span className="px-3 py-1.5 bg-red-600 text-white rounded-full font-bold text-sm">
+                {pendingMerge[1]}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelAutoMerge}
+                className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmAutoMerge}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+              >
+                합치기 ✨
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex-1 flex flex-col bg-[#1e1f20] text-[#E3E3E3]">
         {/* 헤더 */}
-        <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-6 py-4 flex items-center gap-4">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors lg:hidden"
-          >
-            <Menu className="w-5 h-5 text-[#E3E3E3]" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${color}20` }}
+        <header className="bg-[#1e1f20] border-b border-[#2a2b2c] px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onToggleSidebar}
+              className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors lg:hidden"
             >
+              <Menu className="w-5 h-5 text-[#E3E3E3]" />
+            </button>
+            <div className="flex items-center gap-3">
               <div
-                className="w-6 h-6 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-            </div>
-            <div>
-              <h1 className="text-[#E3E3E3] text-xl font-semibold">
-                {title === "Red Signal" && learningMode === "language" ? "Word Room" : title}
-              </h1>
-              <p className="text-sm text-[#9ca3af]">
-                {items.length}개의 항목
-              </p>
+                className="w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: `${color}20` }}
+              >
+                <div
+                  className="w-6 h-6 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+              </div>
+              <div>
+                <h1 className="text-[#E3E3E3] text-xl font-semibold">
+                  {title === "Red Signal" && learningMode === "language" ? "Word Room" : title}
+                </h1>
+                <p className="text-sm text-[#9ca3af]">
+                  {items.length}개의 항목
+                </p>
+              </div>
             </div>
           </div>
         </header>
@@ -302,17 +405,19 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                 ) : (
                   // Red/Yellow/Green Stack & Important Stack -> Grid Layout
                   <div
-                    className="force-word-grid"
+                    className="flex flex-wrap gap-2 content-start pb-8"
                   >
                     {isStringArray && !isWordDataArray ? (
                       // Red/Yellow/Green Stack (string[])
                       (items as string[]).map((item, index) => {
+                        if (!item || typeof item !== 'string') return null;
                         const wordKey = item.toLowerCase();
                         const vocabEntry = userVocabulary[wordKey];
                         const koreanMeaning = vocabEntry?.koreanMeaning || "";
                         const status = currentStatus;
 
                         const isDeleting = deletingWords.has(item);
+                        const isSelected = selectedForMerge.includes(item);
                         return (
                           <div
                             key={index}
@@ -321,8 +426,11 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
                             onPointerLeave={handlePointerLeave}
                             onClick={() => handleWordClick(item, status)}
                             style={getStatusStyle(status)}
-                            className={`flex items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(status)} ${isDeleting ? "opacity-0 scale-95" : ""}`}
+                            className={`flex items-center justify-center px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none shadow-sm ${getStatusColor(status)} ${isDeleting ? "opacity-0 scale-95" : ""} ${isSelected ? "ring-2 ring-purple-500 ring-offset-2 ring-offset-[#1e1f20] scale-105" : ""} ${mergeMode ? "hover:ring-1 hover:ring-purple-400" : ""}`}
                           >
+                            {isSelected && (
+                              <span className="mr-1 text-xs">✓</span>
+                            )}
                             <span className="font-bold text-sm mr-1">{item}</span>
                             {koreanMeaning && (
                               <span className="text-xs opacity-70 border-l border-current pl-1 ml-1">{koreanMeaning}</span>

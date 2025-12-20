@@ -158,6 +158,16 @@
 
 @layer utilities {}
 
+@layer components {
+    .force-word-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-content: flex-start;
+        padding-bottom: 2rem;
+    }
+}
+
 .neon-dot {
     background-color: #dc2626;
     box-shadow: 0 0 10px #dc2626, 0 0 20px #dc2626;

@@ -288,9 +288,54 @@ export function ChatMessage({
   const pendingUpdates = useRef<Record<string, number>>({});
   const wordStatesRef = useRef(wordStates);
 
+  // Phrase collection for auto-merge
+  const lastClickedWordRef = useRef<{ word: string; index: number; time: number } | null>(null);
+  const [phraseCollection, setPhraseCollection] = useState<string[]>([]);
+  const [showPhrasePrompt, setShowPhrasePrompt] = useState(false);
+
   useEffect(() => {
     wordStatesRef.current = wordStates;
   }, [wordStates]);
+
+  // Phrase merge handlers
+  const confirmPhraseMerge = async () => {
+    if (phraseCollection.length >= 2 && onUpdateWordStatus) {
+      const phrase = phraseCollection.join(' ');
+      const wordId = `${message.id}-phrase-${phrase.toLowerCase().replace(/\s+/g, '-')}`;
+      
+      try {
+        // 1. 기존 개별 단어들 제거 (중복 방지)
+        if (onResetWordStatus) {
+            for (const word of phraseCollection) {
+                await onResetWordStatus(word);
+            }
+        }
+
+        // 2. 합쳐진 구문 저장
+        await onUpdateWordStatus(
+          wordId,
+          "red",
+          phrase,
+          message.id,
+          message.content,
+          "",
+          false
+        );
+        toast.success(`✨ "${phrase}" 저장됨!`);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    setShowPhrasePrompt(false);
+    setPhraseCollection([]);
+    lastClickedWordRef.current = null;
+  };
+
+  const cancelPhraseMerge = () => {
+    setShowPhrasePrompt(false);
+    setPhraseCollection([]);
+    lastClickedWordRef.current = null;
+  };
 
   const handleWordClick = useCallback(async (index: number, word: string) => {
     if (!isAssistant || isTyping) return;
@@ -299,6 +344,35 @@ export function ChatMessage({
     if (!isMeaningfulWord(word)) return;
     const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
     if (!finalWord || finalWord.length < 2) return;
+
+    const now = Date.now();
+    const lastClick = lastClickedWordRef.current;
+    
+    // Check for consecutive click within 2 seconds
+    if (lastClick && now - lastClick.time < 2000 && lastClick.word !== finalWord) {
+      // Consecutive click detected - show merge prompt
+      // Cancel the first word's pending save
+      if (updateTimeouts.current[lastClick.index]) {
+        clearTimeout(updateTimeouts.current[lastClick.index]);
+        delete updateTimeouts.current[lastClick.index];
+      }
+      // Revert the first word's visual state
+      setWordStates((prev) => {
+        const newStates = { ...prev };
+        delete newStates[lastClick.index];
+        return newStates;
+      });
+      // Remove from pending updates
+      delete pendingUpdates.current[lastClick.word.toLowerCase()];
+      
+      setPhraseCollection([lastClick.word, finalWord]);
+      setShowPhrasePrompt(true);
+      lastClickedWordRef.current = null;
+      return;
+    }
+    
+    // Record this click
+    lastClickedWordRef.current = { word: finalWord, index, time: now };
 
     const currentState = wordStatesRef.current[index] || 0;
     const nextState = currentState === 1 ? 0 : 1;
@@ -396,19 +470,9 @@ export function ChatMessage({
       wordIndex++;
     });
 
-    setWordStates((prev) => {
-      const merged = { ...prev };
-      Object.keys(newWordStates).forEach((key) => {
-        const numKey = parseInt(key);
-        merged[numKey] = newWordStates[numKey];
-      });
-      const maxIndex = wordIndex;
-      Object.keys(merged).forEach((key) => {
-        const numKey = parseInt(key);
-        if (numKey >= maxIndex) delete merged[numKey];
-      });
-      return merged;
-    });
+    // Completely recalculate wordStates based on userVocabulary (no merge with prev)
+    // This ensures that when userVocabulary is cleared, wordStates is also cleared
+    setWordStates(newWordStates);
   }, [userVocabulary, message.content, isAssistant, isTyping]);
 
   const handleLongPress = useCallback((e: React.PointerEvent, wordIndex: number, word: string, startOffset: number) => {
@@ -637,6 +701,42 @@ export function ChatMessage({
   };
 
   return (
+    <>
+      {/* Phrase Merge Prompt Modal */}
+      {showPhrasePrompt && phraseCollection.length >= 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1e1f20] border border-[#2a2b2c] rounded-2xl p-6 max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-white mb-3">✨ 구 저장</h3>
+            <p className="text-zinc-400 mb-4">
+              다음 단어들을 하나의 구로 저장할까요?
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <span className="px-3 py-1.5 bg-red-600 text-white rounded-full font-bold text-sm">
+                {phraseCollection[0]}
+              </span>
+              <span className="text-zinc-500">+</span>
+              <span className="px-3 py-1.5 bg-red-600 text-white rounded-full font-bold text-sm">
+                {phraseCollection[1]}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelPhraseMerge}
+                className="flex-1 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmPhraseMerge}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+              >
+                저장 ✨
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
     <div className={`flex ${isAssistant ? "justify-start" : "justify-end"} mb-6`}>
       <div className={`flex flex-col ${isAssistant ? "w-full max-w-full" : "max-w-[85%]"} ${isAssistant ? "items-start" : "items-end"}`}>
         {isAssistant && (
@@ -730,5 +830,6 @@ export function ChatMessage({
         />
       )}
     </div>
+    </>
   );
 }

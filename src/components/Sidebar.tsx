@@ -361,11 +361,14 @@ export function Sidebar({
           <div className={`bg-[#09090b] flex flex-col py-2 gap-1 ${(isDesktop && !isOpen) ? 'items-center w-full' : 'px-3'}`}>
             {/* Red Signal Button */}
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 navigate("/stack/red");
                 if (!isDesktop) onClose();
               }}
-              className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
+              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
             >
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] ${learningMode === 'language' ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-600 shadow-red-600/50'}`} />
@@ -386,11 +389,14 @@ export function Sidebar({
 
             {/* Green Room Button */}
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 navigate("/stack/green");
                 if (!isDesktop) onClose();
               }}
-              className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
+              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
             >
               <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
