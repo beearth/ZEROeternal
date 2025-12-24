@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Button } from "../../components/ui/button";
 import { PostCard, Comment } from './PostCard';
 import { User, updateProfile } from 'firebase/auth';
-import { toast } from "sonner";
+import { toast } from "../../services/toast";
 import { supabase } from '../../supabase';
 import {
     getUserProfile, updateUserProfileData, subscribeToUserProfile,

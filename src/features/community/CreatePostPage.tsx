@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 
 import { User } from 'firebase/auth';
-import { toast } from 'sonner';
+import { toast } from "../../services/toast";
 import { createPost } from '../../services/firestore';
 
 export interface CreatePostPageProps {

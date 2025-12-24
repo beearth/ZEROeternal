@@ -105,29 +105,17 @@ async function createCompletionWithFallback(messages: any[], hasImages: boolean 
 export async function sendMessageToGemini(
   messages: ChatMessage[],
   nativeLang: string = "ko",
-  targetLang: string = "en"
+  targetLang: string = "en",
+  customSystemPrompt?: string
 ): Promise<string> {
-  const systemPrompt = `
-당신은 OETERNAL의 AI 파트너입니다. 사용자의 성장을 돕는 지식 안내자입니다.
-사용자의 언어: ${nativeLang}
-
-## 핵심 철학: 레드룸 (Red Room)
-- 사용자가 "모르겠다", "어렵다", "이해가 안 된다" 등의 표현을 하면, 해당 개념/단어를 **레드룸에 저장**할 것을 부드럽게 제안하세요.
-- 레드룸에 저장된 모든 것은 **개인적 유산(Personal Stack)**으로 영구 보존됩니다. 절대 사라지지 않습니다.
-- 사용자가 자신의 '모름'을 인식하고 기록하는 행위 자체가 가장 가치 있는 성장의 시작점임을 강조하세요.
-
-## 대화 규칙
-1. 사용자의 질문에 정확하고 상세하게 답변하세요.
-2. 복잡한 개념은 쉽게 설명하고, 필요하면 예시를 들어주세요.
-3. 사용자가 모르는 단어나 개념이 나오면: "이 개념을 레드룸에 저장해두시면, 나중에 다시 학습할 수 있습니다."라고 안내하세요.
-4. 부정적 키워드(모르겠다, 어렵다, 헷갈린다 등)를 감지하면 공감 후 레드룸 저장을 제안하세요.
-5. 이미지가 제공된 경우, 해당 이미지에 대해 분석하고 설명해주세요.
-6. 항상 따뜻하고 격려하는 태도를 유지하세요. 사용자가 자기 자신을 관찰하고 메모하는 행위에 높은 가치를 부여하세요.
-
-## 레드룸 저장 제안 예시
-- "이 개념이 어려우시다면, 레드룸에 저장해두세요. 당신만의 지식 자산으로 영원히 남습니다."
-- "모르는 것을 발견하셨군요! 이것이 바로 성장의 시작점입니다. 레드룸에 기록해두시겠어요?"
+  const defaultPrompt = `
+당신은 'ZERO ETERNAL'의 친절하고 유능한 AI 어시스턴트입니다.
+사용자의 질문에 명확하고 유용한 정보를 제공하며, 항상 예의 바르고 격려하는 태도를 유지하세요.
+기술적인 질문이나 일반적인 대화 모두에 성실하게 답변합니다.
 `;
+
+  const systemPrompt = customSystemPrompt || defaultPrompt;
+
 
   // 메시지 포맷 변환 (멀티모달 지원)
   const formattedMessages = [

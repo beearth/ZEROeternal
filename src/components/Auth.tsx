@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { signInWithEmail, signUpWithEmail, signInWithGoogle } from "../services/auth";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 import { Mail, Lock, LogIn, UserPlus, Chrome } from "lucide-react";
 
 interface AuthProps {

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Menu, X, User, LogOut, Send, Search, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 import { ChatMessage } from "./ChatMessage";
 import { EternalLogo } from "./EternalLogo";
 import { ChatInput } from "./ChatInput";
@@ -96,13 +96,21 @@ export function MainContent({
         const currentMessageCount = currentConversation?.messages?.length || 0;
         const prevCount = prevMessageCountRef.current;
         
-        // Scroll only when message count increases or when typing starts
-        if (currentMessageCount > prevCount || isTyping) {
+        // Scroll only when message count strictly increases
+        if (currentMessageCount > prevCount) {
             scrollToBottom();
         }
         
         prevMessageCountRef.current = currentMessageCount;
-    }, [currentConversation?.messages?.length, isTyping]);
+    }, [currentConversation?.messages?.length]); // removed isTyping from here to prevent constant scrolling during local state changes
+
+    // Separate effect for typing start (only first bounce)
+    useEffect(() => {
+        if (isTyping) {
+            scrollToBottom();
+        }
+    }, [isTyping]);
+
     return (
         <div className="flex-1 flex flex-col bg-[#1e1f20] h-full overflow-hidden">
             {/* 헤더 - Gemini Style */}

@@ -5,7 +5,7 @@ import { PostCard, PostCardProps, Comment } from './PostCard';
 import { FriendRecommendations } from './FriendRecommendations';
 import { Button } from "../../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
-import { toast } from "sonner";
+import { toast } from "../../services/toast";
 import { NotificationsPopover } from "../../components/NotificationsPopover";
 import { AiKnowHowCard } from "./AiKnowHowCard";
 

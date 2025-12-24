@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Video, FileText, Image, X, Loader2, Download, Copy, Check } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 
 interface ToolsMenuProps {
   isOpen: boolean;

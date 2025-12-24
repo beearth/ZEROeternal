@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Menu } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 import type { WordData, VocabularyEntry } from "../types";
 import { WordDetailModal } from "./WordDetailModal";
 import { useNavigate } from "react-router-dom";

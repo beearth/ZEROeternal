@@ -1,9 +1,11 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { Send, Plus, X, Mic, SlidersHorizontal, MicOff, Headphones } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "../services/toast";
 import { ToolsMenu } from './ToolsMenu';
 import { VoiceMode } from './VoiceMode';
 import { ModelSelector } from './ModelSelector';
+import { useVoice } from '../hooks/useVoice';
+
 
 interface ChatInputProps {
   onSendMessage: (message: string, images?: string[]) => Promise<string | void> | void;
@@ -15,14 +17,27 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   const [images, setImages] = useState<string[]>([]);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // 음성 인식 관련 State
-  const [shouldListen, setShouldListen] = useState(false);
-  const recognitionInstance = useRef<any>(null);
+  const { isListening, transcript, startListening, stopListening } = useVoice();
+
+  // Sync transcript to message
+  useEffect(() => {
+    if (transcript) {
+        setMessage(prev => (prev + (prev.trim() ? ' ' : '') + transcript));
+    }
+  }, [transcript]);
+
+  const toggleVoiceRecognition = () => {
+      if (isListening) {
+          stopListening();
+      } else {
+          startListening();
+      }
+  };
+
 
   const handleSend = () => {
     if ((message.trim() || images.length > 0) && !disabled) {
@@ -62,98 +77,10 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const startVoiceRecognition = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("이 브라우저는 음성 인식을 지원하지 않습니다.");
-      return;
-    }
-
-    if (recognitionInstance.current) return;
-
-    try {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ko-KR'; 
-        recognition.interimResults = true; 
-        recognition.continuous = false; // 끊김 방지를 위해 재시작 로직 사용
-
-        recognition.onstart = () => setIsListening(true);
-        
-        recognition.onresult = (event: any) => {
-             let finalTranscript = '';
-             let interimTranscript = '';
-             
-             for (let i = event.resultIndex; i < event.results.length; i++) {
-                 const transcript = event.results[i][0].transcript;
-                 if (event.results[i].isFinal) {
-                     finalTranscript += transcript;
-                 } else {
-                     interimTranscript += transcript;
-                 }
-             }
-
-             if (finalTranscript) {
-                 setMessage(prev => (prev + (prev.trim() ? ' ' : '') + finalTranscript));
-             }
-        };
-
-        recognition.onerror = (event: any) => {
-            console.error('Speech recognition error:', event.error);
-            if (event.error === 'not-allowed') {
-                toast.error("마이크 권한이 거부되었습니다.");
-                setShouldListen(false);
-                setIsListening(false);
-            }
-        };
-
-        recognition.onend = () => {
-            setIsListening(false);
-            recognitionInstance.current = null;
-            if (shouldListen) {
-                setTimeout(() => startVoiceRecognition(), 100);
-            }
-        };
-
-        recognitionInstance.current = recognition;
-        recognition.start();
-    } catch (e) {
-        console.error("Failed to start recognition:", e);
-        setShouldListen(false);
-        setIsListening(false);
-    }
-  };
-
-  const toggleVoiceRecognition = () => {
-      if (shouldListen) {
-          setShouldListen(false);
-          recognitionInstance.current?.stop();
-          recognitionInstance.current = null;
-          setIsListening(false);
-      } else {
-          setShouldListen(true);
-      }
-  };
-
-  useEffect(() => {
-      if (shouldListen) {
-          startVoiceRecognition();
-      } else {
-          recognitionInstance.current?.stop();
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldListen]);
-
-  useEffect(() => {
-    return () => {
-      if (recognitionInstance.current) {
-        recognitionInstance.current.onend = null;
-        recognitionInstance.current.stop();
-      }
-    };
-  }, []);
 
   return (
     <div className="flex flex-col gap-2 bg-[#1e1f20] rounded-[32px] p-4 transition-all border border-[#27272a] shadow-lg max-w-4xl mx-auto w-full">
+
       {images.length > 0 && (
         <div className="flex gap-2 px-2 overflow-x-auto pb-2">
           {images.map((img, index) => (

@@ -16,7 +16,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "../../components/ui/tooltip";
-import { toast } from "sonner";
+import { toast } from "../../services/toast";
 
 export interface Comment {
     id: string;

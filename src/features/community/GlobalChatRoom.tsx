@@ -4,7 +4,7 @@ import { ArrowLeft, Send, Globe, BookOpen, RefreshCw, Trash2, Menu, Bot } from '
 import { Button } from "../../components/ui/button";
 import { ChatAvatar, ChatUserName } from "./components/ChatUserIdentity";
 import { Input } from "../../components/ui/input";
-import { toast } from "sonner";
+import { toast } from "../../services/toast";
 import { translateText, generateStudyTips } from "../../services/gemini";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { VocabularyEntry, WordData } from "../../types";
@@ -217,16 +217,22 @@ export function GlobalChatRoom({
         messagesEndRef.current?.scrollIntoView({ behavior });
     };
 
+    const prevMessageCountRef = useRef<number>(0);
+
     useEffect(() => {
-        if (messages.length > 0) {
+        const currentCount = messages.length;
+        if (currentCount > 0) {
             if (isInitialLoad) {
                 scrollToBottom("auto");
                 setIsInitialLoad(false);
-            } else {
+            } else if (currentCount > prevMessageCountRef.current) {
+                // Only scroll if new messages arrived
                 scrollToBottom("smooth");
             }
         }
+        prevMessageCountRef.current = currentCount;
     }, [messages, isInitialLoad]);
+
 
     // Supabase Subscription Logic + Translation Logic
     useEffect(() => {

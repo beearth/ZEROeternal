@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark, Sparkles, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "../services/toast";
 
 interface SignalCaptureProps {
     onSave?: (text: string) => void;

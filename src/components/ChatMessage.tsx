@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw, Languages } from "lucide-react";
 import { EternalLogo } from "./EternalLogo";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 import { useLongPress } from "../hooks/useLongPress";
 import { WordDetailModal } from "./WordDetailModal";
 import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
 import { format } from "date-fns";
 import { generateStudyTips, generateText } from "../services/gemini";
-import type { WordData } from "../types";
+import type { WordData, VocabularyEntry } from "../types";
 
 interface Message {
   id: string;
@@ -32,7 +32,7 @@ interface ChatMessageProps {
   onResetWordStatus?: (word: string) => void;
   onSaveImportant?: (word: WordData) => void;
   onSaveSentence?: (sentence: string) => void;
-  userVocabulary?: Record<string, { status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string }>;
+  userVocabulary?: Record<string, VocabularyEntry>;
   learningMode?: 'knowledge' | 'language';
 }
 
@@ -66,6 +66,7 @@ const WordSpan = React.memo(({
   koreanMeaning,
   onRedSignalClick,
   isBold,
+  isSaved,
 }: {
   part: string;
   partIndex: number;
@@ -82,7 +83,9 @@ const WordSpan = React.memo(({
   koreanMeaning?: string;
   onRedSignalClick: (word: string) => Promise<void>;
   isBold?: boolean;
+  isSaved?: boolean;
 }) => {
+
   // ...
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -124,14 +127,15 @@ const WordSpan = React.memo(({
           return updated;
         });
       }}
-      className={`inline-block whitespace-pre-wrap px-0.5 cursor-pointer transition-all duration-[150ms] relative align-baseline ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100 rounded"
+      className={`inline whitespace-pre-wrap px-0.5 cursor-pointer relative align-baseline ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100 rounded"
         } ${isCurrentlyHolding
-          ? "scale-[0.98] shadow-inner"
+          ? "scale-[0.98] shadow-inner font-medium text-white"
           : ""
         } ${isHighlighted
           ? "ring-2 ring-blue-500 shadow-lg shadow-blue-500/40 animate-pulse"
           : ""
         } ${isBold ? "font-bold text-blue-300" : ""}`}
+
       style={{
         userSelect: "none",
         WebkitUserSelect: "none",
@@ -145,12 +149,12 @@ const WordSpan = React.memo(({
       }}
     >
       <span>{cleanMarkdown(part, false)}</span>
-      {wordState === 1 && !isConfirmed && (
+      {wordState === 1 && (
         <span
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={async (e) => {
              e.stopPropagation();
-             // Handle click logic here directly for better responsiveness
+             if (isSaved) return; // Already saved
              if (isProcessing) return;
              setIsProcessing(true);
              try {
@@ -162,16 +166,21 @@ const WordSpan = React.memo(({
                 setIsProcessing(false);
              }
           }}
-          className={`absolute -top-0.5 -right-1 flex shrink-0 rounded-full cursor-pointer transition-all duration-500 ${
-            isProcessing ? "bg-blue-500 scale-125" : "bg-[#FF3B30] animate-pulse shadow-[0_0_8px_rgba(255,59,48,0.5)]"
-          }`}
+          className={`absolute -top-0.5 -right-0.5 flex shrink-0 rounded-full transition-all duration-300 ${
+            isSaved ? "bg-[#FF3B30] scale-100 opacity-100" : 
+            (isConfirmed ? "opacity-0 invisible" : (isProcessing ? "bg-blue-500 scale-125" : "bg-[#FF3B30] animate-pulse"))
+          } ${isSaved ? "cursor-default" : "cursor-pointer"}`}
           style={{
-            width: "4px",
-            height: "4px",
-            boxShadow: isProcessing ? "0 0 8px #3b82f6" : "0 0 8px rgba(255, 59, 48, 0.5)",
+            display: 'inline-block',
+            width: isSaved ? "4.5px" : "4px",
+            height: isSaved ? "4.5px" : "4px",
+            boxShadow: isSaved ? "0 0 3px rgba(255, 59, 48, 0.4)" : (isProcessing ? "0 0 8px #3b82f6" : "0 0 6px rgba(255, 59, 48, 0.4)"),
+            pointerEvents: 'auto'
           }}
         />
       )}
+
+
       
       {/* Tooltip */}
       {wordState === 1 && (
@@ -304,14 +313,7 @@ export function ChatMessage({
       const wordId = `${message.id}-phrase-${phrase.toLowerCase().replace(/\s+/g, '-')}`;
       
       try {
-        // 1. 기존 개별 단어들 제거 (중복 방지)
-        if (onResetWordStatus) {
-            for (const word of phraseCollection) {
-                await onResetWordStatus(word);
-            }
-        }
-
-        // 2. 합쳐진 구문 저장
+        // 1. 합쳐진 구문 저장
         await onUpdateWordStatus(
           wordId,
           "red",
@@ -321,7 +323,14 @@ export function ChatMessage({
           "",
           false
         );
+
+        // 2. 개별 단어들을 구문에 연결 (그냥 두면 됨, onUpdateWordStatus가 이미 처리하거나 
+        // 앱이 handleMergeWords를 통해 처리해야 함)
+        // 여기서는 개별 단어들의 상태를 'red'로 유지하여 하이라이팅이 유지되게 함
+        // (onResetWordStatus를 호출하면 하이라이팅이 사라짐)
+        
         toast.success(`✨ "${phrase}" 저장됨!`);
+
       } catch (error) {
         console.error(error);
       }
@@ -650,9 +659,16 @@ export function ChatMessage({
           case "yellow": finalState = 2; break;
           case "green": finalState = 3; break;
           case "orange": finalState = 4; break;
-          default: finalState = 0; break;
+          default: 
+            // Check if this word is part of a red phrase
+            if (globalEntry.linkedTo) {
+               const parentEntry = userVocabulary[globalEntry.linkedTo.toLowerCase()];
+               if (parentEntry?.status === 'red') finalState = 1;
+            }
+            break;
         }
       } else finalState = localState;
+
 
       const isSelected = radialMenu.showRadialMenu && radialMenu.selectedWordData?.index === currentWordIndex;
       const isCurrentlyHolding = isHolding[currentWordIndex] || false;
@@ -675,6 +691,9 @@ export function ChatMessage({
           startOffset={currentStartOffset}
           koreanMeaning={globalEntry?.koreanMeaning}
           isBold={isBold}
+          isSaved={globalEntry?.status === 'red' || (globalEntry?.linkedTo ? userVocabulary[globalEntry.linkedTo.toLowerCase()]?.status === 'red' : false)}
+
+
           onRedSignalClick={async (word) => {
               // 'Red Room' (Unknown Stack) API 호출
               // status 1(Red)로 확실히 저장.

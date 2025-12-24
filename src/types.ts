@@ -21,3 +21,23 @@ export interface WordData {
     koreanMeaning?: string;
     category?: string;
 }
+export interface Message {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    timestamp: Date;
+    images?: string[];
+}
+
+export interface Conversation {
+    id: string;
+    title: string;
+    messages: Message[];
+    timestamp: Date;
+}
+
+export interface PersonaInstruction {
+    id: string;
+    content: string;
+    isActive: boolean;
+}

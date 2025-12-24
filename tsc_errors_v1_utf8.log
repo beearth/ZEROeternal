@@ -1,0 +1,17 @@
+﻿src/App.tsx(683,56): error TS2339: Property 'messages' does not exist on type '{}'.
+src/components/ChatMessage.tsx(664,29): error TS2339: Property 'linkedTo' does not exist on type '{ status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string; }'.
+src/components/ChatMessage.tsx(665,63): error TS2339: Property 'linkedTo' does not exist on type '{ status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string; }'.
+src/components/ChatMessage.tsx(694,67): error TS2339: Property 'linkedTo' does not exist on type '{ status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string; }'.
+src/components/ChatMessage.tsx(694,105): error TS2339: Property 'linkedTo' does not exist on type '{ status: "red" | "yellow" | "green" | "white" | "orange"; koreanMeaning: string; }'.
+src/components/Sidebar.tsx(42,25): error TS2304: Cannot find name 'PersonaInstruction'.
+src/components/Sidebar.tsx(43,51): error TS2304: Cannot find name 'PersonaInstruction'.
+src/components/VoiceMode.tsx(162,13): error TS2322: Type '(lang?: string) => void' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+  Types of parameters 'lang' and 'event' are incompatible.
+    Type 'MouseEvent<HTMLButtonElement, MouseEvent>' is not assignable to type 'string'.
+src/hooks/useVoice.ts(27,9): error TS2717: Subsequent property declarations must have the same type.  Property 'SpeechRecognition' must be of type 'SpeechRecognitionConstructor', but here has type 'any'.
+src/hooks/useVoice.ts(28,9): error TS2717: Subsequent property declarations must have the same type.  Property 'webkitSpeechRecognition' must be of type 'SpeechRecognitionConstructor', but here has type 'any'.
+src/hooks/useVoice.ts(63,13): error TS2719: Type 'SpeechRecognition' is not assignable to type 'SpeechRecognition'. Two different types with this name exist, but they are unrelated.
+  Types of property 'onresult' are incompatible.
+    Type '((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null' is not assignable to type '(event: SpeechRecognitionEvent) => void'.
+      Type 'null' is not assignable to type '(event: SpeechRecognitionEvent) => void'.
+src/services/toast.ts(2,35): error TS2307: Cannot find module '@/utils/wordFilter' or its corresponding type declarations.

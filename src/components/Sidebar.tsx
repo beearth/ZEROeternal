@@ -3,20 +3,7 @@ import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, 
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-}
+import type { Conversation, Message, PersonaInstruction } from "../types";
 
 interface StackCounts {
   red: number;
@@ -39,8 +26,17 @@ interface SidebarProps {
   onLogout: () => void;
   onResetLanguage: () => void;
   onResetVocabulary?: () => void;
+  personaInstructions?: PersonaInstruction[];
+  onUpdatePersonaInstructions?: (newInstructions: PersonaInstruction[]) => void;
   learningMode?: 'knowledge' | 'language';
+  isAutoTTS?: boolean;
+  onToggleAutoTTS?: () => void;
+  vocabCount?: number;
 }
+
+
+
+
 
 export function Sidebar({
   conversations,
@@ -56,8 +52,17 @@ export function Sidebar({
   onLogout,
   onResetLanguage,
   onResetVocabulary,
+  personaInstructions,
+  onUpdatePersonaInstructions,
   learningMode = 'knowledge',
+  isAutoTTS = false,
+  onToggleAutoTTS,
+  vocabCount = 0
 }: SidebarProps) {
+
+
+
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -233,7 +238,6 @@ export function Sidebar({
             <button
               onClick={() => {
                 onNewConversation();
-                navigate("/");
                 if (!isDesktop) onClose();
               }}
               className="w-10 h-10 flex items-center justify-center bg-[#1e1f20] hover:bg-[#333333] text-zinc-400 hover:text-white rounded-full transition-colors flex-shrink-0"
@@ -241,6 +245,7 @@ export function Sidebar({
               <Plus className="w-5 h-5" />
             </button>
           </div>
+
 
           {/* Scrollable Content - Only visible when expanded */}
           <div 
@@ -293,10 +298,10 @@ export function Sidebar({
                   <div key={conv.id} className="relative group">
                     <button
                       onClick={() => {
-                        onSelectConversation(conv.id);
-                        navigate("/");
+                        navigate(`/chat/${conv.id}`);
                         if (!isDesktop) onClose();
                       }}
+
                       className={`w-full text-left px-4 py-2 text-sm truncate rounded-lg transition-colors pr-12 ${
                         currentConversationId === conv.id
                           ? "bg-[#27272a] text-white"
@@ -420,8 +425,17 @@ export function Sidebar({
               onLogout={onLogout}
               onResetLanguage={onResetLanguage}
               onResetVocabulary={onResetVocabulary}
+              personaInstructions={personaInstructions}
+              onUpdatePersonaInstructions={onUpdatePersonaInstructions}
+              isAutoTTS={isAutoTTS}
+              onToggleAutoTTS={onToggleAutoTTS}
+              vocabularyCount={vocabCount}
               isCollapsed={isDesktop && !isOpen}
             />
+
+
+
+
           </div>
         </div>
         {/* Rename Modal (Gemini Style) */}

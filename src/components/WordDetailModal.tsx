@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 import { Sparkles, Loader2, Volume2, Trash2, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../services/toast";
 import { useBackNavigation } from "../hooks/useBackNavigation";
 
 interface WordDetailModalProps {

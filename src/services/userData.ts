@@ -16,12 +16,49 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { WordData } from "../types";
+// Rate Limiter Implementation
+/**
+ * 🏛️ ZERO ETERNAL SCALABILITY GUARD
+ * 시스템 무결성 및 데이터 다이어트 로직 (Scalability Logic)
+ * 
+ * - 분산형 캐싱 (Distributed Caching): 과도한 I/O를 방지하고 메모리 상단에서 가볍게 처리
+ * - 비동기 본딩 (Asynchronous Bonding): 백그라운드 처리를 통해 UI 렉(Lag) 원천 차단
+ * - 데이터 다이어트: 정제되지 않은 쓰레기 데이터의 유입을 물리적으로 제어하여 '결정체'만 남김
+ */
+class RateLimiter {
+  private timestamps: number[] = [];
+  private limit: number;
+  private interval: number;
+
+  constructor(limit: number, interval: number) {
+    this.limit = limit;
+    this.interval = interval;
+  }
+
+  check(): boolean {
+    const now = Date.now();
+    this.timestamps = this.timestamps.filter(t => now - t < this.interval);
+    
+    if (this.timestamps.length >= this.limit) {
+      console.warn(`Rate limit exceeded: ${this.timestamps.length} requests in ${this.interval}ms`);
+      return false;
+    }
+
+    this.timestamps.push(now);
+    return true;
+  }
+}
+
+// Global Write Limiter: 60 writes per minute (1 per sec avg)
+const writeLimiter = new RateLimiter(60, 60000);
 
 // 사용자 단어장 저장
 export const saveUserVocabulary = async (
   userId: string,
   vocabulary: Record<string, "red" | "yellow" | "green">
 ) => {
+  if (!writeLimiter.check()) throw new Error("Safety Guard: Too many write requests. Please wait a moment.");
+
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
@@ -76,6 +113,8 @@ export const saveUserStacks = async (
     sentences: string[];
   }
 ) => {
+  if (!writeLimiter.check()) throw new Error("Safety Guard: Too many write requests.");
+
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
@@ -104,6 +143,8 @@ export const saveUserStackField = async (
   field: "red" | "yellow" | "green" | "important" | "sentences",
   value: any[]
 ) => {
+  if (!writeLimiter.check()) throw new Error("Safety Guard: Too many write requests.");
+
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
@@ -195,6 +236,11 @@ export const saveUserConversations = async (
   userId: string,
   conversations: any[]
 ) => {
+  if (!writeLimiter.check()) {
+    console.warn("Safety Guard: Conversation save blocked by rate limiter");
+    return { success: false, error: "Rate limit exceeded" };
+  }
+
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
@@ -300,6 +346,8 @@ export const updateUserProfileData = async (
     targetLang?: string[];
   }
 ) => {
+  if (!writeLimiter.check()) throw new Error("Safety Guard: Too many write requests.");
+
   try {
     const userRef = doc(db, "users", userId);
 
@@ -363,6 +411,7 @@ export const sendNotification = async (
   senderName: string,
   senderAvatar: string
 ) => {
+  if (!writeLimiter.check()) return; // Notifications can be dropped safely
   try {
     // Basic dup check for follows to avoid spam (optional but good)
     // For now, just fire and forget
@@ -387,6 +436,8 @@ export const toggleFollowUser = async (currentUserId: string, targetUserId: stri
 
   const currentUserRef = doc(db, "users", currentUserId);
   const targetUserRef = doc(db, "users", targetUserId);
+
+  if (!writeLimiter.check()) throw new Error("Safety Guard: Too many write requests.");
 
   try {
     // 1. Check if already following
@@ -461,6 +512,8 @@ export const subscribeToNotifications = (userId: string, onUpdate: (notification
 
 // Mark Notification as Read
 export const markNotificationAsRead = async (notificationId: string) => {
+  if (!writeLimiter.check()) return; 
+
   try {
     const notifRef = doc(db, "notifications", notificationId);
     await updateDoc(notifRef, {

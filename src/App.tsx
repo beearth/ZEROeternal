@@ -9,6 +9,10 @@ import { SettingsMenu } from "./components/SettingsMenu";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { MainContent } from "./components/MainContent";
 import { ToeicWordList } from "./components/ToeicWordList";
+import { InstructionPage } from "./pages/InstructionPage";
+import { useVoice } from "./hooks/useVoice";
+
+
 import { Send, Menu, X, LogOut, User } from "lucide-react";
 import {
   sendMessageToGemini,
@@ -18,7 +22,8 @@ import {
   getKoreanMeaning,
   generateText,
 } from "./services/gemini";
-import { Toaster, toast } from "sonner";
+import { Toaster } from "sonner";
+import { toast } from "./services/toast";
 import { onAuthStateChange, logout } from "./services/auth";
 import {
   getUserVocabulary,
@@ -32,26 +37,12 @@ import {
 import { eternalSystemDefaults } from "./constants/system";
 import type { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField } from "firebase/firestore";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  images?: string[]; // 이미지 추가
-}
+import type { WordData, VocabularyEntry, PersonaInstruction, Message, Conversation } from "./types";
 
-interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-}
 
-import type { WordData, VocabularyEntry } from "./types";
-
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 
 import { CommunityFeed } from "./features/community/CommunityFeed";
 import { CreatePostPage } from "./features/community/CreatePostPage";
@@ -72,10 +63,30 @@ export default function App() {
       timestamp: new Date(),
     },
   ]);
-  const [currentConversationId, setCurrentConversationId] = useState("1");
+  const [currentConversationId, setCurrentConversationId] = useState(() => localStorage.getItem("signal_last_conversation_id") || "1");
   // Initialize sidebar open state based on screen width (Open on Desktop by default)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem("signal_sidebar_open");
+    if (saved !== null) return saved === "true";
+    return window.innerWidth >= 1024;
+  });
   const [isTyping, setIsTyping] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // URL 파라미터에서 conversationId 추출 및 동기화
+  useEffect(() => {
+    const match = location.pathname.match(/\/chat\/([^/]+)/);
+    if (match && match[1]) {
+      const urlId = match[1];
+      if (urlId !== currentConversationId) {
+        setCurrentConversationId(urlId);
+      }
+    }
+  }, [location.pathname, currentConversationId]);
+
+
 
   // Gemini-style: Auto-toggle sidebar based on screen width
   // Uses debounce to prevent rapid firing during resize
@@ -106,10 +117,29 @@ export default function App() {
     };
   }, []);
 
+  // Persist sidebar state
+  useEffect(() => {
+    localStorage.setItem("signal_sidebar_open", String(isSidebarOpen));
+  }, [isSidebarOpen]);
+
+  // Persist last conversation ID
+  useEffect(() => {
+    if (currentConversationId && currentConversationId !== "1") {
+      localStorage.setItem("signal_last_conversation_id", currentConversationId);
+    }
+  }, [currentConversationId]);
+
+
   // 언어 상태
   // 언어 상태 (LocalStorage에서 초기화하여 새로고침 시 리셋 방지)
   const [nativeLang, setNativeLang] = useState(() => localStorage.getItem("signal_native_lang") || "ko");
   const [targetLang, setTargetLang] = useState<string | null>(() => localStorage.getItem("signal_target_lang"));
+  const [personaInstructions, setPersonaInstructions] = useState<PersonaInstruction[]>(() => {
+    const saved = localStorage.getItem("signal_persona_instructions");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+
   const [isToeicLoading, setIsToeicLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false); // 데이터 로딩 완료 여부
   const [showResetConfirm, setShowResetConfirm] = useState(false); // 학습 모드 리셋 확인 모달 상태
@@ -123,6 +153,25 @@ export default function App() {
     localStorage.setItem("signal_learning_mode", mode);
     setLearningMode(mode);
   };
+
+  const [isAutoTTS, setIsAutoTTS] = useState(() => 
+    localStorage.getItem("signal_auto_tts") === "true"
+  );
+
+  const { speak } = useVoice();
+
+  const toggleAutoTTS = () => {
+    const newState = !isAutoTTS;
+    setIsAutoTTS(newState);
+    localStorage.setItem("signal_auto_tts", String(newState));
+    if (newState) {
+        toast.success("음성 출력 모드가 켜졌습니다.");
+    } else {
+        toast.error("음성 출력 모드가 꺼졌습니다.");
+        window.speechSynthesis.cancel();
+    }
+  };
+
 
   // ... (existing code)
 
@@ -142,6 +191,10 @@ export default function App() {
 
   // Debounce를 위한 ref
   const saveVocabularyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // [SAFETY] deliberateResetRef - Intentional resets only
+  const deliberateResetRef = useRef(false);
+
 
 
 
@@ -204,15 +257,43 @@ export default function App() {
         // 언어 설정 불러오기
         if (data.nativeLang) setNativeLang(data.nativeLang);
         if (data.targetLang) setTargetLang(data.targetLang);
+        if (data.personaInstructions) {
+          setPersonaInstructions(data.personaInstructions);
+          localStorage.setItem("signal_persona_instructions", JSON.stringify(data.personaInstructions));
+        } else if (data.customPersona) {
+          // Legacy migration
+          const legacyInstruction: PersonaInstruction = {
+            id: "legacy-" + Date.now(),
+            content: data.customPersona,
+            isActive: true
+          };
+          setPersonaInstructions([legacyInstruction]);
+          localStorage.setItem("signal_persona_instructions", JSON.stringify([legacyInstruction]));
+        }
 
-        // 기존 형식 (단순 status)을 새 형식으로 변환
+        // [SAFETY] 빈 데이터가 내려왔을 때 로컬 백업 확인
+        if (Object.keys(vocabData).length === 0) {
+            const backupKey = `backup_vocab_${userId}`;
+            const localBackup = localStorage.getItem(backupKey);
+            if (localBackup) {
+                const parsed = JSON.parse(localBackup);
+                if (Object.keys(parsed).length > 0) {
+                    console.log("DB returned empty, but found local backup. Restoring.");
+                    setUserVocabulary(parsed);
+                    toast.info("데이터베이스가 비어 있어 로컬 백업에서 복구했습니다.");
+                    return;
+                }
+            }
+        }
+
         const vocabulary: Record<string, VocabularyEntry> = {};
+        // 기존 형식 (단순 status)을 새 형식으로 변환
         Object.keys(vocabData).forEach((word) => {
           const entry = vocabData[word];
           if (typeof entry === "string") {
             // 기존 형식: { word: "red" | "yellow" | "green" }
             vocabulary[word] = {
-              status: entry as "red" | "yellow" | "green",
+              status: entry as any,
               koreanMeaning: "",
             };
           } else if (entry && typeof entry === "object" && "status" in entry) {
@@ -225,56 +306,54 @@ export default function App() {
           }
         });
 
-        // Data Cleanup: Remove corrupted words (too long or containing newlines)
+        // Data Cleanup
         const cleaned: Record<string, VocabularyEntry> = {};
-        let hasChanges = false;
-
         Object.entries(vocabulary).forEach(([word, entry]) => {
-          // Only filter out clearly invalid patterns:
-          // 1. Contains timestamp-like long numbers at start (e.g., "1764528737126-8-intensively")
-          const hasTimestamp = /^\d{10,}-/.test(word);
-
-          // 2. Standard invalid patterns from before
-          const hasInvalidChars =
-            word.includes('\n') ||
-            word.includes('**') ||
-            word.includes('.') ||
-            word.includes('/') ||
-            word.length > 50; // Filter out sentences/long text
-
-          const isTooLong = word.length > 50;
-
-          // Keep the word unless it matches the problematic patterns
-          if (!hasTimestamp && !hasInvalidChars && !isTooLong) {
-            cleaned[word] = entry as VocabularyEntry;
-          } else {
-            hasChanges = true;
-            console.log(`Filtered out invalid word: ${word}`);
+          if (!/^\d{10,}-/.test(word) && word.length <= 50) {
+            cleaned[word] = entry;
           }
         });
 
         setUserVocabulary(cleaned);
-
-        if (hasChanges) {
-          console.log("Cleaned up corrupted vocabulary data");
-          // Optionally save back to DB immediately, but state update will trigger save in useEffect if we have one for that.
-          // Current app saves on change, so we might need to trigger a save.
-          // But let's just let the user continue, next save will overwrite.
-        }
       } else {
-        // 문서가 없으면 빈 객체로 초기화
-        setUserVocabulary({});
+        // [SAFETY] 문서가 없으면 로컬 백업 확인
+        const backupKey = `backup_vocab_${userId}`;
+        const localBackup = localStorage.getItem(backupKey);
+        if (localBackup) {
+            const parsed = JSON.parse(localBackup);
+            setUserVocabulary(parsed);
+            toast.info("이전 사용 기록을 로컬에서 복구했습니다.");
+        } else {
+            setUserVocabulary({});
+        }
       }
     } catch (error: any) {
       console.error("단어장 불러오기 실패:", error);
-      setUserVocabulary({});
+      // [SAFETY] 실패 시 로컬 백업 확인
+      const backupKey = `backup_vocab_${userId}`;
+      const localBackup = localStorage.getItem(backupKey);
+      if (localBackup) {
+          const parsed = JSON.parse(localBackup);
+          setUserVocabulary(parsed);
+          toast.error("데이터베이스 연결 실패로 로컬 데이터를 불러왔습니다.");
+      } else {
+          setUserVocabulary({});
+      }
     }
   };
+
 
   // Firestore에 단어장 저장 (즉시 저장 - Debounce 제거)
   // Debounce가 있으면 로컬 상태가 변경된 후(Red), 아직 저장되지 않은 시점에
   // onSnapshot이 서버의 이전 상태(White)를 가져와서 덮어쓰는 "Red -> White" 현상 발생
   const saveVocabularyToDB = async (userId: string, vocabData: Record<string, VocabularyEntry>) => {
+    // [SAFETY] Block empty saves unless deliberateResetRef is true
+    const isEmpty = Object.keys(vocabData).length === 0;
+    if (isEmpty && !deliberateResetRef.current) {
+        console.warn("Attempted to save empty vocabulary to DB - BLOCKED for safety.");
+        return;
+    }
+
     try {
       // undefined 값 제거
       const cleanedVocabData: Record<string, any> = {};
@@ -290,21 +369,21 @@ export default function App() {
 
       const userRef = doc(db, "users", userId);
 
-      // 즉시 저장 (비동기로 실행되지만, SDK가 로컬 캐시에 즉시 반영함)
-      // [CRITICAL FIX] Use updateDoc to REPLACE the vocabulary field.
-      // setDoc with merge: true preserves deleted keys (Ghost Words).
-      // updateDoc ensures that if a key is missing in cleanedVocabData, it is removed from DB.
       await updateDoc(userRef, {
         vocabulary: cleanedVocabData,
         updatedAt: new Date(),
       });
-
-      // console.log('✅ 단어장이 Firestore에 저장되었습니다.');
+      
+      // Reset the flag after successful deliberate save
+      if (deliberateResetRef.current) {
+          deliberateResetRef.current = false;
+      }
     } catch (error: any) {
-      console.error("단어장 저장 실패:", error);
-      toast.error("단어장 저장에 실패했습니다.");
+      console.error("단어장 저장 계획 수정:", error);
+      toast.error("단어장 저장에 재시도했습니다.");
     }
   };
+
 
   // 언어 설정 저장
   const saveLanguageSettings = async (native: string, target: string) => {
@@ -331,32 +410,39 @@ export default function App() {
   // 전역 단어장을 Firebase에 저장 (사용자별로, Debounce 적용)
   const hasLoadedInitialData = useRef(false);
 
-  useEffect(() => {
-    // 데이터 로딩이 완료되지 않았으면 저장하지 않음
-    if (!isDataLoaded) return;
+  // Firestore에 단어 하나만 업데이트 (Atomic)
+  const saveWordToDB = async (userId: string, wordKey: string, entry: VocabularyEntry) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      // undefined 값 필터링
+      const cleanedEntry: any = {};
+      Object.entries(entry).forEach(([key, value]) => {
+        if (value !== undefined) cleanedEntry[key] = value;
+      });
 
-    // Prevent Echo Save (Loop)
-    if (userVocabulary === lastLoadedVocab.current) return;
-
-    if (user) {
-      // 로그인 상태이고 데이터가 있을 때만: Firebase에 저장 (Debounce 적용)
-      if (saveVocabularyTimeoutRef.current) {
-        clearTimeout(saveVocabularyTimeoutRef.current);
-      }
-
-      saveVocabularyTimeoutRef.current = setTimeout(() => {
-        console.log('💾 단어장 저장 실행');
-        saveVocabularyToDB(user.uid, userVocabulary);
-      }, 1000); // 1초 Debounce
+      // Atomic Update: Update ONLY the specific word field within vocabulary
+      await updateDoc(userRef, {
+        [`vocabulary.${wordKey}`]: cleanedEntry,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Atomic save failed:", error);
     }
+  };
 
-    // cleanup: 컴포넌트 언마운트 시 타이머 정리
-    return () => {
-      if (saveVocabularyTimeoutRef.current) {
-        clearTimeout(saveVocabularyTimeoutRef.current);
-      }
-    };
-  }, [userVocabulary, user]);
+  // Firestore에서 단어 삭제 (Atomic)
+  const deleteWordFromDB = async (userId: string, wordKey: string) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        [`vocabulary.${wordKey}`]: deleteField(),
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Atomic delete failed:", error);
+    }
+  };
+
 
 
 
@@ -388,17 +474,71 @@ export default function App() {
     saveUserStackField(user.uid, "sentences", sentenceStack);
   }, [sentenceStack, user, isDataLoaded]);
 
+  // Ref to track if the update came from Firebase (to prevent basic infinite loops)
+  const isRemoteUpdate = useRef(false);
+
   // 대화를 Firebase에 저장
   useEffect(() => {
     if (!isDataLoaded) return;
 
-    // Prevent Echo Save (Loop)
+    // Firebase에서 온 업데이트라면 저장하지 않음 (루프 방지)
+    if (isRemoteUpdate.current) {
+      isRemoteUpdate.current = false;
+      return;
+    }
+
+    // Prevent Echo Save (Loop) - Ref check fallback
     if (conversations === lastLoadedConvs.current) return;
 
     if (user && conversations.length > 0) {
-      saveUserConversations(user.uid, conversations);
+      // Debounce logic could be added here if needed
+      saveUserConversations(user.uid, conversations).catch(err => {
+         if (err.code === 'resource-exhausted') {
+            // Quota exceeded: Do nothing, just stop trying
+         } else {
+            console.error("Save conversations error:", err);
+         }
+      });
     }
-  }, [conversations, user]);
+  }, [conversations, user, isDataLoaded]); 
+
+  // Local Storage Backup Effect
+  useEffect(() => {
+    if (!user || Object.keys(userVocabulary).length === 0) return;
+    const key = `backup_vocab_${user.uid}`;
+    try {
+        localStorage.setItem(key, JSON.stringify(userVocabulary));
+    } catch (e) {
+        console.error("Local backup failed", e);
+    }
+  }, [userVocabulary, user]);
+
+  // Restore Helper
+  const restoreFromLocal = () => {
+      if (!user) return;
+      try {
+          const key = `backup_vocab_${user.uid}`;
+          const saved = localStorage.getItem(key);
+          if (saved) {
+              const parsed = JSON.parse(saved);
+              setUserVocabulary(parsed);
+              
+              // Re-derive stacks from local data
+              const derive = (status: string) => Object.entries(parsed)
+                  .filter(([_, entry]: any) => entry.status === status)
+                  .map(([word, _]) => word);
+              
+              setRedStack(derive('red'));
+              // setImportantStack via filter if needed, but red is most critical
+              
+              toast.success("서버 연결 실패로 로컬 데이터를 복구했습니다.");
+          }
+      } catch (e) {
+          console.error("Restore failed", e);
+      }
+  };
+
+
 
   // Real-time Firestore Sync
   useEffect(() => {
@@ -411,12 +551,15 @@ export default function App() {
     const userRef = doc(db, "users", user.uid);
 
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
-      // 로컬 변경사항이 아직 서버에 반영되지 않은 상태라도 반영 (UI 반응성 및 데이터 보존)
-      // if (snapshot.metadata.hasPendingWrites) {
-      //   return;
-      // }
+      // 로컬 변경사항이 반영되는 동안은 스냅샷 무시 (UI 반응성 유지)
+      if (snapshot.metadata.hasPendingWrites) return;
 
       if (!snapshot.exists()) {
+        // [SAFETY] 문서가 삭제된 경우: 로컬 데이터가 있으면 즉시 지우지 않고 경고
+        if (Object.keys(userVocabulary).length > 0 && !deliberateResetRef.current) {
+            console.warn("Snapshot: Document disappeared, but local data exists. Blocking reset.");
+            return;
+        }
         setUserVocabulary({});
         setIsDataLoaded(true);
         setLoading(false);
@@ -425,6 +568,13 @@ export default function App() {
 
       const data = snapshot.data();
       const dbVocab = data.vocabulary || {};
+
+      // [SAFETY] DB 데이터가 비어있는 경우: 로컬에 데이터가 있다면 함부로 덮어쓰지 않음
+      if (Object.keys(dbVocab).length === 0 && Object.keys(userVocabulary).length > 0 && !deliberateResetRef.current) {
+          console.warn("Snapshot: DB vocabulary is empty, but local has data. Blocking overwrite.");
+          return;
+      }
+
       const stacks = data.stacks || {};
 
       if (data.nativeLang) setNativeLang(data.nativeLang);
@@ -510,12 +660,12 @@ export default function App() {
         const localIds = new Set(prev.map(c => c.id));
 
         // 1. Merge existing (preserve local if newer/more messages)
-        const merged = prev.map(localConv => {
-            const serverConv = serverMap.get(localConv.id);
+        const merged = prev.map((localConv: Conversation) => {
+            const serverConv = serverMap.get(localConv.id) as any;
             if (!serverConv) return localConv; // Keep unsynced new convs
             
             // If local has more messages (optimistic update pending), keep local
-            if (localConv.messages.length > serverConv.messages.length) {
+            if (localConv.messages.length > (serverConv.messages?.length || 0)) {
                 // console.log(`Preserving local messages for conversation ${localConv.id}`);
                 return localConv;
             }
@@ -525,6 +675,9 @@ export default function App() {
         // 2. Add new from server
         const newFromServer = loadedConvs.filter((c: any) => !localIds.has(c.id));
         
+        // Mark as remote update to prevent useEffect from saving back to DB
+        isRemoteUpdate.current = true;
+
         return [...merged, ...newFromServer].sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime());
       });
       lastLoadedConvs.current = loadedConvs;
@@ -535,6 +688,17 @@ export default function App() {
 
       setIsDataLoaded(true);
       setLoading(false);
+    }, (error) => {
+      console.error("Firestore Snapshot Error:", error);
+      if (error && error.code === 'resource-exhausted') {
+        toast.error("서버 사용량 초과. 로컬 데이터로 실행합니다.");
+      }
+      
+      // Attempt to restore from local storage on ANY error
+      restoreFromLocal();
+      
+      setLoading(false);
+      setIsDataLoaded(true); // 에러 상황에서도 앱 진입 허용
     });
 
     return () => unsubscribe();
@@ -590,6 +754,8 @@ export default function App() {
   const currentConversation = conversations.find(
     (conv) => conv.id === currentConversationId
   );
+
+
 
   const handleSendMessage = async (content: string, images?: string[]): Promise<string | void> => {
     if (!content.trim() && (!images || images.length === 0)) return;
@@ -706,11 +872,19 @@ export default function App() {
           images: msg.images // 이미지 전달
         }));
 
+      const activePersonaPrompt = personaInstructions
+        .filter(p => p.isActive)
+        .map(p => p.content)
+        .join("\n");
+
       const aiResponse = await sendMessageToGemini(
         geminiMessages,
         nativeLang,
-        targetLang || "en" // Default to English if null
+        targetLang || "en", // Default to English if null
+        activePersonaPrompt
       );
+
+
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -727,7 +901,13 @@ export default function App() {
         )
       );
       
+      // Auto TTS if enabled
+      if (isAutoTTS) {
+          speak(aiResponse, nativeLang === 'ko' ? 'ko-KR' : 'en-US');
+      }
+      
       return aiResponse; // AI 응답 반환
+
 
     } catch (error) {
       console.error("AI 응답 오류:", error);
@@ -758,7 +938,7 @@ export default function App() {
     // Prevent duplicate empty conversations
     if (conversations.length > 0 && conversations[0].messages.length === 0) {
       setCurrentConversationId(conversations[0].id);
-      // Optional: toast.info("이미 새로운 대화가 열려있습니다.");
+      navigate(`/chat/${conversations[0].id}`);
       return;
     }
 
@@ -770,7 +950,10 @@ export default function App() {
     };
     setConversations((prev) => [newConversation, ...prev]);
     setCurrentConversationId(newConversation.id);
+    navigate(`/chat/${newConversation.id}`);
   };
+
+
 
   const handleSelectConversation = (id: string) => {
     setCurrentConversationId(id);
@@ -922,19 +1105,16 @@ export default function App() {
         meaning: prevMeaning
       };
 
-      // 3. Update State & DB
+      // 3. Update State & DB (Atomic)
       setUserVocabulary((prev) => {
         const updated = { ...prev, [wordKey]: optimisticEntry };
         
-        // Fire and Forget DB save
         if (user) {
-          saveVocabularyToDB(user.uid, updated).catch(err => {
-             console.error("Failed to save vocabulary:", err);
-             // toast.error("저장 중 오류가 발생했지만, 학습은 계속할 수 있습니다.");
-          });
+          saveWordToDB(user.uid, wordKey, optimisticEntry);
         }
         return updated;
       });
+
 
       // 4. Update Derived Stacks
       if (newStatus !== prevStatus) {
@@ -970,9 +1150,10 @@ export default function App() {
     setUserVocabulary((prev) => {
       const updated = { ...prev };
       delete updated[wordKey];
-      if (user) saveVocabularyToDB(user.uid, updated);
+      if (user) deleteWordFromDB(user.uid, wordKey);
       return updated;
     });
+
 
     setRedStack(prev => prev.filter(w => w !== wordKey));
     setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
@@ -994,31 +1175,34 @@ export default function App() {
     const mergedMeaning = meanings.join(' ');
     
     // 새로운 합쳐진 단어를 vocabulary에 추가
+    // 4. Update State & DB (Atomic)
     setUserVocabulary(prev => {
-      const updated = { ...prev };
-      updated[mergedWordKey] = {
+      const entry: VocabularyEntry = {
         word: mergedWord,
         status: 'red',
         koreanMeaning: mergedMeaning,
-        linkedConcept: true, // Crystallized Entity 표시
+        linkedConcept: true,
         linkedFrom: words,
         lastUpdated: new Date().toISOString()
       };
       
-      // 기존 단어들은 삭제하지 않고 유지 (연결 정보만 추가)
-      words.forEach(w => {
-        const key = w.toLowerCase();
-        if (updated[key]) {
-          updated[key] = {
-            ...updated[key],
-            linkedTo: mergedWordKey
-          };
-        }
-      });
+      const updated = { ...prev, [mergedWordKey]: entry };
       
-      if (user) saveVocabularyToDB(user.uid, updated);
+      if (user) {
+        // Save the new merged phrase
+        saveWordToDB(user.uid, mergedWordKey, entry);
+        
+        // Update linked words (Atomic one by one)
+        words.forEach(w => {
+           const key = w.toLowerCase();
+           if (prev[key]) {
+              saveWordToDB(user.uid, key, { ...prev[key], linkedTo: mergedWordKey });
+           }
+        });
+      }
       return updated;
     });
+
     
     // 합쳐진 단어를 Red Stack에 추가하고 기존 단어들은 제거
     setRedStack(prev => {
@@ -1211,8 +1395,12 @@ export default function App() {
   const handleResetVocabulary = async () => {
     try {
       if (user) {
+        // [SAFETY] Set deliberate flag before saving empty state
+        deliberateResetRef.current = true;
+
         const userRef = doc(db, "users", user.uid);
-        // DB에서 vocabulary와 stacks 필드를 빈 상태로 업데이트 (덮어쓰기)
+        // DB에서 vocabulary를 통째로 {}로 미는 것은 '초기화'의 예외적 상황으로 유지
+        // (필수적인 기능이므로 deliberateResetRef로 보호)
         await updateDoc(userRef, {
           vocabulary: {},
           stacks: {
@@ -1227,7 +1415,6 @@ export default function App() {
       // 로컬 상태 초기화
       setUserVocabulary({});
       setRedStack([]);
-      // yellow/green removed
       setImportantStack([]);
       setSentenceStack([]);
 
@@ -1235,8 +1422,11 @@ export default function App() {
     } catch (error) {
       console.error("데이터 초기화 실패:", error);
       toast.error("데이터 초기화에 실패했습니다.");
+      deliberateResetRef.current = false;
     }
   };
+
+
 
 
 
@@ -1254,8 +1444,9 @@ export default function App() {
   };
 
   return (
-    <BrowserRouter>
+    <>
       <Toaster position="top-center" richColors />
+
 
       {/* 온보딩 모달 */}
       <OnboardingModal
@@ -1355,7 +1546,27 @@ export default function App() {
           onLogout={handleLogout}
           onResetLanguage={() => setShowResetConfirm(true)}
           onResetVocabulary={handleResetVocabulary}
+          vocabCount={Object.keys(userVocabulary).length}
+          personaInstructions={personaInstructions}
+
+          onUpdatePersonaInstructions={async (newInstructions) => {
+            setPersonaInstructions(newInstructions);
+            localStorage.setItem("signal_persona_instructions", JSON.stringify(newInstructions));
+            if (user) {
+              const userRef = doc(db, "users", user.uid);
+              await updateDoc(userRef, {
+                personaInstructions: newInstructions,
+                updatedAt: new Date()
+              });
+            }
+            toast.success("AI 페르소나 지침이 업데이트되었습니다.");
+          }}
+
           learningMode={learningMode}
+          isAutoTTS={isAutoTTS}
+          onToggleAutoTTS={toggleAutoTTS}
+
+
         />
 
         {/* Main Content Area */}
@@ -1364,6 +1575,10 @@ export default function App() {
           <Routes>
             <Route
               path="/"
+              element={<Navigate to={`/chat/${currentConversationId}`} replace />}
+            />
+            <Route
+              path="/chat/:id"
               element={
                 <MainContent
                   nativeLang={nativeLang}
@@ -1384,6 +1599,7 @@ export default function App() {
                 />
               }
             />
+
             
             {/* Community Routes */}
             <Route 
@@ -1414,6 +1630,27 @@ export default function App() {
               path="/profile/:userId" 
               element={<UserProfilePage />} 
             />
+            
+            <Route 
+              path="/settings/instructions" 
+              element={
+                <InstructionPage 
+                  personaInstructions={personaInstructions}
+                  onUpdatePersonaInstructions={async (newInstructions) => {
+                    setPersonaInstructions(newInstructions);
+                    localStorage.setItem("signal_persona_instructions", JSON.stringify(newInstructions));
+                    if (user) {
+                      const userRef = doc(db, "users", user.uid);
+                      await updateDoc(userRef, {
+                        personaInstructions: newInstructions,
+                        updatedAt: new Date()
+                      });
+                    }
+                  }}
+                />
+              } 
+            />
+
             
             <Route 
               path="/chat/global" 
@@ -1503,7 +1740,7 @@ export default function App() {
           </Routes>
         </div>
       </div>
-
-    </BrowserRouter>
+    </>
   );
 }
+

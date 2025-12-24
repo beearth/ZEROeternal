@@ -2,9 +2,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-
 import { fileURLToPath } from "url";
 import tailwindcss from '@tailwindcss/vite';
+
+import { VitePWA } from 'vite-plugin-pwa';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,20 +14,48 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'logo.png', 'wum_logo.png'],
+      manifest: {
+        name: 'ETERNAL',
+        short_name: 'ETERNAL',
+        description: 'AI Language Learning & Vocabulary Stack',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
+        display: 'standalone',
+        orientation: 'portrait',
+        icons: [
+          {
+            src: 'logo.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'logo.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: 'logo.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      }
+    })
   ],
   resolve: {
-    extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // css: { postcss: ... } removed as it is handled by the plugin
   build: {
     target: 'esnext',
-    outDir: 'build_v3',
-    cssCodeSplit: false, // Debugging build issue
+    outDir: 'dist',
+    minify: true,
     sourcemap: false,
-    minify: false,
     rollupOptions: {
       output: {
         manualChunks: {
