@@ -7,6 +7,7 @@ import type { Conversation, Message, PersonaInstruction } from "../types";
 
 interface StackCounts {
   red: number;
+  yellow: number;
   green: number;
   important: number;
   sentence: number;
@@ -66,14 +67,14 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Detect desktop screen size
+  // Detect desktop screen size (Changed to 768px to allow Mini Sidebar on tablets/800px)
   const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth >= 1024
+    typeof window !== 'undefined' && window.innerWidth >= 768
   );
 
   useEffect(() => {
     const handleResize = () => {
-      const nowDesktop = window.innerWidth >= 1024;
+      const nowDesktop = window.innerWidth >= 768;
       setIsDesktop(nowDesktop);
     };
     window.addEventListener('resize', handleResize);
@@ -115,6 +116,8 @@ export function Sidebar({
     }
   };
 
+  const collapsed = isDesktop && !isOpen;
+
   const MenuItem = ({
     path,
     icon,
@@ -137,27 +140,33 @@ export function Sidebar({
           navigate(path);
           onClose();
         }}
-        className={`w-full flex items-center justify-between text-sm py-2 px-3 transition-colors relative font-mono group
+        className={`w-full flex items-center text-sm py-2 transition-colors relative font-mono group
           ${active
             ? "bg-zinc-800/50 text-white"
             : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30"
           }
-          ${isSubItem ? "pl-8" : ""}
+          ${!collapsed && isSubItem ? "pl-8" : ""}
         `}
+        title={collapsed ? label : undefined}
       >
         {active && (
           <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-600" />
         )}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        {/* Icon Container - Fixed width to match Header Hamburger (w-10) for perfect alignment */}
+        <div className="w-10 flex items-center justify-center shrink-0">
           {icon}
-          <span className={`${active ? "font-bold" : "font-medium"} truncate`}>{label}</span>
         </div>
-        {count !== undefined && count > 0 && (
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${active ? `text-${activeColor}-500 bg-${activeColor}-500/10` : "text-zinc-600 bg-zinc-800"
-            }`}>
-            {count}
-          </span>
-        )}
+
+        {/* Text Content - Expands/Collapses */}
+        <div className={`flex items-center justify-between overflow-hidden transition-[width,opacity] duration-300 ${collapsed ? 'w-0 opacity-0' : 'flex-1 opacity-100 ml-2'}`}>
+          <span className={`${active ? "font-bold" : "font-medium"} truncate`}>{label}</span>
+           {count !== undefined && count > 0 && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ml-2 ${active ? `text-${activeColor}-500 bg-${activeColor}-500/10` : "text-zinc-600 bg-zinc-800"
+              }`}>
+              {count}
+            </span>
+          )}
+        </div>
       </button>
     );
   };
@@ -200,7 +209,7 @@ export function Sidebar({
           {/* Header - Icon position fixed */}
           <div className="flex items-center justify-between py-3 px-4" style={{ minHeight: '60px' }}>
             {/* Left Section - Icons always left-aligned */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0">
               {/* Hamburger Menu - Always visible */}
               <button
                 onClick={onToggle}
@@ -211,14 +220,26 @@ export function Sidebar({
 
               {/* Eternal Logo - Only visible when expanded */}
               <div 
-                className="transition-all duration-300 overflow-hidden flex items-center"
+                className="transition-all duration-300 overflow-hidden flex items-center h-10"
                 style={{
                   opacity: (isDesktop && !isOpen) ? 0 : 1,
                   width: (isDesktop && !isOpen) ? 0 : 'auto',
                   marginLeft: (isDesktop && !isOpen) ? 0 : '0.5rem',
                 }}
               >
-                 <EternalLogo />
+                 {/* <EternalLogo /> Saved as requested */}
+                 <div className="flex items-center gap-2">
+                    {/* Signal Lights */}
+                    <div className="flex items-center gap-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                    </div>
+                    {/* Brand Name */}
+                    <span className="text-white font-bold tracking-tight text-lg">
+                      Signal <span className="text-zinc-500 font-light">VOCA</span>
+                    </span>
+                 </div>
               </div>
             </div>
 
@@ -241,6 +262,7 @@ export function Sidebar({
                 if (!isDesktop) onClose();
               }}
               className="w-10 h-10 flex items-center justify-center bg-[#1e1f20] hover:bg-[#333333] text-zinc-400 hover:text-white rounded-full transition-colors flex-shrink-0"
+              title={collapsed ? "New Chat" : undefined}
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -249,21 +271,24 @@ export function Sidebar({
 
           {/* Scrollable Content - Only visible when expanded */}
           <div 
-            className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 custom-scrollbar transition-all duration-300"
+            className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-4 custom-scrollbar transition-all duration-300"
             style={{
-              opacity: (isDesktop && !isOpen) ? 0 : 1,
-              visibility: (isDesktop && !isOpen) ? 'hidden' : 'visible',
+               // Always visible opacity, just layout shift
+              opacity: 1, 
+              visibility: 'visible',
             }}
           >
             {/* THE ARMORY Section */}
             <div className="mb-6">
-              <div className="px-4 mb-2 flex items-center gap-2">
-                <Users className="w-4 h-4 text-zinc-600" />
-                <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
-                  THE ARMORY
-                </span>
-              </div>
-              <div className="space-y-0.5 px-2">
+              {!collapsed && (
+                <div className="mb-2 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-zinc-600" />
+                  <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
+                    THE ARMORY
+                  </span>
+                </div>
+              )}
+              <div className="space-y-0.5">
                 <MenuItem
                   path="/stack/sentence"
                   label="Sentence Archive"
@@ -286,9 +311,9 @@ export function Sidebar({
               </div>
             </div>
 
-            {/* Recent Rooms */}
+            {!collapsed && (
             <div className="mb-6">
-              <div className="px-4 mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between">
                 <span className="font-mono text-xs font-bold text-zinc-500 tracking-widest">
                   RECENT ROOM
                 </span>
@@ -301,14 +326,15 @@ export function Sidebar({
                         navigate(`/chat/${conv.id}`);
                         if (!isDesktop) onClose();
                       }}
-
-                      className={`w-full text-left px-4 py-2 text-sm truncate rounded-lg transition-colors pr-12 ${
+                      className={`w-full flex items-center text-left py-2 text-sm truncate rounded-lg transition-colors pr-8 ${
                         currentConversationId === conv.id
                           ? "bg-[#27272a] text-white"
                           : "text-zinc-400 hover:text-zinc-200 hover:bg-[#27272a]/50"
                       }`}
                     >
-                      {conv.title}
+                      {/* Spacer to align text with items that have icons */}
+                      <div className="w-10 flex-shrink-0" />
+                      <span className="truncate whitespace-nowrap">{conv.title}</span>
                     </button>
                     
                     {/* More Options Button */}
@@ -357,13 +383,14 @@ export function Sidebar({
                 ))}
               </div>
             </div>
+            )}
           </div>
 
           {/* Spacer for mini mode */}
           {isDesktop && !isOpen && <div className="flex-1" />}
 
           {/* Bottom Section */}
-          <div className={`bg-[#09090b] flex flex-col py-2 gap-1 ${(isDesktop && !isOpen) ? 'items-center w-full' : 'px-3'}`}>
+          <div className="bg-[#09090b] flex flex-col py-2 gap-1 px-4">
             {/* Red Signal Button */}
             <button
               type="button"
@@ -373,22 +400,50 @@ export function Sidebar({
                 navigate("/stack/red");
                 if (!isDesktop) onClose();
               }}
-              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
+              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
             >
-              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 flex items-center justify-center flex-shrink-0">
                 <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] ${learningMode === 'language' ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-600 shadow-red-600/50'}`} />
               </div>
               {!(isDesktop && !isOpen) && (
-                <>
-                  <span className="text-sm font-medium whitespace-nowrap">
+                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
+                  <span className="text-sm font-medium whitespace-nowrap truncate">
                     {learningMode === 'language' ? 'Word Room' : 'Red Room'}
                   </span>
                   {counts.red > 0 && (
-                    <span className="ml-auto text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded ml-2">
                       {counts.red}
                     </span>
                   )}
-                </>
+                </div>
+              )}
+            </button>
+
+            {/* Yellow Room Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate("/stack/yellow");
+                if (!isDesktop) onClose();
+              }}
+              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
+            >
+              <div className="w-10 flex items-center justify-center flex-shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.5)]" />
+              </div>
+              {!(isDesktop && !isOpen) && (
+                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
+                  <span className="text-sm font-medium whitespace-nowrap truncate">
+                    Yellow Room
+                  </span>
+                  {counts.yellow > 0 && (
+                    <span className="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded ml-2">
+                      {counts.yellow}
+                    </span>
+                  )}
+                </div>
               )}
             </button>
 
@@ -401,22 +456,22 @@ export function Sidebar({
                 navigate("/stack/green");
                 if (!isDesktop) onClose();
               }}
-              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${(isDesktop && !isOpen) ? 'justify-center w-10 h-10' : 'gap-3 px-1 w-full'}`}
+              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
             >
-              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 flex items-center justify-center flex-shrink-0">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
               </div>
               {!(isDesktop && !isOpen) && (
-                <>
-                  <span className="text-sm font-medium whitespace-nowrap">
+                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
+                  <span className="text-sm font-medium whitespace-nowrap truncate">
                     Green Room
                   </span>
                   {counts.green > 0 && (
-                    <span className="ml-auto text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded ml-2">
                       {counts.green}
                     </span>
                   )}
-                </>
+                </div>
               )}
             </button>
 

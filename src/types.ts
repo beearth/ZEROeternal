@@ -27,6 +27,7 @@ export interface Message {
     content: string;
     timestamp: Date;
     images?: string[];
+    translation?: string; // Persisted translation
 }
 
 export interface Conversation {

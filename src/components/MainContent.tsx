@@ -30,6 +30,8 @@ interface Conversation {
 interface MainContentProps {
     nativeLang: string;
     targetLang: string | null;
+    setTargetLang: (lang: string) => void;
+    setNativeLang: (lang: string) => void;
     currentConversation?: Conversation;
     isTyping: boolean;
     onSendMessage: (content: string, images?: string[]) => Promise<string | void> | void;
@@ -51,11 +53,14 @@ interface MainContentProps {
     onSaveImportant: (word: WordData) => void;
     onSaveSentence: (sentence: string) => void;
     learningMode?: 'knowledge' | 'language';
+    onUpdateTranslation?: (messageId: string, translation: string) => void;
 }
 
 export function MainContent({
     nativeLang,
     targetLang,
+    setTargetLang,
+    setNativeLang,
     currentConversation,
     isTyping,
     onSendMessage,
@@ -69,12 +74,31 @@ export function MainContent({
     onSaveImportant,
     onSaveSentence,
     learningMode = 'knowledge',
+    onUpdateTranslation,
 }: MainContentProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const prevMessageCountRef = useRef<number>(0);
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    // ... (rest of component) ...
+
+                                {currentConversation?.messages.map((message) => (
+                                    <ChatMessage
+                                        key={message.id}
+                                        message={message}
+                                        onUpdateWordStatus={onUpdateWordStatus}
+                                        onResetWordStatus={onResetWordStatus}
+                                        onSaveImportant={onSaveImportant}
+                                        onSaveSentence={onSaveSentence}
+                                        userVocabulary={userVocabulary}
+                                        learningMode={learningMode}
+                                        nativeLang={nativeLang}
+                                        targetLang={targetLang}
+                                        onUpdateTranslation={onUpdateTranslation}
+                                    />
+                                ))}
 
     // 프로필 메뉴 외부 클릭 시 닫기
     useEffect(() => {
@@ -132,7 +156,7 @@ export function MainContent({
                     {!isSidebarOpen && (
                         <button
                             onClick={() => onToggleSidebar()}
-                            className="lg:hidden flex items-center justify-center p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors"
+                            className="md:hidden flex items-center justify-center p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors"
                         >
                             <Menu className="w-5 h-5" />
                         </button>
@@ -141,15 +165,61 @@ export function MainContent({
                     {/* 2. ETERNAL Logo and Model Selector */}
                     <div className="flex items-center gap-4">
                          {/* Sidebar가 닫혀있거나 모바일일 때 로고 표시 */}
-                        {(!isSidebarOpen || window.innerWidth < 1024) && (
-                            <EternalLogo />
+                        {(!isSidebarOpen || window.innerWidth < 768) && (
+                            // <EternalLogo /> Replaced with Signal VOCA
+                            <div className="flex items-center gap-2">
+                                {/* Signal Lights */}
+                                <div className="flex items-center gap-1">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                                </div>
+                                {/* Brand Name */}
+                                <span className="text-white font-bold tracking-tight text-lg">
+                                    Signal <span className="text-zinc-500 font-light">VOCA</span>
+                                </span>
+                            </div>
                         )}
                     </div>
                 </div>
 
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (
-                    <div ref={profileMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', position: 'relative' }}>
+                    <div ref={profileMenuRef} className="flex items-center gap-4 ml-auto relative">
+                        {/* Language Settings (Visible on Mobile) */}
+                        {/* Language Chips (Scrollable Tokens) */}
+                        <div className="flex items-center gap-2 mr-2 overflow-x-auto no-scrollbar max-w-[200px] md:max-w-[300px] whitespace-nowrap mask-linear-fade">
+                             {/* Native Selector (Mini) */}
+                            <select
+                                value={nativeLang}
+                                onChange={(e) => setNativeLang(e.target.value)}
+                                className="bg-[#2a2b2c] text-zinc-500 text-[10px] px-1 py-1 rounded border border-zinc-700 outline-none cursor-pointer flex-shrink-0"
+                            >
+                                <option value="ko">KO</option>
+                                <option value="en">EN</option>
+                                <option value="ja">JA</option>
+                            </select>
+
+                            <span className="text-zinc-600 text-[10px] flex-shrink-0">→</span>
+
+                            {/* Target Tokens (Scrollable) */}
+                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                                {['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de'].map((lang) => (
+                                    <button
+                                        key={lang}
+                                        onClick={() => setTargetLang(lang)}
+                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all flex-shrink-0 border ${
+                                            targetLang === lang
+                                            ? "bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                                            : "bg-[#2a2b2c] text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-200"
+                                        }`}
+                                    >
+                                        {lang.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <NotificationsPopover userId={user.uid} />
                         {/* Small profile icon with dropdown */}
                         <div 
@@ -230,7 +300,7 @@ export function MainContent({
                 ) : !currentConversation?.messages.length ? (
                     /* 빈 상태 (지식인 스타일) */
                     <div className="h-full flex flex-col items-center justify-center p-4 overflow-y-auto">
-                        <div className="w-full max-w-3xl space-y-8">
+                        <div className="w-full max-w-[800px] space-y-8">
                             <div className="space-y-2">
                                 <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 text-transparent bg-clip-text">
                                     안녕하세요, {user?.displayName || "사용자"}님
@@ -282,7 +352,7 @@ export function MainContent({
                     /* 대화 중 상태 */
                     <>
                         <div className="flex-1 overflow-y-auto px-4 py-6">
-                            <div className="max-w-3xl mx-auto space-y-6">
+                            <div className="max-w-[800px] mx-auto space-y-6">
                                 {currentConversation?.messages.map((message) => (
                                     <ChatMessage
                                         key={message.id}
@@ -293,6 +363,9 @@ export function MainContent({
                                         onSaveSentence={onSaveSentence}
                                         userVocabulary={userVocabulary}
                                         learningMode={learningMode}
+                                        nativeLang={nativeLang}
+                                        targetLang={targetLang}
+                                        onUpdateTranslation={onUpdateTranslation}
                                     />
                                 ))}
                                 {isTyping && (
@@ -312,7 +385,7 @@ export function MainContent({
 
                         {/* 하단 입력바 (대화 중에만 표시) - Standard Sticky Layout */}
                         <div className="border-t border-[#2a2b2c] bg-[#1e1f20] px-4 py-4 sticky bottom-0 z-30">
-                            <div className="max-w-3xl mx-auto w-full">
+                            <div className="max-w-[800px] mx-auto w-full">
                                 <ChatInput
                                     onSendMessage={onSendMessage}
                                     disabled={!targetLang}

@@ -139,6 +139,16 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Persist language settings
+  useEffect(() => {
+    if (nativeLang) localStorage.setItem("signal_native_lang", nativeLang);
+  }, [nativeLang]);
+
+  useEffect(() => {
+     if (targetLang) localStorage.setItem("signal_target_lang", targetLang);
+     else localStorage.removeItem("signal_target_lang");
+  }, [targetLang]);
+
 
   const [isToeicLoading, setIsToeicLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false); // 데이터 로딩 완료 여부
@@ -185,7 +195,8 @@ export default function App() {
   const lastLoadedVocab = useRef<Record<string, VocabularyEntry> | null>(null);
   const lastLoadedConvs = useRef<Conversation[] | null>(null);
   const lastLoadedRed = useRef<string[] | null>(null);
-  // lastLoadedYellow/Green removed
+  const lastLoadedYellow = useRef<string[] | null>(null); // Restored
+  const lastLoadedGreen = useRef<string[] | null>(null); // Restored
   const lastLoadedImportant = useRef<WordData[] | null>(null);
   const lastLoadedSentence = useRef<string[] | null>(null);
 
@@ -239,8 +250,8 @@ export default function App() {
   // 5개의 데이터 저장소 (useEffect보다 먼저 선언)
   // Red, Yellow, Green Stack은 깔끔하게 정제된 단어 텍스트만 저장
   const [redStack, setRedStack] = useState<string[]>([]);
+  const [yellowStack, setYellowStack] = useState<string[]>([]); // Learning words (Restored)
   const [greenStack, setGreenStack] = useState<string[]>([]); // Completed words
-  // Yellow stacks removed
   const [importantStack, setImportantStack] = useState<WordData[]>([]);
   const [sentenceStack, setSentenceStack] = useState<string[]>([]);
 
@@ -457,7 +468,21 @@ export default function App() {
     saveUserStackField(user.uid, "red", redStack);
   }, [redStack, user, isDataLoaded]);
 
-  // Yellow/Green Stack Save Effects Removed
+  // Yellow Stack 저장 (Restored)
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    if (JSON.stringify(yellowStack) === JSON.stringify(lastLoadedYellow.current)) return;
+    saveUserStackField(user.uid, "yellow", yellowStack);
+  }, [yellowStack, user, isDataLoaded]);
+
+  // Green Stack 저장 (Restored explicit save if needed, or rely on derived)
+  // For now, restoring explicit save to match pattern, although derived is better.
+  // Re-enabling explicit save for consistency with other stacks for now.
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    if (JSON.stringify(greenStack) === JSON.stringify(lastLoadedGreen.current)) return;
+    saveUserStackField(user.uid, "green", greenStack);
+  }, [greenStack, user, isDataLoaded]);
 
   // Important Stack 저장
   useEffect(() => {
@@ -529,6 +554,8 @@ export default function App() {
                   .map(([word, _]) => word);
               
               setRedStack(derive('red'));
+              setYellowStack(derive('yellow')); // Restored
+              setGreenStack(derive('green')); // Restored
               // setImportantStack via filter if needed, but red is most critical
               
               toast.success("서버 연결 실패로 로컬 데이터를 복구했습니다.");
@@ -613,7 +640,8 @@ export default function App() {
       };
 
       process(stacks.red, 'red');
-      // Yellow/Green process removed
+      process(stacks.yellow, 'yellow'); // Restored
+      process(stacks.green, 'green'); // Restored
       process(stacks.important, 'orange');
 
       setUserVocabulary(mergedVocab);
@@ -629,10 +657,18 @@ export default function App() {
       };
 
       const newRedStack = deriveStack('red');
+      const newYellowStack = deriveStack('yellow'); // Restored
+      const newGreenStack = deriveStack('green'); // Restored
       
       // Apply derived red stack to state and update lastLoaded to prevent save loop
       setRedStack(newRedStack);
       lastLoadedRed.current = newRedStack;
+
+      setYellowStack(newYellowStack); // Restored
+      lastLoadedYellow.current = newYellowStack;
+
+      setGreenStack(newGreenStack); // Restored
+      lastLoadedGreen.current = newGreenStack;
 
       if (Array.isArray(stacks.important)) {
         setImportantStack(stacks.important);
@@ -721,7 +757,8 @@ export default function App() {
         setIsDataLoaded(false); // 로딩 상태 초기화
         setUserVocabulary({});
         setRedStack([]);
-        // Yellow/Green cleanup removed
+        setYellowStack([]); // Restored
+        setGreenStack([]); // Restored
         setImportantStack([]);
         setSentenceStack([]);
         setConversations([
@@ -1123,6 +1160,12 @@ export default function App() {
              const filtered = prev.filter(w => w !== wordKey);
              return newStatus === "red" ? [...filtered, wordKey] : filtered;
         });
+
+        // Yellow Stack (Processing words)
+        setYellowStack(prev => {
+             const filtered = prev.filter(w => w !== wordKey);
+             return newStatus === "yellow" ? [...filtered, wordKey] : filtered;
+        });
         
         // Green Stack (Completed words)
         setGreenStack(prev => {
@@ -1132,8 +1175,34 @@ export default function App() {
       }
 
       // 5. Generate Translation/Meaning if missing (Async)
-      if (!prevMeaning && newStatus === 'red') {
-         // Background translation logic could go here if needed
+      if (!prevMeaning && (newStatus === 'red' || newStatus === 'orange')) {
+        getKoreanMeaning(cleanWord)
+          .then((meaning) => {
+            if (meaning) {
+              setUserVocabulary((prev) => {
+                const currentEntry = prev[wordKey];
+                if (!currentEntry) return prev;
+
+                const updatedEntry = {
+                  ...currentEntry,
+                  koreanMeaning: meaning,
+                  meaning: meaning
+                };
+
+                const newVocab = { ...prev, [wordKey]: updatedEntry };
+                if (user) {
+                  saveWordToDB(user.uid, wordKey, updatedEntry);
+                }
+                return newVocab;
+              });
+
+              // Also update in Important Stack if present
+              setImportantStack(prev => prev.map(w =>
+                w.word.toLowerCase().trim() === wordKey ? { ...w, koreanMeaning: meaning } : w
+              ));
+            }
+          })
+          .catch((err) => console.error("Meaning fetch error:", err));
       }
 
     } catch (error) {
@@ -1156,8 +1225,60 @@ export default function App() {
 
 
     setRedStack(prev => prev.filter(w => w !== wordKey));
+    setYellowStack(prev => prev.filter(w => w !== wordKey));
+    setGreenStack(prev => prev.filter(w => w !== wordKey));
     setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
   };
+
+  // Track words that failed to fetch meaning in current session to avoid infinite retries
+  const failedMeaningFetches = useRef<Set<string>>(new Set());
+
+  // Missing Meanings Sync (Background)
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+
+    // Find all red/orange words with no meaning, excluding those that already failed
+    const missingMeaningWords = Object.entries(userVocabulary)
+      .filter(([wordKey, entry]) => 
+        (entry.status === 'red' || entry.status === 'orange') && 
+        !entry.koreanMeaning && 
+        !failedMeaningFetches.current.has(wordKey)
+      )
+      .map(([wordKey, _]) => wordKey);
+
+    if (missingMeaningWords.length === 0) return;
+
+    const fetchNextMissing = async () => {
+       const wordKey = missingMeaningWords[0];
+       try {
+          const meaning = await getKoreanMeaning(wordKey);
+          if (meaning) {
+             setUserVocabulary(prev => {
+                const entry = prev[wordKey];
+                if (!entry) return prev;
+                const updated = { ...entry, koreanMeaning: meaning, meaning: meaning };
+                if (user) saveWordToDB(user.uid, wordKey, updated);
+                return { ...prev, [wordKey]: updated };
+             });
+
+             // Also update in Important Stack if present
+             setImportantStack(prev => prev.map(w =>
+                w.word.toLowerCase().trim() === wordKey ? { ...w, koreanMeaning: meaning } : w
+              ));
+          } else {
+             // If meaning is empty, mark as failed for this session
+             failedMeaningFetches.current.add(wordKey);
+          }
+       } catch (e) {
+          console.error(`Background sync failed for ${wordKey}`, e);
+          // Mark as failed for this session to avoid hammering the API
+          failedMeaningFetches.current.add(wordKey);
+       }
+    };
+
+    const timer = setTimeout(fetchNextMissing, 3000); // Process one every 3 seconds while missing exist
+    return () => clearTimeout(timer);
+  }, [isDataLoaded, user?.uid, userVocabulary]); 
 
   // Crystallized Entity: 단어 합치기 핸들러
   const handleMergeWords = useCallback((words: string[]) => {
@@ -1298,8 +1419,66 @@ export default function App() {
       return updatedVocabulary;
     });
 
-    // 자동 번역 제거됨 - 사용자가 요청할 때만 번역
+    // 3. 자동 번역 (Meaning fetch if missing)
+    if (!initialMeaning) {
+      getKoreanMeaning(word.word)
+        .then((meaning) => {
+           if (meaning) {
+              setUserVocabulary(prev => {
+                 const current = prev[wordKey];
+                 if (!current) return prev;
+                 const updated = { ...current, koreanMeaning: meaning, meaning: meaning };
+                 if (user) saveWordToDB(user.uid, wordKey, updated);
+                 return { ...prev, [wordKey]: updated };
+              });
+              // Also update in Important Stack
+              setImportantStack(prev => prev.map(w => 
+                 w.word.toLowerCase() === wordKey ? { ...w, koreanMeaning: meaning } : w
+              ));
+           }
+        })
+        .catch(err => console.error("Important word meaning fetch error:", err));
+    }
   };
+
+  // Message Translation Persistence Handler
+  const handleUpdateTranslation = useCallback((messageId: string, translation: string) => {
+      setConversations(prev => {
+          const newConversations = prev.map(conv => {
+              const msgIndex = conv.messages.findIndex(m => m.id === messageId);
+              if (msgIndex !== -1) {
+                  const newMessages = [...conv.messages];
+                  newMessages[msgIndex] = { ...newMessages[msgIndex], translation };
+                  return { ...conv, messages: newMessages };
+              }
+              return conv;
+          });
+
+          // Save to Firestore if found
+          if (user && newConversations !== prev) {
+             const userRef = doc(db, "users", user.uid);
+             
+             // Sanitize messages: Firestore doesn't accept 'undefined', must be 'null'
+             const sanitizedConversations = newConversations.map(conv => ({
+                ...conv,
+                messages: conv.messages.map(msg => ({
+                   ...msg,
+                   images: msg.images ?? null,
+                   translation: msg.translation ?? null
+                }))
+             }));
+
+             updateDoc(userRef, { 
+                conversations: sanitizedConversations,
+                updatedAt: new Date()
+             }).catch(err => 
+                console.error("Translation persistence failed:", err)
+             );
+          }
+          
+          return newConversations;
+      });
+  }, [user]);
 
   // 문장 저장 핸들러
   const handleSaveSentence = (sentence: string) => {
@@ -1539,6 +1718,7 @@ export default function App() {
           onToggle={() => setIsSidebarOpen((prev) => !prev)}
           counts={{
             red: redStack.length,
+            yellow: yellowStack.length,
             green: greenStack.length,
             important: importantStack.length,
             sentence: sentenceStack.length,
@@ -1583,6 +1763,8 @@ export default function App() {
                 <MainContent
                   nativeLang={nativeLang}
                   targetLang={targetLang}
+                  setTargetLang={setTargetLang}
+                  setNativeLang={setNativeLang} 
                   currentConversation={currentConversation}
                   isTyping={isTyping}
                   onSendMessage={handleSendMessage}
@@ -1596,6 +1778,7 @@ export default function App() {
                   onSaveImportant={handleSaveImportant}
                   onSaveSentence={handleSaveSentence}
                   learningMode={learningMode}
+                  onUpdateTranslation={handleUpdateTranslation}
                 />
               }
             />
@@ -1628,7 +1811,7 @@ export default function App() {
             />
             <Route 
               path="/profile/:userId" 
-              element={<UserProfilePage />} 
+              element={<UserProfilePage user={user} />} 
             />
             
             <Route 
@@ -1668,7 +1851,7 @@ export default function App() {
               } 
             />
             
-            <Route path="/chat/:userId" element={<DirectChat user={user} />} />
+            <Route path="/dm/:userId" element={<DirectChat user={user} />} />
             
             <Route 
               path="/toeic-4000" 
@@ -1701,6 +1884,22 @@ export default function App() {
                   onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   learningMode={learningMode}
                   onMergeWords={handleMergeWords}
+                />
+              } 
+            />
+            <Route 
+              path="/stack/yellow" 
+              element={
+                <StackView
+                  title="Yellow Room"
+                  color="#eab308" 
+                  items={yellowStack}
+                  userVocabulary={userVocabulary}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onGenerateStudyTips={handleGenerateStudyTips}
+                  onDeleteWord={handleResetWordStatus}
+                  onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                  learningMode={learningMode}
                 />
               } 
             />

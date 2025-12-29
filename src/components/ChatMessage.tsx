@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw, Languages } from "lucide-react";
+import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw, Languages, Loader2 } from "lucide-react";
 import { EternalLogo } from "./EternalLogo";
 import { toast } from "../services/toast";
 import { useLongPress } from "../hooks/useLongPress";
 import { WordDetailModal } from "./WordDetailModal";
 import { WordOptionMenu, type WordOptionType } from "./WordOptionMenu";
 import { format } from "date-fns";
-import { generateStudyTips, generateText } from "../services/gemini";
+import { generateStudyTips, generateText, translateText } from "../services/gemini";
 import type { WordData, VocabularyEntry } from "../types";
 
 interface Message {
@@ -15,6 +15,7 @@ interface Message {
   content: string;
   timestamp: Date;
   images?: string[];
+  translation?: string;
 }
 
 interface ChatMessageProps {
@@ -34,6 +35,9 @@ interface ChatMessageProps {
   onSaveSentence?: (sentence: string) => void;
   userVocabulary?: Record<string, VocabularyEntry>;
   learningMode?: 'knowledge' | 'language';
+  nativeLang?: string;
+  targetLang?: string;
+  onUpdateTranslation?: (id: string, translation: string) => void;
 }
 
 // Helper function for styles
@@ -251,23 +255,82 @@ export function ChatMessage({
   onSaveSentence,
   userVocabulary = {},
   learningMode = 'knowledge',
+  nativeLang = 'ko',
+  targetLang = 'en',
+  onUpdateTranslation,
 }: ChatMessageProps) {
   const isAssistant = message.role === "assistant";
   const [wordStates, setWordStates] = useState<Record<number, number>>({});
   const [isHolding, setIsHolding] = useState<Record<number, boolean>>({});
   const [highlightWord, setHighlightWord] = useState<number | null>(null);
-  const [translation, setTranslation] = useState<string | null>(null);
+  const [translation, setTranslation] = useState<string | null>(message.translation || null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
+  // Sync translation from props (DB persistence)
   useEffect(() => {
-    if (learningMode === 'language' && isAssistant && !isTyping && !translation && message.content && message.content.length > 0) {
-      const timer = setTimeout(() => {
-        generateText(`Translate the following English text to natural Korean. Output only the Korean translation:\n\n"${message.content}"`)
-          .then(text => setTranslation(text))
-          .catch(err => console.error("Auto-translation failed:", err));
-      }, 500); // 딜레이를 주어 너무 빠른 요청 방지
-      return () => clearTimeout(timer);
+    if (message.translation) {
+        setTranslation(message.translation);
     }
-  }, [learningMode, isAssistant, isTyping, translation, message.content]);
+  }, [message.translation]);
+
+  /* 
+   * 🛡️ TRANSLATION LOGIC WITH DEDUPLICATION (Fixes 429 Errors)
+   */
+  const [translationError, setTranslationError] = useState(false);
+  const lastRequestKeyRef = useRef<string | null>(null);
+
+  const performTranslation = useCallback(async () => {
+    // Basic guards
+    if (isTranslating || !message.content || isTyping) return;
+    
+    const target = targetLang || 'en';
+    // Create a unique signature for this translation request
+    const currentKey = `${message.id}_${message.content.length}_${target}`;
+    
+    // 1. Strict Deduplication: If we already processed this key, STOP immediately.
+    if (lastRequestKeyRef.current === currentKey) {
+        return;
+    }
+
+    // 2. Block Same-Language
+    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(message.content);
+    if ((hasKorean && target === 'ko') || (!hasKorean && target !== 'ko')) {
+        lastRequestKeyRef.current = currentKey; // Mark as processed so we don't check again
+        return;
+    }
+
+    // 3. Start Translation
+    lastRequestKeyRef.current = currentKey; // Lock this request!
+    setIsTranslating(true);
+    setTranslationError(false);
+    
+    try {
+        const result = await translateText(message.content, target);
+        if (result && result.trim() && result.trim() !== message.content.trim()) {
+            setTranslation(result.trim());
+            if (onUpdateTranslation) onUpdateTranslation(message.id, result.trim());
+        }
+    } catch (err) {
+        console.error("Translation failed:", err);
+        setTranslationError(true);
+        // Do NOT clear lastRequestKeyRef on error to prevent infinite retry loops (429 protection)
+    } finally {
+        setIsTranslating(false);
+    }
+  }, [message.content, message.id, targetLang, onUpdateTranslation, isTranslating, isTyping]);
+
+  // Single Effect to trigger translation
+  useEffect(() => {
+    if (isTyping || !message.content) return;
+    
+    // Skip old messages (>10 mins)
+    const timeSinceCreated = Date.now() - new Date(message.timestamp).getTime();
+    if (timeSinceCreated > 600000) return; 
+
+    // Debounce slightly to prevent flicker
+    const timer = setTimeout(performTranslation, 500);
+    return () => clearTimeout(timer);
+  }, [isTyping, message.content, message.timestamp, targetLang, performTranslation]); // targetLang dependency is key!
 
   const [radialMenu, setRadialMenu] = useState<{
     showRadialMenu: boolean;
@@ -796,12 +859,19 @@ export function ChatMessage({
           )}
 
           {/* Auto Translation Display */}
-          {translation && (
+          {(isTranslating || translation) && (
             <div className="mt-4 pt-3 border-t border-zinc-700/50 animate-in fade-in duration-500">
-              <div className="flex items-start gap-2.5 text-zinc-300/90 text-[15px] leading-7">
-                <Languages className="w-4 h-4 mt-1.5 text-blue-400 shrink-0" />
-                <p>{translation}</p>
-              </div>
+              {isTranslating ? (
+                <div className="flex items-center gap-2 text-zinc-400/70 text-sm">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Translating...</span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2.5 text-zinc-300/90 text-[15px] leading-7">
+                  <Languages className="w-4 h-4 mt-1.5 text-blue-400 shrink-0" />
+                  <p>{translation}</p>
+                </div>
+              )}
             </div>
           )}
 

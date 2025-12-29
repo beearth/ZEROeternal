@@ -58,9 +58,9 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
 
   // 현재 스택의 상태 결정
   const getCurrentStatus = (): "red" | "yellow" | "green" | "orange" => {
-    if (title === "Red Signal") return "red";
-    if (title === "Yellow Signal") return "yellow";
-    if (title === "Green Signal" || title === "Success Site" || title === "Success" || title === "Success Signal") return "green";
+    if (title === "Red Signal" || title === "Red Room" || title === "Word Room") return "red";
+    if (title === "Yellow Signal" || title === "Yellow Room") return "yellow";
+    if (title === "Green Signal" || title === "Green Room" || title === "Success Site" || title === "Success" || title === "Success Signal") return "green";
     if (title === "중요 단어장" || title === "Important Words") return "orange";
     return "red"; // default
   };
@@ -108,8 +108,20 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       const y = event.clientY;
       longPressTimerRef.current = setTimeout(() => {
         isLongPress.current = true;
-        setMenuOpenWord(word);
-        setMenuPosition({ x, y });
+        
+        // Auto-merge: Click + Long Press logic (within 3s)
+        const now = Date.now();
+        const timeDiff = now - lastClickTime.current;
+        if (lastClickedWord.current && lastClickedWord.current !== word && timeDiff < 3000 && onMergeWords) {
+          setPendingMerge([lastClickedWord.current, word]);
+          setShowMergePrompt(true);
+          lastClickedWord.current = null;
+          lastClickTime.current = 0;
+        } else {
+          setMenuOpenWord(word);
+          setMenuPosition({ x, y });
+        }
+
         // 햅틱 피드백 (모바일)
         if (navigator.vibrate) navigator.vibrate(50);
       }, 500);
@@ -261,20 +273,8 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
       return;
     }
     
-    // Auto-merge: 2초 이내에 다른 단어를 클릭하면 합치기 제안
+    // 현재 클릭 기록 (합치기용)
     const now = Date.now();
-    const timeDiff = now - lastClickTime.current;
-    
-    if (lastClickedWord.current && lastClickedWord.current !== word && timeDiff < 2000 && onMergeWords) {
-      // 연속 클릭 감지! 합치기 제안
-      setPendingMerge([lastClickedWord.current, word]);
-      setShowMergePrompt(true);
-      lastClickedWord.current = null;
-      lastClickTime.current = 0;
-      return;
-    }
-    
-    // 현재 클릭 기록
     lastClickedWord.current = word;
     lastClickTime.current = now;
 

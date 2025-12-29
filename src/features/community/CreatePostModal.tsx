@@ -105,7 +105,7 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, initialData, isEdit
                                 alt="Preview"
                                 className="w-full h-64 object-cover"
                                 onError={(e) => {
-                                    e.currentTarget.src = 'https://via.placeholder.com/600x400?text=이미지를+불러올+수+없습니다';
+                                    e.currentTarget.style.display = 'none';
                                 }}
                             />
                         </div>

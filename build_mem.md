@@ -1,0 +1,3 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 2801 modules transformed.

@@ -95,16 +95,16 @@ export function SettingsMenu({
             <div className={`relative ${isCollapsed ? 'w-full flex justify-center' : 'w-full'}`} ref={menuRef}>
             <button
                     onClick={() => setIsOpen(!isOpen)}
-                    className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 ${
-                        isCollapsed ? "justify-center w-10 h-10" : "gap-3 px-1 w-full"
-                    }`}
+                    className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
                     title="설정"
                 >
-                    <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 flex items-center justify-center flex-shrink-0">
                         <Settings className="w-4 h-4" />
                     </div>
                     {!isCollapsed && (
-                        <span className="text-sm font-medium whitespace-nowrap">설정 및 도움말</span>
+                        <div className="flex-1 text-left opacity-100 ml-2">
+                             <span className="text-sm font-medium whitespace-nowrap">설정 및 도움말</span>
+                        </div>
                     )}
                 </button>
 

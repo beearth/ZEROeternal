@@ -220,7 +220,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                                     alt="Preview"
                                     className="w-full h-96 object-cover"
                                     onError={(e) => {
-                                        e.currentTarget.src = 'https://via.placeholder.com/800x600?text=이미지를+불러올+수+없습니다';
+                                        // Placeholder fallback removed
+                                        e.currentTarget.style.display = 'none';
                                     }}
                                 />
                             </div>

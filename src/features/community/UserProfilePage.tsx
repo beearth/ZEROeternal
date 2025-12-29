@@ -47,10 +47,6 @@ interface UserProfile {
     flag: string;
 }
 
-// Mock Data for Multiple Users
-// Mock Data Removed to enforce real data fetch
-const MOCK_USERS: Record<string, UserProfile> = {};
-
 const LANGUAGE_FLAGS: Record<string, string> = {
     'Korean': '🇰🇷', 'English': '🇺🇸', 'Japanese': '🇯🇵', 'Chinese': '🇨🇳',
     'Spanish': '🇪🇸', 'French': '🇫🇷', 'German': '🇩🇪', 'Russian': '🇷🇺', 'Italian': '🇮🇹'
@@ -62,6 +58,11 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const location = useLocation();
     const [isFollowing, setIsFollowing] = useState(false);
 
+    // DEBUG: Check user prop
+    useEffect(() => {
+        console.log("UserProfilePage: currentUser prop", currentUser);
+    }, [currentUser]);
+
     // Determine if we are viewing the current user's profile
     const isCurrentUser = currentUser && (userId === currentUser.uid || userId === 'current_user');
 
@@ -69,7 +70,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const currentUserProfile: UserProfile | undefined = currentUser ? {
         id: currentUser.uid,
         name: currentUser.displayName || 'Anonymous',
-        avatar: currentUser.photoURL || 'https://via.placeholder.com/200',
+        avatar: currentUser.photoURL || '',
         joinDate: `Joined in ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
         followers: [],
         following: [],
@@ -99,7 +100,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const stateUserProfile: UserProfile | undefined = stateUser ? {
         id: userId || 'unknown',
         name: stateUser.userName || stateUser.name || 'Unknown',
-        avatar: stateUser.userAvatar || stateUser.avatar || 'https://via.placeholder.com/200',
+        avatar: stateUser.userAvatar || stateUser.avatar || '',
         joinDate: 'Signal User',
         followers: [],
         following: [],
@@ -124,57 +125,49 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     };
 
     // Fetch Profile Data (Real-time Sync)
-    // Fetch Profile Data (Real-time Sync)
     useEffect(() => {
         const targetId = (userId === 'current_user' && currentUser) ? currentUser.uid : userId;
 
-        if (!targetId || targetId === 'user1') return;
+        if (!targetId) {
+            console.log("UserProfilePage: No targetId found");
+            return;
+        }
+
+        console.log("UserProfilePage: Fetching profile for", targetId);
 
         // Use Snapshot Listener for Real-Time Updates
         const unsubscribe = subscribeToUserProfile(targetId, (profile) => {
+            console.log("UserProfilePage: Fetched profile RAW", JSON.stringify(profile, null, 2));
             if (profile) {
                 setFetchedProfile({
                     id: profile.id || targetId,
-                    name: profile.name,
-                    avatar: profile.avatar || '',
+                    name: profile.name || 'Unknown Name',
+                    avatar: profile.avatar || '', 
                     joinDate: profile.joinDate || 'Joined recently',
                     followers: profile.followers || [],
                     following: profile.following || [],
                     studying: profile.targetLang
                         ? (Array.isArray(profile.targetLang) ? profile.targetLang.map(getLangName) : [getLangName(profile.targetLang)])
                         : ['English'],
-                    native: profile.nativeLang
-                        ? (Array.isArray(profile.nativeLang) ? profile.nativeLang.map(getLangName) : [getLangName(profile.nativeLang)])
-                        : ['Korean'],
-                    bio: profile.bio || "",
+                    native: profile.nativeLang ? [getLangName(profile.nativeLang)] : ['Korean'],
+                    bio: profile.bio || '',
                     location: profile.location || 'Unknown',
                     flag: profile.flag || '🏳️'
-                } as any);
+                });
             }
         });
 
         return () => unsubscribe();
     }, [userId, currentUser]);
 
-    // Intelligent Selection Logic
-    // 1. Current User (Always priority if it's your own profile)
-    // 2. Snapshot (State) - PREFERRED if Fetch is loading or Fetch returned "Unknown"
-    // 3. Fetched - Only if it yields a valid name
-
-    // Check if fetched profile is "valid" (has a real name, not a placeholder)
-    const isFetchedValid = fetchedProfile &&
-        fetchedProfile.name !== 'Unknown User' &&
-        fetchedProfile.name !== 'Guest_User';
+    // Check if fetched profile is "valid"
+    // We trust the fetch result even if name is 'Unknown User', because we need the 'followers' array for logic.
+    const isFetchedValid = !!fetchedProfile;
 
     // Intelligent Selection Logic
     // 1. Fetched Profile (Highest Priority - Real DB Data)
     // 2. Current User (Auth Data - Fast but might be stale on other devices)
     // 3. Snapshot (State - Fast transition)
-
-    // Base object to start with
-    // If we have valid fetched data, use it (even for current user, to sync changes).
-    // If not, use CurrentUser (if applicable).
-    // If not, use Snapshot.
     let displaySource = isFetchedValid ? fetchedProfile : (isCurrentUser ? currentUserProfile : stateUserProfile);
 
     // If absolutely nothing exists (direct URL visit to random ID with no fetch result yet), fallback
@@ -445,7 +438,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                             <div className="rounded-full p-1.5 bg-[#a7f3d0] border-[3px] border-black w-36 h-36 flex items-center justify-center overflow-hidden shadow-sm relative">
                                 <Avatar className="w-full h-full bg-transparent rounded-full">
                                     <AvatarImage src={postUser.avatar} className="object-cover w-full h-full" />
-                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full">{postUser.name[0]}</AvatarFallback>
+                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full">{postUser.name?.[0] || 'U'}</AvatarFallback>
                                 </Avatar>
                                 {isCurrentUser && isEditingProfile && (
                                     <div
@@ -471,18 +464,24 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                 {!isCurrentUser && (
                                     <Button
                                         onClick={async () => {
-                                            if (!currentUser) return;
+                                            if (!currentUser) {
+                                                console.error("Follow failed: No currentUser");
+                                                toast.error("로그인이 필요합니다.");
+                                                return;
+                                            }
+                                            console.log(`Attempting follow/unfollow. Current: ${currentUser.uid}, Target: ${effectiveTargetId}`);
+                                            
                                             // Optimistic Update
                                             const newStatus = !isFollowing;
                                             setIsFollowing(newStatus);
                                             try {
                                                 await toggleFollowUser(currentUser.uid, effectiveTargetId);
                                                 // Success: The onSnapshot listener will eventually confirm this
-                                            } catch (error) {
+                                            } catch (error: any) {
                                                 console.error("Follow failed", error);
                                                 // Revert on error
                                                 setIsFollowing(!newStatus);
-                                                toast.error("팔로우 요청 실패");
+                                                toast.error(`팔로우 실패: ${error.message || "알 수 없는 오류"}`);
                                             }
                                         }}
                                         className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
@@ -495,14 +494,17 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                 )}
                                 {!isCurrentUser && (
                                     <Button
-                                        onClick={() => navigate(`/chat/${userId}`, {
-                                            state: {
-                                                userName: postUser.name,
-                                                userAvatar: postUser.avatar,
-                                                userFlag: postUser.flag,
-                                                userLocation: postUser.location
-                                            }
-                                        })}
+                                        onClick={() => {
+                                            console.log("Chat button clicked, navigating to:", `/dm/${userId}`);
+                                            navigate(`/dm/${userId}`, {
+                                                state: {
+                                                    userName: postUser.name,
+                                                    userAvatar: postUser.avatar,
+                                                    userFlag: postUser.flag,
+                                                    userLocation: postUser.location
+                                                }
+                                            });
+                                        }}
                                         className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
                                     >
                                         <Mail className="w-6 h-6 stroke-[2.5]" />
@@ -541,7 +543,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">@{postUser.name}</h2>
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">@{postUser.name || 'Unknown User'}</h2>
                         {isCurrentUser && (
                             <button
                                 onClick={() => { setIsEditingProfile(true); setEditName(postUser.name); }}
@@ -619,7 +621,6 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                     setIsEditingBio(true);
                                 }}
                                 className="absolute top-2 right-2 p-1.5 bg-white/50 hover:bg-white rounded-full text-pink-600 opacity-0 group-hover:opacity-100 transition-all"
-                                title="자기소개 수정"
                             >
                                 <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -661,5 +662,6 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                 )}
             </div>
         </div>
+
     </div>;
 }
