@@ -202,9 +202,19 @@ export function MainContent({
                     <div ref={profileMenuRef} className="flex items-center gap-4 ml-auto relative">
                         {/* Compact Language Selector */}
                         <div className="flex items-center gap-1.5 mr-2">
-                             {/* Native Lang (Tiny Label) */}
-                            <span className="text-[9px] text-zinc-600 font-medium">{nativeLang.toUpperCase()}</span>
-                            <span className="text-zinc-700 text-[10px]">→</span>
+                             {/* Native Lang Dropdown */}
+                            <select
+                                value={nativeLang}
+                                onChange={(e) => setNativeLang(e.target.value)}
+                                className="bg-[#2a2b2c] text-zinc-400 text-[10px] font-medium px-1.5 py-0.5 rounded border border-zinc-700 outline-none cursor-pointer appearance-none text-center"
+                                style={{ minWidth: '32px' }}
+                            >
+                                {['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de'].map((lang) => (
+                                    <option key={lang} value={lang}>{lang.toUpperCase()}</option>
+                                ))}
+                            </select>
+                            
+                            <span className="text-zinc-600 text-[10px]">→</span>
                             
                             {/* Target Lang Dropdown (Compact) */}
                             <select
