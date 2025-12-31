@@ -200,38 +200,23 @@ export function MainContent({
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (
                     <div ref={profileMenuRef} className="flex items-center gap-4 ml-auto relative">
-                        {/* Language Settings (Visible on Mobile) */}
-                        {/* Language Chips (Scrollable Tokens) */}
-                        <div className="flex items-center gap-2 mr-2 overflow-x-auto no-scrollbar max-w-[200px] md:max-w-[300px] whitespace-nowrap mask-linear-fade">
-                             {/* Native Selector (Mini) */}
+                        {/* Compact Language Selector */}
+                        <div className="flex items-center gap-1.5 mr-2">
+                             {/* Native Lang (Tiny Label) */}
+                            <span className="text-[9px] text-zinc-600 font-medium">{nativeLang.toUpperCase()}</span>
+                            <span className="text-zinc-700 text-[10px]">→</span>
+                            
+                            {/* Target Lang Dropdown (Compact) */}
                             <select
-                                value={nativeLang}
-                                onChange={(e) => setNativeLang(e.target.value)}
-                                className="bg-[#2a2b2c] text-zinc-500 text-[10px] px-1 py-1 rounded border border-zinc-700 outline-none cursor-pointer flex-shrink-0"
+                                value={targetLang || 'en'}
+                                onChange={(e) => setTargetLang(e.target.value)}
+                                className="bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full border-none outline-none cursor-pointer shadow-sm appearance-none text-center"
+                                style={{ minWidth: '36px' }}
                             >
-                                <option value="ko">KO</option>
-                                <option value="en">EN</option>
-                                <option value="ja">JA</option>
-                            </select>
-
-                            <span className="text-zinc-600 text-[10px] flex-shrink-0">→</span>
-
-                            {/* Target Tokens (Scrollable) */}
-                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                                {['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de'].map((lang) => (
-                                    <button
-                                        key={lang}
-                                        onClick={() => setTargetLang(lang)}
-                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all flex-shrink-0 border ${
-                                            targetLang === lang
-                                            ? "bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-                                            : "bg-[#2a2b2c] text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-200"
-                                        }`}
-                                    >
-                                        {lang.toUpperCase()}
-                                    </button>
+                                {['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de'].filter(l => l !== nativeLang).map((lang) => (
+                                    <option key={lang} value={lang}>{lang.toUpperCase()}</option>
                                 ))}
-                            </div>
+                            </select>
                         </div>
 
                         <NotificationsPopover userId={user.uid} />
