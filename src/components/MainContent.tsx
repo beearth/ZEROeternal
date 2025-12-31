@@ -201,30 +201,28 @@ export function MainContent({
                 {user && (
                     <div ref={profileMenuRef} className="flex items-center gap-4 ml-auto relative">
                         {/* Compact Language Selector */}
-                        <div className="flex items-center gap-1.5 mr-2">
+                        <div className="flex items-center gap-1 mr-2">
                              {/* Native Lang Dropdown */}
                             <select
                                 value={nativeLang}
                                 onChange={(e) => setNativeLang(e.target.value)}
-                                className="bg-[#2a2b2c] text-zinc-400 text-[10px] font-medium px-1.5 py-0.5 rounded border border-zinc-700 outline-none cursor-pointer appearance-none text-center"
-                                style={{ minWidth: '32px' }}
+                                className="bg-transparent text-zinc-500 text-[10px] font-medium px-1 py-0.5 rounded outline-none cursor-pointer appearance-none text-center hover:text-zinc-300 transition-colors"
                             >
                                 {['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de'].map((lang) => (
-                                    <option key={lang} value={lang}>{lang.toUpperCase()}</option>
+                                    <option key={lang} value={lang} className="bg-[#1e1f20]">{lang.toUpperCase()}</option>
                                 ))}
                             </select>
                             
                             <span className="text-zinc-600 text-[10px]">→</span>
                             
-                            {/* Target Lang Dropdown (Compact) */}
+                            {/* Target Lang Dropdown */}
                             <select
                                 value={targetLang || 'en'}
                                 onChange={(e) => setTargetLang(e.target.value)}
-                                className="bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full border-none outline-none cursor-pointer shadow-sm appearance-none text-center"
-                                style={{ minWidth: '36px' }}
+                                className="bg-transparent text-zinc-400 text-[10px] font-bold px-1 py-0.5 rounded outline-none cursor-pointer appearance-none text-center hover:text-white transition-colors"
                             >
                                 {['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de'].filter(l => l !== nativeLang).map((lang) => (
-                                    <option key={lang} value={lang}>{lang.toUpperCase()}</option>
+                                    <option key={lang} value={lang} className="bg-[#1e1f20]">{lang.toUpperCase()}</option>
                                 ))}
                             </select>
                         </div>
