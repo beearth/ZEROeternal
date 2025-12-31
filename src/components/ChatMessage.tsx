@@ -1037,6 +1037,7 @@ export function ChatMessage({
           const duration = Date.now() - startTime;
           
           if (duration < 400) { // Click Event
+              const now = Date.now();
               if (targetType === 'dot') {
                   // Handle Dot Click
                   const wordId = `${message.id}-${targetIndex}-${targetWord.toLowerCase()}`;
@@ -1055,6 +1056,26 @@ export function ChatMessage({
                       toast.success(`'${targetWord}' 가 Red Room에 저장되었습니다.`);
                   }
               } else {
+                  // --- COUPLING LOGIC (Hold A + Click B) ---
+                  if (radialMenu.showRadialMenu && radialMenu.selectedWordData) {
+                      const heldIndex = radialMenu.selectedWordData.index;
+                      if (heldIndex !== targetIndex) {
+                          const heldWord = radialMenu.selectedWordData.word;
+                          setPhraseCollection([heldWord, targetWord]);
+                          setShowPhrasePrompt(true);
+                          
+                          // Reset holding/menu state
+                          setRadialMenu(prev => ({ ...prev, showRadialMenu: false, selectedWordData: null }));
+                          setIsHolding({}); 
+                          lastClickedWordRef.current = null;
+                          interactionRef.current.targetIndex = null;
+                          return; // ABORT color cycle
+                      }
+                  }
+
+                  // Record click for potential "Click A + Hold B" coupling
+                  lastClickedWordRef.current = { word: targetWord, index: targetIndex, time: now };
+
                   // Handle Word Click (Instant Visual + Debounced State)
                   const wordSpan = (e.target as HTMLElement).closest('[data-word-index]') as HTMLElement;
                   if (wordSpan) {
