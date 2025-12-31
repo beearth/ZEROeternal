@@ -63,19 +63,32 @@ export function useVoice() {
     }, []);
 
     const startListening = useCallback((lang: string = "ko-KR") => {
-        if (recognitionRef.current) {
-            recognitionRef.current.lang = lang;
-            setTranscript("");
-            setIsListening(true);
-            try {
-                recognitionRef.current.start();
-            } catch (error) {
-                console.error("Failed to start recognition:", error);
-                setIsListening(false);
-            }
-        } else {
-            alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
+        // Check browser support first
+        if (!SpeechRecognitionConstructor) {
+            alert("이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge를 사용해주세요.");
+            return;
         }
+
+        // Request microphone permission explicitly
+        navigator.mediaDevices?.getUserMedia({ audio: true })
+            .then(() => {
+                if (recognitionRef.current) {
+                    recognitionRef.current.lang = lang;
+                    setTranscript("");
+                    setIsListening(true);
+                    try {
+                        recognitionRef.current.start();
+                    } catch (error) {
+                        console.error("Failed to start recognition:", error);
+                        setIsListening(false);
+                        alert("음성 인식을 시작할 수 없습니다. 마이크 권한을 확인해주세요.");
+                    }
+                }
+            })
+            .catch((err) => {
+                console.error("Microphone permission error:", err);
+                alert("마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해주세요.");
+            });
     }, []);
 
     const stopListening = useCallback(() => {
