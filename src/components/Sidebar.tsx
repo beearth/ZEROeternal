@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search, SquarePen, Settings, MoreHorizontal, Pencil } from "lucide-react";
+import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search, SquarePen, Settings, MoreHorizontal, Pencil, Brain } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -33,6 +33,7 @@ interface SidebarProps {
   isAutoTTS?: boolean;
   onToggleAutoTTS?: () => void;
   vocabCount?: number;
+  onOpenQuiz?: () => void;
 }
 
 
@@ -58,7 +59,8 @@ export function Sidebar({
   learningMode = 'knowledge',
   isAutoTTS = false,
   onToggleAutoTTS,
-  vocabCount = 0
+  vocabCount = 0,
+  onOpenQuiz
 }: SidebarProps) {
 
 
@@ -120,24 +122,30 @@ export function Sidebar({
 
   const MenuItem = ({
     path,
+    onClick,
     icon,
     label,
     count,
     activeColor = "red",
     isSubItem = false,
   }: {
-    path: string;
+    path?: string;
+    onClick?: () => void;
     icon: React.ReactNode;
     label: string;
     count?: number;
     activeColor?: string;
     isSubItem?: boolean;
   }) => {
-    const active = isActive(path);
+    const active = path ? isActive(path) : false;
     return (
       <button
         onClick={() => {
-          navigate(path);
+          if (onClick) {
+            onClick();
+          } else if (path) {
+            navigate(path);
+          }
           onClose();
         }}
         className={`w-full flex items-center text-sm py-2 transition-colors relative font-mono group
@@ -228,18 +236,24 @@ export function Sidebar({
                 }}
               >
                  {/* <EternalLogo /> Saved as requested */}
-                 <div className="flex items-center gap-2">
-                    {/* Signal Lights */}
-                    <div className="flex items-center gap-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                    </div>
-                    {/* Brand Name */}
-                    <span className="text-white font-bold tracking-tight text-lg">
-                      Signal <span className="text-zinc-500 font-light">VOCA</span>
-                    </span>
-                 </div>
+                 <div 
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => {
+                      if (onNewConversation) onNewConversation();
+                      else window.location.href = '/';
+                    }}
+                  >
+                     {/* Signal Lights */}
+                     <div className="flex items-center gap-1">
+                       <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                       <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+                       <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                     </div>
+                     {/* Brand Name */}
+                     <span className="text-white font-bold tracking-tight text-lg">
+                       Signal <span className="text-zinc-500 font-light">VOCA</span>
+                     </span>
+                  </div>
               </div>
             </div>
 
@@ -391,6 +405,14 @@ export function Sidebar({
 
           {/* Bottom Section */}
           <div className="bg-[#09090b] flex flex-col py-2 gap-1 px-4">
+            {/* Language Quiz Button */}
+            <MenuItem
+              onClick={() => onOpenQuiz?.()}
+              label="Interactive Quiz"
+              icon={<Brain className="w-4 h-4 text-blue-400" />}
+              activeColor="blue"
+            />
+
             {/* Red Signal Button */}
             <button
               type="button"

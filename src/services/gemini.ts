@@ -212,7 +212,14 @@ export async function translateText(text: string, targetLang: string): Promise<s
   const targetLangName = langMap[targetLang] || targetLang;
 
   const messages = [
-    { role: "user" as const, content: `Translate the following text to ${targetLangName}. Only provide the translated text without explanations:\n\n"${text}"` }
+    { role: "user" as const, content: `Translate the following text to ${targetLangName}. 
+    CRITICAL INSTRUCTION: Output the translation sentence by sentence, separated by a distinct newline character. 
+    Do NOT merge sentences. 
+    Do NOT include the original text. 
+    Do NOT add any numbering or bullet points.
+    
+    Original Text:
+    "${text}"` }
   ];
 
   return await createCompletionWithFallback(messages);

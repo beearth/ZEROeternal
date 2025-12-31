@@ -4,6 +4,8 @@ import { ChatMessage } from "./components/ChatMessage";
 import { ChatInput } from "./components/ChatInput";
 import { StackView } from "./components/StackView";
 import { Auth } from "./components/Auth";
+import { WordOptionMenu, type WordOptionType } from "./components/WordOptionMenu";
+import { QuizModal } from "./components/QuizModal";
 import { WordDetailModal } from "./components/WordDetailModal";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { OnboardingModal } from "./components/OnboardingModal";
@@ -167,6 +169,8 @@ export default function App() {
   const [isAutoTTS, setIsAutoTTS] = useState(() => 
     localStorage.getItem("signal_auto_tts") === "true"
   );
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [toeicWordList, setToeicWordList] = useState<string[]>([]);
 
   const { speak } = useVoice();
 
@@ -1745,13 +1749,16 @@ export default function App() {
           learningMode={learningMode}
           isAutoTTS={isAutoTTS}
           onToggleAutoTTS={toggleAutoTTS}
-
-
+          onOpenQuiz={() => setIsQuizOpen(true)}
         />
 
-        {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#1e1f20] relative transition-all duration-300 ease-in-out">
-          
+          <QuizModal 
+            open={isQuizOpen} 
+            onOpenChange={setIsQuizOpen} 
+            userVocabulary={userVocabulary}
+            toeicWordList={toeicWordList}
+          />
           <Routes>
             <Route
               path="/"
@@ -1779,6 +1786,7 @@ export default function App() {
                   onSaveSentence={handleSaveSentence}
                   learningMode={learningMode}
                   onUpdateTranslation={handleUpdateTranslation}
+                  onNewConversation={handleNewConversation}
                 />
               }
             />

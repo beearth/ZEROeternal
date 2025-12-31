@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Bot, User, ArrowLeft, ArrowRight, ArrowDown, ArrowUp, RotateCcw, Languages, Loader2 } from "lucide-react";
 import { EternalLogo } from "./EternalLogo";
 import { toast } from "../services/toast";
@@ -54,83 +54,57 @@ const getWordStyle = (state: number) => {
 };
 
 // 단어 컴포넌트 (롱프레스 훅 사용)
+// -----------------------------------------------------------------------------
+// WordSpan (Optimized: No Hooks, No Event Listeners, Pure Data)
+// -----------------------------------------------------------------------------
 const WordSpan = React.memo(({
   part,
   partIndex,
   wordIndex,
   finalWord,
   wordState,
-  isSelected,
   isCurrentlyHolding,
   isHighlighted,
-  onLongPress,
-  onClick,
-  setIsHolding,
-  startOffset,
-  koreanMeaning,
-  onRedSignalClick,
   isBold,
+  koreanMeaning,
   isSaved,
+  isConfirmed,
+  isProcessing
 }: {
   part: string;
   partIndex: number;
   wordIndex: number;
   finalWord: string;
   wordState: number;
-  isSelected: boolean;
   isCurrentlyHolding: boolean;
   isHighlighted: boolean;
-  onLongPress: (e: React.PointerEvent, wordIndex: number, word: string, startOffset: number) => void;
-  onClick: (index: number, word: string) => void;
-  setIsHolding: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
-  startOffset: number;
-  koreanMeaning?: string;
-  onRedSignalClick: (word: string) => Promise<void>;
   isBold?: boolean;
+  koreanMeaning?: string;
   isSaved?: boolean;
+  isConfirmed?: boolean;
+  isProcessing?: boolean;
 }) => {
-
-  // ...
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-
-  const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      setIsHolding((prev) => ({ ...prev, [wordIndex]: true }));
-      onLongPress(e, wordIndex, finalWord, startOffset);
-    },
-    onClick: (e) => {
-      e.stopPropagation();
-      onClick(wordIndex, finalWord);
-    },
-    delay: 500,
-    threshold: 10,
-  });
-
   const styleInfo = getWordStyle(wordState);
 
-  const getHoldingBackgroundColor = (): string => {
-    if (!isCurrentlyHolding) return (styleInfo.style as any).backgroundColor || "transparent";
-    if (wordState === 1) return "#fca5a5";
-    if (wordState === 2) return "#fde047";
-    if (wordState === 3) return "#86efac";
-    if (wordState === 4) return "#93c5fd";
-    return "#d1d5db";
-  };
+  // Inline dynamic style logic
+  let holdingBg = "transparent";
+  if (isCurrentlyHolding) {
+    if (wordState === 1) holdingBg = "#fca5a5";
+    else if (wordState === 2) holdingBg = "#fde047";
+    else if (wordState === 3) holdingBg = "#86efac";
+    else if (wordState === 4) holdingBg = "#93c5fd";
+    else holdingBg = "#d1d5db";
+  } else if ((styleInfo.style as any).backgroundColor) {
+    holdingBg = (styleInfo.style as any).backgroundColor;
+  }
 
   return (
     <span
-      key={partIndex}
-      {...longPressHandlers}
-      onContextMenu={(e) => e.preventDefault()}
-      onPointerLeave={(e) => {
-        longPressHandlers.onPointerLeave?.(e);
-        setIsHolding((prev) => {
-          const updated = { ...prev };
-          delete updated[wordIndex];
-          return updated;
-        });
-      }}
+      key={`${partIndex}-${wordIndex}`}
+      data-word-index={wordIndex}
+      data-part-index={partIndex}
+      data-final-word={finalWord}
+      data-word-state={wordState}
       className={`inline whitespace-pre-wrap px-0.5 cursor-pointer relative align-baseline ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100 rounded"
         } ${isCurrentlyHolding
           ? "scale-[0.98] shadow-inner font-medium text-white"
@@ -139,54 +113,50 @@ const WordSpan = React.memo(({
           ? "ring-2 ring-blue-500 shadow-lg shadow-blue-500/40 animate-pulse"
           : ""
         } ${isBold ? "font-bold text-blue-300" : ""}`}
-
       style={{
         userSelect: "none",
         WebkitUserSelect: "none",
-        MozUserSelect: "none",
-        msUserSelect: "none",
-        WebkitTouchCallout: "none",
         touchAction: "manipulation",
         ...styleInfo.style,
-        backgroundColor: getHoldingBackgroundColor(),
+        backgroundColor: holdingBg,
         transform: isCurrentlyHolding ? 'scale(0.98)' : 'scale(1)',
       }}
     >
       <span>{cleanMarkdown(part, false)}</span>
-      {wordState === 1 && (
-        <span
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={async (e) => {
-             e.stopPropagation();
-             if (isSaved) return; // Already saved
-             if (isProcessing) return;
-             setIsProcessing(true);
-             try {
-                await onRedSignalClick(finalWord);
-                setIsConfirmed(true); 
-             } catch (err) {
-                console.error(err);
-             } finally {
-                setIsProcessing(false);
-             }
-          }}
-          className={`absolute -top-0.5 -right-0.5 flex shrink-0 rounded-full transition-all duration-300 ${
-            isSaved ? "bg-[#FF3B30] scale-100 opacity-100" : 
-            (isConfirmed ? "opacity-0 invisible" : (isProcessing ? "bg-blue-500 scale-125" : "bg-[#FF3B30] animate-pulse"))
-          } ${isSaved ? "cursor-default" : "cursor-pointer"}`}
-          style={{
-            display: 'inline-block',
-            width: isSaved ? "4.5px" : "4px",
-            height: isSaved ? "4.5px" : "4px",
-            boxShadow: isSaved ? "0 0 3px rgba(255, 59, 48, 0.4)" : (isProcessing ? "0 0 8px #3b82f6" : "0 0 6px rgba(255, 59, 48, 0.4)"),
-            pointerEvents: 'auto'
-          }}
-        />
-      )}
-
-
       
-      {/* Tooltip */}
+      
+      <span
+        data-action="status-dot"
+        data-word-index={wordIndex}
+        data-word-for-dot={finalWord}
+        className={`absolute -top-0.5 -right-0.5 flex shrink-0 rounded-full transition-all duration-300 ${
+          isSaved ? "bg-[#FF3B30] scale-100 opacity-100" : 
+          (wordState >= 1 ? (isConfirmed ? "opacity-0 invisible" : (isProcessing ? "scale-125" : "animate-pulse")) : "opacity-0 invisible")
+        }`}
+        style={{
+          display: (isSaved || wordState >= 1) ? 'inline-block' : 'none',
+          width: isSaved ? "4.5px" : "4px",
+          height: isSaved ? "4.5px" : "4px",
+          backgroundColor: isSaved ? "#FF3B30" : (
+              wordState === 1 ? "#FF3B30" :
+              wordState === 2 ? "#eab308" :
+              wordState === 3 ? "#22c55e" :
+              wordState === 4 ? "#f97316" : "#FF3B30"
+          ),
+          boxShadow: isSaved ? "0 0 3px rgba(255, 59, 48, 0.4)" : (
+              isProcessing ? "0 0 8px #3b82f6" : 
+              `0 0 6px ${
+                  wordState === 1 ? "rgba(255, 59, 48, 0.4)" :
+                  wordState === 2 ? "rgba(234, 179, 8, 0.4)" :
+                  wordState === 3 ? "rgba(34, 197, 94, 0.4)" :
+                  "rgba(249, 115, 22, 0.4)"
+              }`
+          ),
+          pointerEvents: 'auto'
+        }}
+      />
+
+      {/* Meanings Tooltip */}
       {wordState === 1 && (
          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800/90 backdrop-blur-sm rounded-lg shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 border border-white/10">
             {koreanMeaning || "뜻을 불러오는 중..."}
@@ -418,36 +388,78 @@ export function ChatMessage({
     if (!finalWord || finalWord.length < 2) return;
 
     const now = Date.now();
-    const lastClick = lastClickedWordRef.current;
+    // Check for "Click + Hold" Coupling
+    // If a word is already being held (via long press), clicking another word couples them.
+    const heldWordEntries = Object.entries(isHolding).filter(([_, held]) => held);
     
-    // Check for consecutive click within 2 seconds
-    if (lastClick && now - lastClick.time < 2000 && lastClick.word !== finalWord) {
-      // Consecutive click detected - show merge prompt
-      // Cancel the first word's pending save
-      if (updateTimeouts.current[lastClick.index]) {
-        clearTimeout(updateTimeouts.current[lastClick.index]);
-        delete updateTimeouts.current[lastClick.index];
-      }
-      // Revert the first word's visual state
-      setWordStates((prev) => {
-        const newStates = { ...prev };
-        delete newStates[lastClick.index];
-        return newStates;
-      });
-      // Remove from pending updates
-      delete pendingUpdates.current[lastClick.word.toLowerCase()];
-      
-      setPhraseCollection([lastClick.word, finalWord]);
-      setShowPhrasePrompt(true);
-      lastClickedWordRef.current = null;
-      return;
+    if (heldWordEntries.length > 0) {
+       // We have a word being held!
+       const [heldIndexStr] = heldWordEntries[0];
+       const heldIndex = parseInt(heldIndexStr);
+       
+       // Don't merge with itself
+       if (heldIndex === index) return;
+       
+       // Get the held word text (we need to retrieve it from wordStates or pass it differently, 
+       // but for now let's assume we can get it or just use the current mechanism)
+       // Since we don't have the held word's text easily accessible here without lookups,
+       // we might need to store it in `isHolding` or a separate state.
+       // However, looking at handleLongPress, we only set `isHolding`. 
+       
+       // Let's use a simpler approach: 
+       // If isHolding is true, we need to find WHICH word is held.
+       // The `isHolding` state is Record<number, boolean>.
+       
+       // NOTE: To make this robust, we should probably store the held word's TEXT in state too, 
+       // but let's try to infer it or just use the current interaction flow.
+       
+       // Actually, the user's previous request implies they want:
+       // 1. Long Press Word A -> "Holding" state (visual feedback).
+       // 2. Click Word B -> "Do you want to merge 'A' and 'B'?"
+       
+       // Current `isHolding` is set in `handleLongPress`.
+       // We need to access the text of the word at `heldIndex`. 
+       // But `renderWords` generates the text on the fly. 
+       // We might need to store `heldWordText` in state.
+       
+       // ERROR: We don't have `heldWordText` in state.
+       // Correct fix: Update `handleLongPress` to store the text, OR
+       // just show the prompt and let the user confirm? No, we need the text.
+       
+       // Let's assume for this "Restore" that `radialMenu.selectedWordData` might help?
+       // `handleLongPress` sets `radialMenu`. 
+       // If `radialMenu.showRadialMenu` is true, we have the word!
+       
+       if (radialMenu.showRadialMenu && radialMenu.selectedWordData) {
+          const heldWord = radialMenu.selectedWordData.word;
+           
+          setPhraseCollection([heldWord, finalWord]);
+          setShowPhrasePrompt(true);
+          
+          // Reset holding/menu state
+          setRadialMenu(prev => ({ ...prev, showRadialMenu: false, selectedWordData: null }));
+          setIsHolding({}); 
+          return;
+       }
     }
     
-    // Record this click
+    // Record this click for potential "Click + Hold" coupling
     lastClickedWordRef.current = { word: finalWord, index, time: now };
 
-    const currentState = wordStatesRef.current[index] || 0;
-    const nextState = currentState === 1 ? 0 : 1;
+    const wordKey = finalWord.toLowerCase();
+    
+    // Determine current state aggressively to prevent stale clicks
+    // 1. Check pending updates (synchronous source of truth for rapid clicks)
+    // 2. Fallback to rendered state
+    let currentState = 0;
+    if (pendingUpdates.current[wordKey] !== undefined) {
+        currentState = pendingUpdates.current[wordKey];
+    } else {
+        currentState = wordStatesRef.current[index] || 0;
+    }
+
+    // Cycle: 0(None) -> 1(Red) -> 2(Yellow) -> 3(Green) -> 0(None)
+    const nextState = (currentState >= 3) ? 0 : currentState + 1;
 
     setWordStates((prev) => {
       const newStates = { ...prev };
@@ -552,12 +564,42 @@ export function ChatMessage({
 
     const clickX = e.clientX;
     const clickY = e.clientY;
+    
+    const cleanWord = cleanMarkdown(word);
+    const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+
+    // --- CLICK + HOLD LOGIC (Step Id: 90) ---
+    // If user clicked a word recently (lastClickedWordRef), AND now Holds this word:
+    // Trigger Merge.
+    const lastClick = lastClickedWordRef.current;
+    const now = Date.now();
+    
+    // Check key requirements:
+    // 1. Last click exists
+    // 2. Not too old (e.g. < 5 seconds to be generous)
+    // 3. Different word
+    if (lastClick && (now - lastClick.time < 5000) && lastClick.word !== finalWord) {
+       // Trigger Merge Prompt
+       setPhraseCollection([lastClick.word, finalWord]);
+       setShowPhrasePrompt(true);
+       
+       // Clear last click so we don't trigger again essentially
+       lastClickedWordRef.current = null;
+       
+       // Reset holding state that triggered this
+       setIsHolding((prev) => {
+          const updated = { ...prev };
+          delete updated[wordIndex];
+          return updated;
+       });
+       
+       return; // SKIP RADIAL MENU
+    }
+    // ----------------------------------------
 
     setHighlightWord(wordIndex);
     if (navigator.vibrate) navigator.vibrate(50);
 
-    const cleanWord = cleanMarkdown(word);
-    const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
 
     setRadialMenu({
       showRadialMenu: true,
@@ -668,8 +710,8 @@ export function ChatMessage({
           const targetSentence = foundSentence.trim() || message.content;
           if (targetSentence) {
             // 번역 API 호출 (gemini 서비스 사용)
-            import("../services/gemini").then(({ generateText }) => {
-              generateText(`다음 영어 문장을 한국어로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n"${targetSentence}"`)
+            import("../services/gemini").then(({ translateText }) => {
+              translateText(targetSentence, 'ko')
                 .then(translation => {
                   toast.success(`번역: ${translation}`, { duration: 8000 });
                 })
@@ -690,25 +732,51 @@ export function ChatMessage({
     });
   }, [radialMenu.selectedWordData, onSaveSentence, message.content, message.id, userVocabulary]);
 
-  const renderWords = (text: string) => {
-    const parts = getSegments(text);
-    let wordIndex = 0;
-    let charCursor = 0;
+  // Deep Optimization: Pre-calculate all token metadata to skip Regex on render
+  const messageProcessedParts = useMemo(() => {
+      if (!message.content) return [];
+      return getSegments(message.content).map(part => {
+          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
+          const hasEnglish = /[a-zA-Z]/.test(part);
+          const shouldDisable = hasKorean && !hasEnglish;
+          const { isValid, finalWord, wordKey, isBold } = processPart(part); // Heavy Regex
+          const displayPart = cleanMarkdown(part, false); // Regex
+          
+          return { part, isValid, finalWord, wordKey, isBold, shouldDisable, displayPart };
+      });
+  }, [message.content]);
 
-    return parts.map((part, partIndex) => {
+  // Memoize word rendering to prevent lag on clicks
+  // Accepts pre-calculated parts to avoid re-processing
+  const renderWords = (text: string, initialWordIndex: number = 0, precomputedParts?: any[]) => {
+    if (!text) return null;
+    
+    let wordIndex = initialWordIndex;
+    let charCursor = 0;
+    
+    // Use precomputed parts if available, otherwise calculate on the fly (Legacy/Translation path)
+    const items = precomputedParts || getSegments(text).map(part => {
+          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
+          const hasEnglish = /[a-zA-Z]/.test(part);
+          const shouldDisable = hasKorean && !hasEnglish;
+          const { isValid, finalWord, wordKey, isBold } = processPart(part);
+          const displayPart = cleanMarkdown(part, false);
+          return { part, isValid, finalWord, wordKey, isBold, shouldDisable, displayPart };
+    });
+
+    return items.map((item, partIndex) => {
+      const { part, isValid, finalWord, wordKey, isBold, shouldDisable, displayPart } = item;
+      
       const currentStartOffset = charCursor;
       charCursor += part.length;
-      const { isValid, finalWord, wordKey, isBold } = processPart(part);
 
-      // Handle non-valid parts (whitespace, punctuation, symbols)
-      if (!isValid) {
-        // preserve formatting for newlines and spaces, but clean markdown characters
-        const displayPart = cleanMarkdown(part, false);
-        return <span key={partIndex} className={`align-baseline whitespace-pre-wrap ${part.includes('**') ? 'font-bold text-blue-300' : ''}`}>{displayPart}</span>;
+      // Handle non-valid parts OR Pure Korean parts (render as plain text)
+      if (!isValid || shouldDisable) {
+        return <span key={`${text.substring(0, 10)}-${partIndex}-${wordIndex}`} className={`align-baseline whitespace-pre-wrap ${part.includes('**') ? 'font-bold text-blue-300' : ''}`}>{displayPart}</span>;
       }
 
       const currentWordIndex = wordIndex;
-      wordIndex++;
+      wordIndex++; // Increment only for interactive words
 
       const globalEntry = userVocabulary?.[wordKey];
       const pendingState = pendingUpdates.current[wordKey];
@@ -736,50 +804,309 @@ export function ChatMessage({
       const isSelected = radialMenu.showRadialMenu && radialMenu.selectedWordData?.index === currentWordIndex;
       const isCurrentlyHolding = isHolding[currentWordIndex] || false;
       const isHighlighted = highlightWord === currentWordIndex;
+      const isSaved = globalEntry?.status === 'red' || (globalEntry?.linkedTo ? userVocabulary[globalEntry.linkedTo.toLowerCase()]?.status === 'red' : false);
 
       return (
         <WordSpan
-          key={partIndex}
+          key={`${text.substring(0, 10)}-${partIndex}-${currentWordIndex}`}
           part={part}
           partIndex={partIndex}
           wordIndex={currentWordIndex}
           finalWord={finalWord}
           wordState={finalState}
-          isSelected={isSelected}
           isCurrentlyHolding={isCurrentlyHolding}
           isHighlighted={isHighlighted}
-          onLongPress={handleLongPress}
-          onClick={handleWordClick}
-          setIsHolding={setIsHolding}
-          startOffset={currentStartOffset}
           koreanMeaning={globalEntry?.koreanMeaning}
           isBold={isBold}
-          isSaved={globalEntry?.status === 'red' || (globalEntry?.linkedTo ? userVocabulary[globalEntry.linkedTo.toLowerCase()]?.status === 'red' : false)}
-
-
-          onRedSignalClick={async (word) => {
-              // 'Red Room' (Unknown Stack) API 호출
-              // status 1(Red)로 확실히 저장.
-              // 이미 Red 상태일 수 있으나, 명시적 '클릭'은 '저장/확인'의 의미.
-             
-              // 1. 상태 업데이트 호출
-              const wordId = `${message.id}-${currentWordIndex}-${word.toLowerCase()}`;
-              if (onUpdateWordStatus) {
-                  await onUpdateWordStatus(
-                      wordId,
-                      "red",
-                      word,
-                      message.id,
-                      message.content, // 전체 문장 (임시) - 실제로는 getFullSentence 로직 필요 가능
-                      globalEntry?.koreanMeaning || "",
-                      false
-                  );
-                  toast.success(`'${word}' 가 Red Room에 저장되었습니다.`);
-              }
-          }}
+          isSaved={isSaved}
         />
       );
     });
+  };
+
+  // Helper to count interactive words
+  const getInteractiveWordCount = useCallback((text: string) => {
+      if (!text) return 0;
+      const parts = getSegments(text);
+      return parts.reduce((count, part) => {
+          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
+          const hasEnglish = /[a-zA-Z]/.test(part);
+          const shouldDisable = hasKorean && !hasEnglish;
+          const { isValid } = processPart(part);
+          
+          if (!isValid || shouldDisable) return count;
+          return count + 1;
+      }, 0);
+  }, []);
+
+  const mainWordCount = useMemo(() => getInteractiveWordCount(message.content), [message.content, getInteractiveWordCount]);
+
+  const mainMessageElements = useMemo(() => {
+     return renderWords(message.content, 0, messageProcessedParts);
+  }, [message.content, messageProcessedParts, wordStates, isHolding, radialMenu, highlightWord, userVocabulary, handleLongPress, handleWordClick, onUpdateWordStatus]);
+
+  // Memoize translation elements to prevent lag AND fix index collision
+  const translationElements = useMemo(() => {
+      if (!translation) return null;
+      let cursor = mainWordCount;
+      return translation.split('\n').filter(line => line.trim()).map((sentence, idx) => {
+          const startIdx = cursor;
+          cursor += getInteractiveWordCount(sentence);
+          return (
+             <div key={`trans-${idx}`} className="whitespace-pre-wrap mb-1">
+                 {renderWords(sentence, startIdx)}
+             </div>
+          );
+      });
+  }, [translation, mainWordCount, getInteractiveWordCount, wordStates, isHolding, radialMenu, highlightWord, userVocabulary, handleLongPress, handleWordClick, onUpdateWordStatus]);
+
+  // Handle Red Dot / Signal Click (Global)
+  const handleRedSignalAction = async (wordIndex: number, word: string) => {
+      const wordId = `${message.id}-${wordIndex}-${word.toLowerCase()}`;
+      const globalEntry = userVocabulary?.[word.toLowerCase()];
+
+      if (onUpdateWordStatus) {
+          await onUpdateWordStatus(
+              wordId,
+              "red",
+              word,
+              message.id,
+              message.content,
+              globalEntry?.koreanMeaning || "",
+              false
+          );
+          toast.success(`'${word}' 가 Red Room에 저장되었습니다.`);
+      }
+  };
+
+  // Event Delegation Handlers
+  const interactionRef = useRef<{
+     startX: number;
+     startY: number;
+     startTime: number;
+     targetIndex: number | null;
+     targetWord: string | null;
+     targetType: 'word' | 'dot' | null;
+     longPressTimer: NodeJS.Timeout | null;
+  }>({
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    targetIndex: null,
+    targetWord: null,
+    targetType: null,
+    longPressTimer: null,
+  });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+     if (e.button !== 0) return;
+
+     const target = e.target as HTMLElement;
+     
+     // Check if we clicked the DOT
+     if (target.getAttribute('data-action') === 'status-dot') {
+          const index = parseInt(target.getAttribute('data-word-index') || '-1');
+          const word = target.getAttribute('data-word-for-dot') || '';
+          if (index !== -1 && word) {
+             handleRedSignalAction(index, word);
+             e.stopPropagation(); // Stop bubble so we don't trigger word logic
+             return;
+          }
+     }
+
+     const wordSpan = target.closest('[data-word-index]') as HTMLElement;
+     if (!wordSpan) return;
+     
+     const index = parseInt(wordSpan.getAttribute('data-word-index') || '-1');
+     const word = wordSpan.getAttribute('data-final-word') || '';
+     
+     if (index === -1) return;
+
+     interactionRef.current.startX = e.clientX;
+     interactionRef.current.startY = e.clientY;
+     interactionRef.current.startTime = Date.now();
+     interactionRef.current.targetIndex = index;
+     interactionRef.current.targetWord = word;
+     interactionRef.current.targetType = 'word';
+
+     if (interactionRef.current.longPressTimer) clearTimeout(interactionRef.current.longPressTimer);
+
+     // Start Long Press Timer
+     interactionRef.current.longPressTimer = setTimeout(() => {
+         setIsHolding(prev => ({ ...prev, [index]: true }));
+         if (navigator.vibrate) navigator.vibrate(50);
+         handleLongPress(e as any, index, word, 0); 
+         interactionRef.current.targetIndex = null; // Mark as handled
+     }, 400); 
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+      if (interactionRef.current.targetIndex == null) return;
+      const moveThreshold = 10;
+      const dx = Math.abs(e.clientX - interactionRef.current.startX);
+      const dy = Math.abs(e.clientY - interactionRef.current.startY);
+      if (dx > moveThreshold || dy > moveThreshold) {
+          if (interactionRef.current.longPressTimer) {
+              clearTimeout(interactionRef.current.longPressTimer);
+              interactionRef.current.longPressTimer = null;
+          }
+          interactionRef.current.targetIndex = null;
+      }
+  };
+
+  // DOM Manipulation Helpers
+  const updateWordVisuals = (wordSpan: HTMLElement, nextState: number, word: string, index: number, isSaved: boolean) => {
+      // 1. Update Classes
+      if (nextState > 0) {
+          wordSpan.classList.remove("hover:bg-slate-100", "rounded");
+          wordSpan.classList.add("group");
+      } else {
+          wordSpan.classList.add("hover:bg-slate-100", "rounded");
+          wordSpan.classList.remove("group");
+      }
+
+      // 2. Manage Dot (Toggle Visibility)
+      let dot = wordSpan.querySelector('[data-action="status-dot"]') as HTMLElement;
+      
+      if (dot) {
+         if (nextState >= 1) {
+             dot.style.display = "inline-block";
+             dot.classList.remove("opacity-0", "invisible");
+             
+             // Update Status Color
+             const color = nextState === 1 ? "#FF3B30" : 
+                           nextState === 2 ? "#eab308" : 
+                           nextState === 3 ? "#22c55e" : "#f97316";
+                           
+             const shadowColor = nextState === 1 ? "rgba(255, 59, 48, 0.4)" :
+                               nextState === 2 ? "rgba(234, 179, 8, 0.4)" :
+                               nextState === 3 ? "rgba(34, 197, 94, 0.4)" : "rgba(249, 115, 22, 0.4)";
+
+             if (isSaved) {
+                  dot.style.width = "4.5px";
+                  dot.style.height = "4.5px";
+                  dot.style.backgroundColor = "#FF3B30";
+                  dot.style.boxShadow = "0 0 3px rgba(255, 59, 48, 0.4)";
+                  dot.className = "absolute -top-0.5 -right-0.5 flex shrink-0 rounded-full transition-all duration-300 pointer-events-auto bg-[#FF3B30] scale-100 opacity-100";
+             } else {
+                  dot.style.width = "4px";
+                  dot.style.height = "4px";
+                  dot.style.backgroundColor = color;
+                  dot.style.boxShadow = `0 0 6px ${shadowColor}`;
+                  
+                  // Reset class (ensure animate-pulse if not saved)
+                  dot.className = "absolute -top-0.5 -right-0.5 flex shrink-0 rounded-full transition-all duration-300 pointer-events-auto animate-pulse";
+             }
+         } else {
+             // Hide Dot
+             dot.style.display = "none";
+             // Optional: Add opacity-0 for fade out effect if desired, but immediate feedback is better
+         }
+      }
+
+      // 3. Update Data Attribute (for source of truth in DOM)
+      wordSpan.setAttribute('data-word-state', String(nextState));
+  };
+
+  // State Management Refs
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingStateRef = useRef<Record<number, number>>({});
+
+  const scheduleStateUpdate = () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      
+      debounceTimerRef.current = setTimeout(() => {
+          setWordStates(prev => {
+              const newState = { ...prev, ...pendingStateRef.current };
+              pendingStateRef.current = {}; // Clear pending
+              return newState;
+          });
+          debounceTimerRef.current = null;
+      }, 1000); // 1 Second debounce
+  };
+
+  const handlePointerUp = async (e: React.PointerEvent) => {
+      const { targetIndex, targetWord, targetType, longPressTimer, startTime } = interactionRef.current;
+      
+      if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          interactionRef.current.longPressTimer = null;
+      }
+
+      if (targetIndex !== null && targetWord) {
+          const duration = Date.now() - startTime;
+          
+          if (duration < 400) { // Click Event
+              if (targetType === 'dot') {
+                  // Handle Dot Click
+                  const wordId = `${message.id}-${targetIndex}-${targetWord.toLowerCase()}`;
+                   const globalEntry = userVocabulary?.[targetWord.toLowerCase()];
+
+                  if (onUpdateWordStatus) {
+                      await onUpdateWordStatus(
+                          wordId,
+                          "red",
+                          targetWord,
+                          message.id,
+                          message.content,
+                          globalEntry?.koreanMeaning || "",
+                          false
+                      );
+                      toast.success(`'${targetWord}' 가 Red Room에 저장되었습니다.`);
+                  }
+              } else {
+                  // Handle Word Click (Instant Visual + Debounced State)
+                  const wordSpan = (e.target as HTMLElement).closest('[data-word-index]') as HTMLElement;
+                  if (wordSpan) {
+                      const currentState = parseInt(wordSpan.getAttribute('data-word-state') || '0');
+                      const nextState = (currentState >= 3) ? 0 : currentState + 1;
+                      
+                      // 1. Instant Visual Update (Direct DOM)
+                      // Check for 'isSaved' via userVocabulary to ensure dot logic is correct visual-wise
+                      const globalEntry = userVocabulary?.[targetWord.toLowerCase()];
+                      const isSaved = globalEntry?.status === 'red' || (globalEntry?.linkedTo ? userVocabulary[globalEntry.linkedTo.toLowerCase()]?.status === 'red' : false);
+                      
+                      updateWordVisuals(wordSpan, nextState, targetWord, targetIndex, !!isSaved);
+                      
+                      // 2. Update Source of Truth (Ref)
+                      pendingStateRef.current[targetIndex] = nextState;
+                      pendingUpdates.current[targetWord.toLowerCase()] = nextState; // Sync with legacy pending check
+
+                      // 3. Schedule React State Update
+                      scheduleStateUpdate();
+
+                      // 4. API Call (Immediate)
+                      if (nextState > 0 && onUpdateWordStatus) {
+                          const statusMap: Record<number, "red" | "yellow" | "green" | "orange"> = {
+                              1: "red", 2: "yellow", 3: "green", 4: "orange",
+                          };
+                          const wordId = `${message.id}-${targetIndex}-${targetWord.toLowerCase()}`;
+                          onUpdateWordStatus(
+                              wordId,
+                              statusMap[nextState],
+                              targetWord,
+                              message.id,
+                              message.content,
+                              globalEntry?.koreanMeaning || "",
+                              false
+                          ).catch(err => console.error(err));
+                      } else if (nextState === 0 && onResetWordStatus) {
+                           onResetWordStatus(targetWord);
+                      }
+                  }
+              }
+          }
+      }
+      
+      interactionRef.current.targetIndex = null;
+  };
+
+  const handlePointerLeave = () => {
+       if (interactionRef.current.longPressTimer) {
+          clearTimeout(interactionRef.current.longPressTimer);
+          interactionRef.current.longPressTimer = null;
+      }
+      interactionRef.current.targetIndex = null;
   };
 
   return (
@@ -853,8 +1180,16 @@ export function ChatMessage({
               <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" />
             </div>
           ) : (
-            <div className="text-[16px] leading-7 whitespace-pre-wrap break-words font-normal tracking-normal text-zinc-100">
-              {isAssistant ? renderWords(message.content) : message.content}
+            <div 
+              className="text-[16px] leading-7 whitespace-pre-wrap break-words font-normal tracking-normal text-zinc-100"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerLeave}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ touchAction: 'pan-y' }}
+            >
+              {isAssistant ? mainMessageElements : message.content}
             </div>
           )}
 
@@ -869,7 +1204,18 @@ export function ChatMessage({
               ) : (
                 <div className="flex items-start gap-2.5 text-zinc-300/90 text-[15px] leading-7">
                   <Languages className="w-4 h-4 mt-1.5 text-blue-400 shrink-0" />
-                  <p>{translation}</p>
+                  <div 
+                    className="flex flex-col gap-1 w-full"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerLeave}
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ touchAction: 'pan-y' }}
+                  >
+                    {/* Use updated translationElements */}
+                    {translationElements}
+                  </div>
                 </div>
               )}
             </div>

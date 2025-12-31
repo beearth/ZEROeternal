@@ -54,6 +54,7 @@ interface MainContentProps {
     onSaveSentence: (sentence: string) => void;
     learningMode?: 'knowledge' | 'language';
     onUpdateTranslation?: (messageId: string, translation: string) => void;
+    onNewConversation?: () => void;
 }
 
 export function MainContent({
@@ -75,12 +76,19 @@ export function MainContent({
     onSaveSentence,
     learningMode = 'knowledge',
     onUpdateTranslation,
+    onNewConversation,
 }: MainContentProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const prevMessageCountRef = useRef<number>(0);
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    // 랜덤 추천 질문 선택 (대화가 바뀔 때마다 갱신)
+    const randomRecommendations = React.useMemo(() => {
+        const all = [...eternalSystemDefaults.recommendations];
+        return all.sort(() => Math.random() - 0.5).slice(0, 4);
+    }, [currentConversation?.id]);
 
     // ... (rest of component) ...
 
@@ -167,7 +175,13 @@ export function MainContent({
                          {/* Sidebar가 닫혀있거나 모바일일 때 로고 표시 */}
                         {(!isSidebarOpen || window.innerWidth < 768) && (
                             // <EternalLogo /> Replaced with Signal VOCA
-                            <div className="flex items-center gap-2">
+                            <div 
+                                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => {
+                                    if (onNewConversation) onNewConversation();
+                                    else window.location.href = '/';
+                                }}
+                            >
                                 {/* Signal Lights */}
                                 <div className="flex items-center gap-1">
                                     <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
@@ -317,7 +331,7 @@ export function MainContent({
                                     <span className="font-medium">오늘의 추천 질문</span>
                                 </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {eternalSystemDefaults.recommendations.map((item, i) => {
+                                {randomRecommendations.map((item, i) => {
                                     const icons = [Brain, Activity, Layers, RefreshCw];
                                     const Icon = icons[i % icons.length];
                                     
