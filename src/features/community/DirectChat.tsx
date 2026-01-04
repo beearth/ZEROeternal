@@ -1,43 +1,90 @@
 import React, { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 
-interface DirectMessage {
-    id: string;
-    content: string;
-    senderId: string;
-    timestamp: Date;
+
+
+import { User } from 'firebase/auth';
+
+interface DirectChatProps {
+    user: User | null;
 }
 
-export function DirectChat() {
-    const { userId } = useParams<{ userId: string }>();
-    const location = useLocation();
+import { subscribeToChat, sendMessage, ChatMessage } from '../../services/chatService';
+import { useEffect } from 'react';
+
+// ... (interface DirectChatProps remains)
+
+export function DirectChat({ user }: DirectChatProps) {
+    const { userId: targetUserId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
-    const { userName, userAvatar, userFlag, userLocation } = location.state || {};
+    const location = useLocation();
 
-    const [messages, setMessages] = useState<DirectMessage[]>([]);
-    const [inputValue, setInputValue] = useState('');
+    // Initial state from navigation (may be lost on refresh)
+    const initialState = location.state as {
+        userName?: string;
+        userAvatar?: string;
+        userFlag?: string;
+        userLocation?: string;
+    } | null;
 
-    const currentUserId = 'me'; // Mock current user ID
+    const [msgInput, setMsgInput] = useState('');
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-    const handleSendMessage = () => {
-        if (!inputValue.trim()) return;
+    // Robust Profile State: Starts with navigation state, backfills from messages
+    const [partnerProfile, setPartnerProfile] = useState({
+        name: initialState?.userName,
+        avatar: initialState?.userAvatar,
+        flag: initialState?.userFlag,
+        location: initialState?.userLocation
+    });
 
-        const newMessage: DirectMessage = {
-            id: Date.now().toString(),
-            content: inputValue,
-            senderId: currentUserId,
-            timestamp: new Date()
-        };
+    const currentUserId = user?.uid;
+    // Generate valid chatId
+    const chatId = [currentUserId, targetUserId].sort().join('_');
 
-        setMessages([...messages, newMessage]);
-        setInputValue('');
+    // Subscribe to real-time messages
+    useEffect(() => {
+        if (!currentUserId || !targetUserId) return;
+
+        // Fetch latest profile data for accurate header info
+        import('../../services/userData').then(({ getUserProfile }) => {
+            getUserProfile(targetUserId).then(({ profile }) => {
+                if (profile) {
+                    setPartnerProfile(prev => ({
+                        ...prev,
+                        name: profile.name || prev.name,
+                        avatar: profile.avatar || prev.avatar,
+                        flag: profile.flag || prev.flag,
+                        location: profile.location || prev.location
+                    }));
+                }
+            });
+        });
+
+        const unsubscribe = subscribeToChat(chatId, (newMessages) => {
+            setMessages(newMessages);
+        });
+
+        return () => unsubscribe();
+    }, [chatId, currentUserId, targetUserId]); // Removed partnerProfile dependencies to avoid loops
+
+    const handleSendMessage = async () => {
+        if (!msgInput.trim() || !currentUserId) return;
+
+        try {
+            await sendMessage(chatId, currentUserId, msgInput);
+            setMsgInput('');
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            // Optionally show error toast
+        }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
@@ -45,87 +92,108 @@ export function DirectChat() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full bg-[#1e1f20] relative">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white sticky top-0 z-10">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#2a2b2c] bg-[#1e1f20]/95 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
                 <button
                     onClick={() => navigate('/community')}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    <ArrowLeft className="w-5 h-5 text-zinc-400" />
                 </button>
 
-                <Avatar className="h-10 w-10 border border-slate-100">
-                    <AvatarImage src={userAvatar} alt={userName || 'User'} className="object-cover" />
-                    <AvatarFallback>{userName?.[0] || 'U'}</AvatarFallback>
-                </Avatar>
+                <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-[#2a2b2c] p-2 -ml-2 rounded-lg transition-colors"
+                    onClick={() => navigate(`/profile/${targetUserId}`, {
+                        state: {
+                            userName: partnerProfile.name,
+                            userAvatar: partnerProfile.avatar,
+                            userFlag: partnerProfile.flag,
+                            userLocation: partnerProfile.location
+                        }
+                    })}
+                >
+                    <Avatar className="h-10 w-10 border border-[#2a2b2c] shadow-sm">
+                        <AvatarImage src={partnerProfile.avatar} alt={partnerProfile.name || 'User'} className="object-cover" />
+                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold">{partnerProfile.name?.[0] || 'U'}</AvatarFallback>
+                    </Avatar>
 
-                <div className="flex flex-col flex-1">
-                    <span className="font-semibold text-slate-900">{userName || 'Unknown User'}</span>
-                    {userFlag && userLocation && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <span>{userFlag}</span>
-                            <span>{userLocation}</span>
-                        </div>
-                    )}
+                    <div className="flex flex-col">
+                        <span className="font-semibold text-white">{partnerProfile.name || 'Unknown User'}</span>
+                        {partnerProfile.flag && partnerProfile.location && (
+                            <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                                <span>{partnerProfile.flag}</span>
+                                <span>{partnerProfile.location}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa]">
+            <div className="flex-1 overflow-y-auto p-4 bg-[#1e1f20] space-y-4">
                 {messages.length === 0 ? (
                     <div className="h-full flex items-center justify-center">
-                        <div className="text-center text-slate-500">
-                            <p className="text-sm">대화를 시작해보세요!</p>
-                            <p className="text-xs mt-1">메시지를 입력하고 전송하세요.</p>
+                        <div className="text-center text-zinc-400">
+                            <p className="text-sm font-medium">대화를 시작해보세요!</p>
+                            <p className="text-xs mt-1 text-zinc-500">메시지를 입력하고 전송하세요.</p>
                         </div>
                     </div>
                 ) : (
                     <div className="space-y-3 max-w-3xl mx-auto">
-                        {messages.map((message) => (
-                            <div
-                                key={message.id}
-                                className={`flex ${message.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
-                            >
+                        {messages.map((message) => {
+                            const isMe = message.senderId === currentUserId;
+                            return (
                                 <div
-                                    className={`max-w-[70%] rounded-2xl px-4 py-2 ${message.senderId === currentUserId
-                                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                                            : 'bg-white border border-slate-200 text-slate-800'
-                                        }`}
+                                    key={message.id}
+                                    className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
                                 >
-                                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                                    <p
-                                        className={`text-xs mt-1 ${message.senderId === currentUserId ? 'text-blue-100' : 'text-slate-400'
+                                    {!isMe && (
+                                        <Avatar
+                                            className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-[#2a2b2c]"
+                                            onClick={() => navigate(`/profile/${targetUserId}`, {
+                                                state: {
+                                                    userName: partnerProfile.name,
+                                                    userAvatar: partnerProfile.avatar,
+                                                    userFlag: partnerProfile.flag,
+                                                    userLocation: partnerProfile.location
+                                                }
+                                            })}
+                                        >
+                                            <AvatarImage src={partnerProfile.avatar} className="object-cover" />
+                                            <AvatarFallback>{partnerProfile.name?.[0] || '?'}</AvatarFallback>
+                                        </Avatar>
+                                    )}
+                                    <div
+                                        className={`rounded-2xl px-4 py-2 max-w-[70%] shadow-sm ${isMe
+                                            ? 'bg-blue-600 text-white rounded-tr-none'
+                                            : 'bg-[#2a2b2c] border border-[#3a3b3c] text-white rounded-tl-none'
                                             }`}
                                     >
-                                        {message.timestamp.toLocaleTimeString('ko-KR', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
-                                    </p>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                    </div>
+                                    <span className="text-[10px] text-zinc-500 pb-1">
+                                        {message.timestamp?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-slate-200 bg-white p-4">
-                <div className="max-w-3xl mx-auto flex gap-2">
+            <div className="p-4 bg-[#1e1f20] border-t border-[#2a2b2c]">
+                <div className="flex gap-2 max-w-3xl mx-auto">
                     <Input
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="메시지를 입력하세요..."
-                        className="flex-1 rounded-full px-4 border-slate-300 focus:border-blue-500"
+                        value={msgInput}
+                        onChange={(e) => setMsgInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="메시지 입력..."
+                        className="flex-1 bg-[#2a2b2c] border-[#2a2b2c] text-white placeholder:text-zinc-500"
                     />
-                    <Button
-                        onClick={handleSendMessage}
-                        disabled={!inputValue.trim()}
-                        className="rounded-full px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                    >
-                        <Send className="w-4 h-4" />
+                    <Button onClick={handleSendMessage} disabled={!msgInput.trim()} size="icon" className="bg-blue-600 hover:bg-blue-700">
+                        <Send className="h-4 w-4" />
                     </Button>
                 </div>
             </div>

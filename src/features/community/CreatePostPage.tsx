@@ -1,62 +1,93 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Image as ImageIcon } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+
+import { User } from 'firebase/auth';
+import { toast } from "../../services/toast";
+import { createPost } from '../../services/firestore';
 
 export interface CreatePostPageProps {
     onSubmit: (data: { title: string; image: string; content: string }) => void;
+    user: User | null;
 }
 
-export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
+export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [content, setContent] = useState('');
+    const [category, setCategory] = useState('자유게시판');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !content.trim()) return;
+        console.log('Submitting post...', { content, user });
+        if (!content.trim()) {
+            console.log('Content missing');
+            return;
+        }
 
-        const newPost = {
-            id: Date.now().toString(),
-            authorId: 'current_user',
-            title: title,
-            user: {
-                name: "Seoul_Lover",
-                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-                location: "Korea, Seoul",
-                flag: "🇰🇷"
-            },
-            image: imageUrl,
-            content: content,
-            likes: 0,
-            timeAgo: "방금"
-        };
+        // Auto-generate title from content
+        const generatedTitle = content.length > 20 ? content.substring(0, 20) + "..." : content;
 
-        // Load existing posts from localStorage
-        const savedPosts = localStorage.getItem('communityPosts');
-        const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
+        // Show loading state
+        const loadingToast = toast.loading("게시글을 업로드하고 있습니다...");
 
-        // Add new post at the beginning
-        const updatedPosts = [newPost, ...existingPosts];
+        try {
+            // Resolve User Info
+            const currentUid = user?.uid || 'anonymous';
+            if (currentUid === 'anonymous') {
+                // Warn if likely to fail permissions
+                console.warn("User is anonymous. Write might fail if Firestore rules require auth.");
+            }
 
-        // Save to localStorage
-        localStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
+            const localName = localStorage.getItem(`user_name_${currentUid}`);
+            const localAvatar = localStorage.getItem(`user_avatar_${currentUid}`);
+            const avatarToSave = (localAvatar && localAvatar.length > 200)
+                ? "stored_locally"
+                : (localAvatar || user?.photoURL || "https://github.com/shadcn.png");
 
-        // Call onSubmit callback
-        onSubmit({
-            title: title,
-            image: imageUrl,
-            content: content
-        });
+            const postData = {
+                authorId: currentUid,
+                content: content,
+                category: category,
+                user: {
+                    name: localName || user?.displayName || "Anonymous",
+                    avatar: avatarToSave,
+                    location: "Korea, Seoul",
+                    flag: "🇰🇷",
+                    targetLang: "EN"
+                },
+                image: imageUrl
+            };
 
-        // Reset and navigate back
-        setTitle('');
-        setImageUrl('');
-        setContent('');
-        navigate('/community');
+            // Save to Firestore (Uploads image if needed)
+            await createPost(postData, imageUrl);
+
+            // Call onSubmit callback
+            onSubmit({
+                title: generatedTitle,
+                image: imageUrl,
+                content: content
+            });
+
+            toast.dismiss(loadingToast);
+            toast.success("게시글이 퍼블릭 커뮤니티에 공유되었습니다!");
+
+            // Reset and navigate back
+            setTitle('');
+            setImageUrl('');
+            setContent('');
+            navigate('/community');
+        } catch (error: any) {
+            console.error("게시글 저장 실패:", error);
+            toast.dismiss(loadingToast);
+            toast.error(`업로드 실패: ${error.message}`);
+            // Explicit Alert for the user to see the exact error
+            alert(`게시글 업로드 중 오류가 발생했습니다.\n\n원인: ${error.message}\n\nFirebase 설정이나 권한을 확인해주세요.`);
+        }
     };
 
     const handleCancel = () => {
@@ -67,25 +98,25 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
     };
 
     return (
-        <div className="flex-1 h-full bg-white flex flex-col">
+        <div className="flex-1 h-full bg-[#1e1f20] flex flex-col">
             {/* Header */}
             {/* Header */}
-            <div className="border-b border-slate-200">
+            <div className="border-b border-[#2a2b2c]">
                 <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleCancel}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-[#2a2b2c] rounded-lg transition-colors"
                         >
-                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                            <ArrowLeft className="w-5 h-5 text-zinc-400" />
                         </button>
-                        <h1 className="text-xl font-bold text-slate-900">새 게시글 작성</h1>
+                        <h1 className="text-xl font-bold text-white">새 게시글 작성</h1>
                     </div>
 
                     <Button
                         onClick={handleSubmit}
-                        disabled={!title.trim() || !content.trim()}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                        disabled={!content.trim()}
+                        className={`bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 ${(!content.trim()) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         게시하기
                     </Button>
@@ -95,25 +126,28 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto">
                 <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 space-y-6">
-                    {/* Title */}
+                    {/* Title Input Removed - Auto-generated from content */}
+
+                    {/* Category Selector */}
                     <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-semibold text-slate-700">
-                            제목 *
+                        <label className="text-sm font-semibold text-zinc-300">
+                            카테고리 선택 *
                         </label>
-                        <Input
-                            id="title"
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="게시글 제목을 입력하세요"
-                            className="text-lg"
-                            required
-                        />
+                        <select
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                            className="w-full bg-[#2a2b2c] border-[#2a2b2c] text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="최신 질문">최신 질문</option>
+                            <option value="정보 공유">정보 공유</option>
+                            <option value="자유게시판">자유게시판</option>
+                            <option value="동기부여">동기부여</option>
+                        </select>
                     </div>
 
                     {/* Image URL or File Upload */}
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <label className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                             <ImageIcon className="w-4 h-4" />
                             사진 추가
                         </label>
@@ -124,8 +158,8 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${!imageUrl || imageUrl.startsWith('data:')
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-500 border-blue-500 text-white'
+                                    : 'bg-[#2a2b2c] border-[#2a2b2c] text-zinc-400 hover:bg-[#3a3b3c]'
                                     }`}
                             >
                                 파일 업로드
@@ -134,8 +168,8 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${imageUrl && !imageUrl.startsWith('data:')
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-500 border-blue-500 text-white'
+                                    : 'bg-[#2a2b2c] border-[#2a2b2c] text-zinc-400 hover:bg-[#3a3b3c]'
                                     }`}
                             >
                                 URL 입력
@@ -146,13 +180,13 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                         {(!imageUrl || imageUrl.startsWith('data:')) && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-center w-full">
-                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-[#2a2b2c] border-dashed rounded-lg cursor-pointer bg-[#2a2b2c] hover:bg-[#3a3b3c] transition-colors">
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <Upload className="w-8 h-8 mb-2 text-slate-500" />
-                                            <p className="mb-2 text-sm text-slate-500">
+                                            <Upload className="w-8 h-8 mb-2 text-zinc-400" />
+                                            <p className="mb-2 text-sm text-zinc-400">
                                                 <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
                                             </p>
-                                            <p className="text-xs text-slate-500">PNG, JPG, GIF (최대 5MB)</p>
+                                            <p className="text-xs text-zinc-500">PNG, JPG, GIF (최대 5MB)</p>
                                         </div>
                                         <input
                                             type="file"
@@ -185,10 +219,11 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                                     id="imageUrl"
                                     type="url"
                                     value={imageUrl}
-                                    onChange={(e) => setImageUrl(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)}
                                     placeholder="https://images.unsplash.com/..."
+                                    className="bg-[#2a2b2c] border-[#2a2b2c] text-white placeholder:text-zinc-500"
                                 />
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-zinc-500">
                                     이미지 URL을 입력하세요 (Unsplash, Imgur 등)
                                 </p>
                             </div>
@@ -198,14 +233,15 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
                     {/* Image Preview */}
                     {imageUrl && (
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">미리보기</label>
-                            <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                            <label className="text-sm font-semibold text-zinc-300">미리보기</label>
+                            <div className="rounded-lg overflow-hidden border border-[#2a2b2c] bg-[#2a2b2c]">
                                 <img
                                     src={imageUrl}
                                     alt="Preview"
                                     className="w-full h-96 object-cover"
                                     onError={(e) => {
-                                        e.currentTarget.src = 'https://via.placeholder.com/800x600?text=이미지를+불러올+수+없습니다';
+                                        // Placeholder fallback removed
+                                        e.currentTarget.style.display = 'none';
                                     }}
                                 />
                             </div>
@@ -214,36 +250,36 @@ export function CreatePostPage({ onSubmit }: CreatePostPageProps) {
 
                     {/* Content */}
                     <div className="space-y-2">
-                        <label htmlFor="content" className="text-sm font-semibold text-slate-700">
+                        <label htmlFor="content" className="text-sm font-semibold text-zinc-300">
                             게시글 내용 *
                         </label>
                         <Textarea
                             id="content"
                             value={content}
-                            onChange={(e) => setContent(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                             placeholder="게시글 내용을 입력하세요...&#10;&#10;여러 줄로 작성할 수 있습니다."
-                            className="min-h-[200px] resize-none"
+                            className="min-h-[200px] resize-none bg-[#2a2b2c] border-[#2a2b2c] text-white placeholder:text-zinc-500"
                             required
                         />
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-zinc-500">
                             {content.length} 자
                         </p>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-3 pt-4 border-t border-[#2a2b2c]">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleCancel}
-                            className="flex-1"
+                            className="flex-1 bg-[#2a2b2c] border-[#2a2b2c] text-white hover:bg-[#3a3b3c]"
                         >
                             취소
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                            disabled={!title.trim() || !content.trim()}
+                            className={`flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 ${(!content.trim()) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={!content.trim()}
                         >
                             게시하기
                         </Button>
