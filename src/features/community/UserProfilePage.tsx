@@ -411,34 +411,34 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     };
 
 
-    return <div className="flex-1 flex flex-col h-full bg-[#fdfbf6] overflow-y-auto">
+    return <div className="flex-1 flex flex-col h-full bg-[#09090b] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#fdfbf6]/80 backdrop-blur-md border-b border-slate-200">
+        <div className="sticky top-0 z-10 bg-[#09090b]/80 backdrop-blur-md border-b border-zinc-800">
             <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
                 <button
                     onClick={() => navigate(-1)}
-                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                    className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    <ArrowLeft className="w-5 h-5 text-zinc-400" />
                 </button>
-                <h1 className="text-lg font-bold text-slate-800">프로필</h1>
+                <h1 className="text-lg font-bold text-white">프로필</h1>
             </div>
         </div>
 
         <div className="p-4 max-w-3xl mx-auto w-full space-y-6">
             {/* Profile Card */}
-            <div className="bg-[#ffe8d6] rounded-[32px] overflow-hidden shadow-sm border border-orange-100 p-6 pt-0 relative">
+            <div className="bg-zinc-800 rounded-[32px] overflow-hidden shadow-sm border border-zinc-700 p-6 pt-0 relative">
                 {/* Banner Area */}
-                <div className="h-32 bg-[#d8b4fe] w-full rounded-2xl border-2 border-[#9333ea] mt-6 relative"></div>
+                <div className="h-32 bg-gradient-to-r from-purple-600 to-blue-600 w-full rounded-2xl border-2 border-purple-500 mt-6 relative"></div>
 
                 <div className="px-2 relative">
                     <div className="flex justify-between items-start min-h-[80px]">
                         {/* Avatar - Overlapping Banner */}
                         <div className="-mt-20 ml-4 relative z-10 group/avatar">
-                            <div className="rounded-full p-1.5 bg-[#a7f3d0] border-[3px] border-black w-36 h-36 flex items-center justify-center overflow-hidden shadow-sm relative">
+                            <div className="rounded-full p-1.5 bg-zinc-700 border-[3px] border-zinc-600 w-36 h-36 flex items-center justify-center overflow-hidden shadow-sm relative">
                                 <Avatar className="w-full h-full bg-transparent rounded-full">
                                     <AvatarImage src={postUser.avatar} className="object-cover w-full h-full" />
-                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full">{postUser.name?.[0] || 'U'}</AvatarFallback>
+                                    <AvatarFallback className="bg-transparent text-4xl font-bold rounded-full text-white">{postUser.name?.[0] || 'U'}</AvatarFallback>
                                 </Avatar>
                                 {isCurrentUser && isEditingProfile && (
                                     <div
@@ -484,9 +484,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                                 toast.error(`팔로우 실패: ${error.message || "알 수 없는 오류"}`);
                                             }
                                         }}
-                                        className={`h-11 px-8 font-black text-lg border-[3px] border-[#ff4d4d] shadow-sm transition-all rounded-xl ${isFollowing
-                                            ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                                            : 'bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a]'
+                                        className={`h-11 px-8 font-black text-lg border-[3px] border-blue-500 shadow-sm transition-all rounded-xl ${isFollowing
+                                            ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
                                             }`}
                                     >
                                         {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
@@ -505,7 +505,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                                 }
                                             });
                                         }}
-                                        className="w-11 h-11 p-0 rounded-full border-[3px] border-[#ff4d4d] bg-[#ffb3b3] hover:bg-[#ff9999] text-[#1a1a1a] shadow-sm flex items-center justify-center"
+                                        className="w-11 h-11 p-0 rounded-full border-[3px] border-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center justify-center"
                                     >
                                         <Mail className="w-6 h-6 stroke-[2.5]" />
                                     </Button>
@@ -513,14 +513,14 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                             </div>
                             <div className="flex gap-6 pr-2">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 text-base">
+                                    <span className="font-black text-white text-base">
                                         {postUser.followers ? postUser.followers.length : 0}
                                     </span>
-                                    <span className="font-bold text-slate-600 text-sm">followers</span>
+                                    <span className="font-bold text-zinc-400 text-sm">followers</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-900 text-base">{postUser.following ? postUser.following.length : 0}</span>
-                                    <span className="font-bold text-slate-600 text-sm">following</span>
+                                    <span className="font-black text-white text-base">{postUser.following ? postUser.following.length : 0}</span>
+                                    <span className="font-bold text-zinc-400 text-sm">following</span>
                                 </div>
                             </div>
                         </div>
@@ -535,30 +535,30 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                         <input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="text-2xl font-black text-slate-900 border-b-2 border-slate-300 focus:border-blue-500 focus:outline-none bg-transparent w-48"
+                            className="text-2xl font-black text-white border-b-2 border-zinc-600 focus:border-blue-500 focus:outline-none bg-transparent w-48"
                         />
-                        <button onClick={handleSaveProfile} className="p-1 hover:bg-green-100 rounded-full text-green-600">
+                        <button onClick={handleSaveProfile} className="p-1 hover:bg-green-900/30 rounded-full text-green-500">
                             <Check className="w-5 h-5" />
                         </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">@{postUser.name || 'Unknown User'}</h2>
+                        <h2 className="text-3xl font-black text-white tracking-tight">@{postUser.name || 'Unknown User'}</h2>
                         {isCurrentUser && (
                             <button
                                 onClick={() => { setIsEditingProfile(true); setEditName(postUser.name); }}
-                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                                className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-full transition-colors"
                             >
                                 <Pencil className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                 )}
-                <p className="text-base text-slate-500 font-bold">{postUser.joinDate}</p>
+                <p className="text-base text-zinc-500 font-bold">{postUser.joinDate}</p>
             </div>
 
             {/* Languages */}
-            <div className="flex flex-wrap gap-10 mt-8 ml-4 text-sm font-black text-slate-900">
+            <div className="flex flex-wrap gap-10 mt-8 ml-4 text-sm font-black text-white">
                 <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4" />
                     <span>STUDYING</span>
@@ -584,26 +584,26 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
             </div>
 
             {/* Bio Box */}
-            <div className="bg-[#fface4] rounded-xl p-4 border-2 border-[#ff5db6] shadow-sm relative group">
+            <div className="bg-zinc-800 rounded-xl p-4 border-2 border-zinc-700 shadow-sm relative group">
                 {isEditingBio ? (
                     <div className="space-y-3">
                         <textarea
                             value={tempBio}
                             onChange={(e) => setTempBio(e.target.value)}
-                            className="w-full bg-white/50 rounded-lg p-3 text-sm text-slate-800 border border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-400 min-h-[100px] resize-none"
+                            className="w-full bg-zinc-900 rounded-lg p-3 text-sm text-zinc-200 border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
                             placeholder="자기소개를 입력해주세요..."
                             autoFocus
                         />
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={handleCancelBio}
-                                className="px-3 py-1.5 text-xs font-bold bg-white text-slate-500 rounded-lg border border-slate-200 hover:bg-slate-50"
+                                className="px-3 py-1.5 text-xs font-bold bg-zinc-700 text-zinc-300 rounded-lg border border-zinc-600 hover:bg-zinc-600"
                             >
                                 취소
                             </button>
                             <button
                                 onClick={handleSaveBio}
-                                className="px-3 py-1.5 text-xs font-bold bg-[#ff5db6] text-white rounded-lg hover:bg-[#ff40a0]"
+                                className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                             >
                                 저장
                             </button>
@@ -611,7 +611,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     </div>
                 ) : (
                     <>
-                        <p className={`text-sm leading-relaxed font-medium whitespace-pre-wrap ${!postUser.bio ? 'text-slate-500/50' : 'text-slate-800'}`}>
+                        <p className={`text-sm leading-relaxed font-medium whitespace-pre-wrap ${!postUser.bio ? 'text-zinc-600' : 'text-zinc-200'}`}>
                             {postUser.bio || "자기소개를 입력하세요"}
                         </p>
                         {isCurrentUser && (
@@ -620,7 +620,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                     setTempBio(postUser.bio);
                                     setIsEditingBio(true);
                                 }}
-                                className="absolute top-2 right-2 p-1.5 bg-white/50 hover:bg-white rounded-full text-pink-600 opacity-0 group-hover:opacity-100 transition-all"
+                                className="absolute top-2 right-2 p-1.5 bg-zinc-700/50 hover:bg-zinc-600 rounded-full text-zinc-400 opacity-0 group-hover:opacity-100 transition-all"
                             >
                                 <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -630,12 +630,12 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
             </div>
 
             {/* Divider */}
-            <div className="border-b border-slate-200"></div>
+            <div className="border-b border-zinc-800"></div>
 
             {/* User Feed */}
             <div className="space-y-6">
                 {userPosts.length === 0 ? (
-                    <div className="text-center py-10 text-slate-500">
+                    <div className="text-center py-10 text-zinc-500">
                         게시물이 없습니다.
                     </div>
                 ) : (

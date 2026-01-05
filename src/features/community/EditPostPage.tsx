@@ -59,17 +59,17 @@ export function EditPostPage() {
     }
 
     return (
-        <div className="flex-1 h-full bg-white flex flex-col">
+        <div className="flex-1 h-full bg-[#09090b] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-800">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleCancel}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
                     >
-                        <ArrowLeft className="w-5 h-5 text-slate-600" />
+                        <ArrowLeft className="w-5 h-5 text-zinc-400" />
                     </button>
-                    <h1 className="text-xl font-bold text-slate-900">게시글 수정</h1>
+                    <h1 className="text-xl font-bold text-white">게시글 수정</h1>
                 </div>
 
                 <Button
@@ -86,7 +86,7 @@ export function EditPostPage() {
                 <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 space-y-6">
                     {/* Title */}
                     <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-semibold text-slate-700">
+                        <label htmlFor="title" className="text-sm font-semibold text-zinc-300">
                             제목 *
                         </label>
                         <Input
@@ -95,14 +95,14 @@ export function EditPostPage() {
                             value={title}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                             placeholder="게시글 제목을 입력하세요"
-                            className="text-lg"
+                            className="text-lg bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                             required
                         />
                     </div>
 
                     {/* Image URL */}
                     <div className="space-y-2">
-                        <label htmlFor="imageUrl" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <label htmlFor="imageUrl" className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                             <ImageIcon className="w-4 h-4" />
                             사진 *
                         </label>
@@ -115,12 +115,13 @@ export function EditPostPage() {
                                 value={imageUrl}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)}
                                 placeholder="이미지 URL을 입력하거나 파일을 업로드하세요"
+                                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                             />
 
                             {/* File Upload Button */}
                             <div className="flex items-center gap-2">
                                 <label className="cursor-pointer">
-                                    <div className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-md hover:bg-zinc-800 transition-colors text-zinc-300">
                                         <Upload className="w-4 h-4" />
                                         <span className="text-sm">파일 업로드</span>
                                     </div>
@@ -151,8 +152,8 @@ export function EditPostPage() {
                     {/* Image Preview */}
                     {imageUrl && (
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">미리보기</label>
-                            <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                            <label className="text-sm font-semibold text-zinc-300">미리보기</label>
+                            <div className="rounded-lg overflow-hidden border border-zinc-700 bg-zinc-800">
                                 <img
                                     src={imageUrl}
                                     alt="Preview"
@@ -168,7 +169,7 @@ export function EditPostPage() {
 
                     {/* Content */}
                     <div className="space-y-2">
-                        <label htmlFor="content" className="text-sm font-semibold text-slate-700">
+                        <label htmlFor="content" className="text-sm font-semibold text-zinc-300">
                             게시글 내용 *
                         </label>
                         <Textarea
@@ -176,21 +177,21 @@ export function EditPostPage() {
                             value={content}
                             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                             placeholder="게시글 내용을 입력하세요..."
-                            className="min-h-[200px] resize-none"
+                            className="min-h-[200px] resize-none bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                             required
                         />
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-zinc-500">
                             {content.length} 자
                         </p>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-3 pt-4 border-t border-zinc-800">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleCancel}
-                            className="flex-1"
+                            className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                         >
                             취소
                         </Button>

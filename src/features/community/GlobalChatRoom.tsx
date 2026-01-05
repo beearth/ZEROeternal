@@ -617,7 +617,7 @@ export function GlobalChatRoom({
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f0f2f5] relative">
+        <div className="flex-1 flex flex-col h-full bg-[#09090b] relative">
             {/* WordOptionMenu */}
             <WordOptionMenu
                 isOpen={radialMenu.showRadialMenu}
@@ -652,12 +652,12 @@ export function GlobalChatRoom({
             )}
 
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-[#1e1f20] sticky top-0 z-10 shadow-sm">
                 <button
                     onClick={() => navigate('/community')}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    <ArrowLeft className="w-5 h-5 text-zinc-400" />
                 </button>
 
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
@@ -665,8 +665,8 @@ export function GlobalChatRoom({
                 </div>
 
                 <div className="flex flex-col flex-1">
-                    <span className="font-bold text-slate-900 text-lg">Global Open Chat 🌏</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="font-bold text-white text-lg">Global Open Chat 🌏</span>
+                    <span className="text-xs text-zinc-500">
                         Native: {nativeLang.toUpperCase()} | Target: {targetLang.toUpperCase()}
                     </span>
                 </div>
@@ -674,7 +674,7 @@ export function GlobalChatRoom({
                 <select
                     value={targetLang}
                     onChange={(e) => setTargetLang(e.target.value)}
-                    className="text-sm border border-slate-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
                 >
                     <option value="en">English</option>
                     <option value="ko">Korean</option>
@@ -687,7 +687,7 @@ export function GlobalChatRoom({
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-100">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#09090b]">
                 {messages.map((message) => {
                     const isMe = message.senderId === user?.uid;
                     return (
@@ -700,7 +700,7 @@ export function GlobalChatRoom({
                                     userId={message.senderId}
                                     name={message.senderName}
                                     avatar={message.senderAvatar}
-                                    className="h-10 w-10 border border-slate-200 mt-1"
+                                    className="h-10 w-10 border border-zinc-700 mt-1"
                                 />
                             )}
 
@@ -709,24 +709,24 @@ export function GlobalChatRoom({
                                     <ChatUserName
                                         userId={message.senderId}
                                         name={message.senderName}
-                                        className="text-xs text-slate-500 mb-1 ml-1 font-medium"
+                                        className="text-xs text-zinc-500 mb-1 ml-1 font-medium"
                                     />
                                 )}
 
                                 <div
                                     className={`p-4 rounded-2xl shadow-sm ${isMe
                                         ? "bg-blue-600 text-white rounded-tr-none"
-                                        : "bg-white text-gray-900 border border-slate-200 rounded-tl-none"
+                                        : "bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-tl-none"
                                         }`}
                                 >
                                     {/* 1. Native Translation (Primary) */}
-                                    <div className={`text-[15px] leading-relaxed font-medium ${isMe ? 'text-white' : 'text-gray-900'}`}>
+                                    <div className={`text-[15px] leading-relaxed font-medium ${isMe ? 'text-white' : 'text-zinc-100'}`}>
                                         {renderClickableText(message.nativeTranslation || message.text, message.id, isMe)}
                                     </div>
 
                                     {/* 2. Learning Translation (Secondary) */}
                                     {message.learningTranslation && (
-                                        <div className={`text-sm mt-3 pt-2 border-t ${isMe ? "border-blue-400/50 text-blue-50" : "border-slate-100 text-slate-600"}`}>
+                                        <div className={`text-sm mt-3 pt-2 border-t ${isMe ? "border-blue-400/50 text-blue-50" : "border-zinc-700 text-zinc-400"}`}>
                                             <div className="flex items-center gap-1 mb-1 opacity-70">
                                                 <span className="text-[10px] uppercase tracking-wider font-bold">
                                                     Learning
@@ -738,13 +738,13 @@ export function GlobalChatRoom({
                                 </div>
 
                                 <div className="flex items-center gap-1 px-1 mt-1">
-                                    <span className="text-[10px] text-slate-400">
+                                    <span className="text-[10px] text-zinc-500">
                                         {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                     </span>
                                     {isMe && (
                                         <button
                                             onClick={() => handleDeleteMessage(message.id)}
-                                            className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                            className="text-zinc-500 hover:text-red-500 p-1 rounded-full hover:bg-zinc-800 transition-colors"
                                             title="메시지 삭제"
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -759,7 +759,7 @@ export function GlobalChatRoom({
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-slate-200 bg-white p-4 pb-6">
+            <div className="border-t border-zinc-800 bg-[#1e1f20] p-4 pb-6">
                 <div className="max-w-3xl mx-auto flex gap-2">
                     <Input
                         ref={inputRef}
@@ -767,7 +767,7 @@ export function GlobalChatRoom({
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="메시지를 입력하세요..."
-                        className="flex-1 rounded-full px-4 border-slate-300 focus:border-blue-500 h-11 bg-white text-black"
+                        className="flex-1 rounded-full px-4 border-zinc-700 focus:border-blue-500 h-11 bg-zinc-800 text-white placeholder:text-zinc-500"
                         disabled={isSending}
                     />
                     <Button
@@ -786,3 +786,4 @@ export function GlobalChatRoom({
         </div>
     );
 }
+

@@ -96,19 +96,18 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
     };
 
     return (
-        <div className="flex-1 h-full bg-white flex flex-col">
+        <div className="flex-1 h-full bg-[#09090b] flex flex-col">
             {/* Header */}
-            {/* Header */}
-            <div className="border-b border-slate-200">
+            <div className="border-b border-zinc-800">
                 <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleCancel}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
                         >
-                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                            <ArrowLeft className="w-5 h-5 text-zinc-400" />
                         </button>
-                        <h1 className="text-xl font-bold text-slate-900">새 게시글 작성</h1>
+                        <h1 className="text-xl font-bold text-white">새 게시글 작성</h1>
                     </div>
 
                     <Button
@@ -128,7 +127,7 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
 
                     {/* Image URL or File Upload */}
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <label className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                             <ImageIcon className="w-4 h-4" />
                             사진 추가
                         </label>
@@ -139,8 +138,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${!imageUrl || imageUrl.startsWith('data:')
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                                     }`}
                             >
                                 파일 업로드
@@ -149,8 +148,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                                 type="button"
                                 onClick={() => setImageUrl('')}
                                 className={`flex-1 px-4 py-2 text-sm rounded-lg border transition-colors ${imageUrl && !imageUrl.startsWith('data:')
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-blue-500/20 border-blue-500 text-blue-400'
+                                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                                     }`}
                             >
                                 URL 입력
@@ -161,13 +160,13 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                         {(!imageUrl || imageUrl.startsWith('data:')) && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-center w-full">
-                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-700 border-dashed rounded-lg cursor-pointer bg-zinc-800/50 hover:bg-zinc-800 transition-colors">
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <Upload className="w-8 h-8 mb-2 text-slate-500" />
-                                            <p className="mb-2 text-sm text-slate-500">
+                                            <Upload className="w-8 h-8 mb-2 text-zinc-500" />
+                                            <p className="mb-2 text-sm text-zinc-400">
                                                 <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
                                             </p>
-                                            <p className="text-xs text-slate-500">PNG, JPG, GIF (최대 5MB)</p>
+                                            <p className="text-xs text-zinc-500">PNG, JPG, GIF (최대 5MB)</p>
                                         </div>
                                         <input
                                             type="file"
@@ -202,8 +201,9 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                                     value={imageUrl}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)}
                                     placeholder="https://images.unsplash.com/..."
+                                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                                 />
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-zinc-500">
                                     이미지 URL을 입력하세요 (Unsplash, Imgur 등)
                                 </p>
                             </div>
@@ -213,8 +213,8 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                     {/* Image Preview */}
                     {imageUrl && (
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">미리보기</label>
-                            <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                            <label className="text-sm font-semibold text-zinc-300">미리보기</label>
+                            <div className="rounded-lg overflow-hidden border border-zinc-700 bg-zinc-800">
                                 <img
                                     src={imageUrl}
                                     alt="Preview"
@@ -230,7 +230,7 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
 
                     {/* Content */}
                     <div className="space-y-2">
-                        <label htmlFor="content" className="text-sm font-semibold text-slate-700">
+                        <label htmlFor="content" className="text-sm font-semibold text-zinc-300">
                             게시글 내용 *
                         </label>
                         <Textarea
@@ -238,21 +238,21 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
                             value={content}
                             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                             placeholder="게시글 내용을 입력하세요...&#10;&#10;여러 줄로 작성할 수 있습니다."
-                            className="min-h-[200px] resize-none text-slate-900"
+                            className="min-h-[200px] resize-none bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                             required
                         />
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-zinc-500">
                             {content.length} 자
                         </p>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-3 pt-4 border-t border-zinc-800">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={handleCancel}
-                            className="flex-1"
+                            className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                         >
                             취소
                         </Button>
