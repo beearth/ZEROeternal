@@ -94,7 +94,7 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
     const styleInfo = getWordStyle(wordState);
 
     // Default Style (if no status) - Keeps bubble colors
-    const defaultClass = isMe ? "hover:bg-blue-500 text-white" : "hover:bg-slate-200 text-slate-800";
+    const defaultClass = isMe ? "hover:bg-blue-500 text-white" : "hover:bg-zinc-700 text-zinc-100";
 
     // Unified Class Logic
     const finalClassName = wordState > 0
