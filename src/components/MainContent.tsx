@@ -103,7 +103,7 @@ export function MainContent({
                                         userVocabulary={userVocabulary}
                                         learningMode={learningMode}
                                         nativeLang={nativeLang}
-                                        targetLang={targetLang}
+                                        targetLang={targetLang || undefined}
                                         onUpdateTranslation={onUpdateTranslation}
                                     />
                                 ))}

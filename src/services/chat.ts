@@ -38,7 +38,7 @@ export const sendMessage = async (
         translated_text: translatedText,
         sender_id: user.uid,
         sender_name: user.displayName || 'Anonymous',
-        sender_avatar: user.photoURL || null,
+        sender_avatar: (user.photoURL || null) as any,
         original_lang: originalLang,
         target_lang: targetLang,
         created_at: serverTimestamp()
