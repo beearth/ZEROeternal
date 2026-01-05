@@ -742,7 +742,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   // Firebase 인증 상태 감지 및 단어장 동기화
   useEffect(() => {
@@ -1852,6 +1852,7 @@ export default function App() {
                   onUpdateWordStatus={handleUpdateWordStatus}
                   onResetWordStatus={handleResetWordStatus}
                   nativeLang={nativeLang}
+                  setNativeLang={setNativeLang} 
                   onSaveSentence={handleSaveSentence}
                   onSaveImportant={handleSaveImportant}
                   importantStack={importantStack}

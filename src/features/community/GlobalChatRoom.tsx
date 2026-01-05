@@ -27,6 +27,7 @@ interface GlobalChatRoomProps {
     ) => Promise<void>;
     onResetWordStatus: (word: string) => void;
     nativeLang: string;
+    setNativeLang: (lang: string) => void;
     onSaveSentence?: (sentence: string) => void;
     onSaveImportant?: (word: WordData) => void;
     importantStack: WordData[];
@@ -148,6 +149,7 @@ export function GlobalChatRoom({
     onUpdateWordStatus,
     onResetWordStatus,
     nativeLang,
+    setNativeLang,
     onSaveSentence,
     onSaveImportant,
     importantStack
@@ -671,19 +673,38 @@ export function GlobalChatRoom({
                     </span>
                 </div>
 
-                <select
-                    value={targetLang}
-                    onChange={(e) => setTargetLang(e.target.value)}
-                    className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
-                >
-                    <option value="en">English</option>
-                    <option value="ko">Korean</option>
-                    <option value="ja">Japanese</option>
-                    <option value="zh">Chinese</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                </select>
+                <div className="flex gap-2">
+                    <select
+                        value={nativeLang}
+                        onChange={(e) => {
+                            setNativeLang(e.target.value);
+                            toast.success(`Native Language: ${e.target.value.toUpperCase()}`);
+                        }}
+                        className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
+                        title="Your Native Language (Translation Target)"
+                    >
+                        <option value="ko">Korean (Native)</option>
+                        <option value="en">English</option>
+                        <option value="ja">Japanese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="es">Spanish</option>
+                    </select>
+
+                    <select
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value)}
+                        className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
+                        title="Target Language (For Learning)"
+                    >
+                        <option value="en">English (Target)</option>
+                        <option value="ko">Korean</option>
+                        <option value="ja">Japanese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                    </select>
+                </div>
             </div>
 
             {/* Messages Area */}

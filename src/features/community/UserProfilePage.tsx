@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Button } from "../../components/ui/button";
 import { PostCard, Comment } from './PostCard';
 import { User, updateProfile } from 'firebase/auth';
+import { auth } from '../../firebase';
 import { toast } from "../../services/toast";
 import { supabase } from '../../supabase';
 import {
@@ -308,7 +309,10 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                     photoURL: finalAvatarUrl
                 };
 
-                await updateProfile(currentUser, updates);
+                const authUser = auth.currentUser;
+                if (!authUser) throw new Error("No authenticated user found");
+
+                await updateProfile(authUser, updates);
 
                 // 3. Save to LocalStorage (Legacy support, but we rely on DB now)
                 localStorage.setItem(`user_name_${currentUser.uid}`, editName);
