@@ -28,6 +28,7 @@ interface GlobalChatRoomProps {
     onResetWordStatus: (word: string) => void;
     nativeLang: string;
     setNativeLang: (lang: string) => void;
+    targetLang: string;
     onSaveSentence?: (sentence: string) => void;
     onSaveImportant?: (word: WordData) => void;
     importantStack: WordData[];
@@ -150,6 +151,7 @@ export function GlobalChatRoom({
     onResetWordStatus,
     nativeLang,
     setNativeLang,
+    targetLang,
     onSaveSentence,
     onSaveImportant,
     importantStack
@@ -158,7 +160,7 @@ export function GlobalChatRoom({
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const [targetLang, setTargetLang] = useState("en");
+    // const [targetLang, setTargetLang] = useState("en"); // Replaced by prop
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -335,6 +337,9 @@ export function GlobalChatRoom({
             const tLang = targetLang;
 
             let translated = inputValue;
+            // [OPTIMIZATION] AI Translation API Removed by User Request to save usage
+            // The AI Logic is now "Code-Switching" so explicit translation is redundant.
+            /*
             try {
                 if (originalLang !== tLang) {
                     translated = await translateText(inputValue, tLang);
@@ -342,6 +347,7 @@ export function GlobalChatRoom({
             } catch (translationError) {
                 console.warn("Translation failed:", translationError);
             }
+            */
 
             await sendMessage(
                 inputValue,
@@ -668,42 +674,7 @@ export function GlobalChatRoom({
 
                 <div className="flex flex-col flex-1">
                     <span className="font-bold text-white text-lg">Global Open Chat 🌏</span>
-                    <span className="text-xs text-zinc-500">
-                        Native: {nativeLang.toUpperCase()} | Target: {targetLang.toUpperCase()}
-                    </span>
-                </div>
 
-                <div className="flex gap-2">
-                    <select
-                        value={nativeLang}
-                        onChange={(e) => {
-                            setNativeLang(e.target.value);
-                            toast.success(`Native Language: ${e.target.value.toUpperCase()}`);
-                        }}
-                        className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
-                        title="Your Native Language (Translation Target)"
-                    >
-                        <option value="ko">Korean (Native)</option>
-                        <option value="en">English</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="es">Spanish</option>
-                    </select>
-
-                    <select
-                        value={targetLang}
-                        onChange={(e) => setTargetLang(e.target.value)}
-                        className="text-sm border border-zinc-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-zinc-800 text-white"
-                        title="Target Language (For Learning)"
-                    >
-                        <option value="en">English (Target)</option>
-                        <option value="ko">Korean</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                    </select>
                 </div>
             </div>
 

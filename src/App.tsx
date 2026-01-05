@@ -400,6 +400,60 @@ export default function App() {
   };
 
 
+  // Onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isOnboardingEditing, setIsOnboardingEditing] = useState(false); // Track if we are editing or doing initial setup
+
+
+  // Check if onboarding is needed on load
+  useEffect(() => {
+    if (!loading && user && (!nativeLang || !targetLang)) {
+       setShowOnboarding(true);
+       setIsOnboardingEditing(false); // Initial setup
+    }
+  }, [loading, user]);
+
+  // New handler for onboarding completion
+  const handleOnboardingComplete = async (native: string, target: string, contentType: string) => {
+    setNativeLang(native);
+    setTargetLang(target);
+    await saveLanguageSettings(native, target); // Use the existing saveLanguageSettings
+
+    // 모드 설정 저장
+    const mode = contentType === 'toeic' ? 'language' : 'knowledge';
+    saveLearningMode(mode);
+
+    if (contentType === 'toeic') {
+      toast.info("토익 필수 단어를 불러오는 중입니다...");
+      const toeicWords = await getToeicVocabulary(50); // 처음엔 50개
+
+      if (toeicWords.length > 0) {
+        setUserVocabulary((prev) => {
+          const newVocab = { ...prev };
+          toeicWords.forEach(word => {
+            const wordKey = word.toLowerCase().trim();
+            if (!newVocab[wordKey]) {
+              newVocab[wordKey] = {
+                status: 'white',
+                koreanMeaning: '', // 나중에 필요할 때 가져오거나 지금 가져올 수도 있음
+                category: 'toeic'
+              };
+            }
+          });
+
+          if (user) {
+            saveVocabularyToDB(user.uid, newVocab);
+          }
+          return newVocab;
+        });
+        toast.success(`${toeicWords.length}개의 토익 단어가 추가되었습니다!`);
+      } else {
+        toast.error("단어를 불러오지 못했습니다.");
+      }
+    }
+    setShowOnboarding(false); // Close onboarding after completion
+  };
+
   // 언어 설정 저장
   const saveLanguageSettings = async (native: string, target: string) => {
     // 1. LocalStorage 저장 (즉시 반영)
@@ -1609,8 +1663,24 @@ export default function App() {
     }
   };
 
+  // 언어 설정 초기화 핸들러
+  const handleResetLanguage = () => {
+    setShowResetConfirm(true);
+  };
 
-
+  // 페르소나 지침 업데이트 핸들러
+  const handleUpdatePersonaInstructions = async (newInstructions: PersonaInstruction[]) => {
+    setPersonaInstructions(newInstructions);
+    localStorage.setItem("signal_persona_instructions", JSON.stringify(newInstructions));
+    if (user) {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        personaInstructions: newInstructions,
+        updatedAt: new Date()
+      });
+    }
+    toast.success("AI 페르소나 지침이 업데이트되었습니다.");
+  };
 
 
   const handleLogout = async () => {
@@ -1631,49 +1701,18 @@ export default function App() {
       <Toaster position="top-center" richColors />
 
 
-      {/* 온보딩 모달 */}
-      <OnboardingModal
-        isOpen={!targetLang}
-        onComplete={async (native, target, contentType) => {
-          setNativeLang(native);
-          setTargetLang(target);
-          saveLanguageSettings(native, target);
-
-          // 모드 설정 저장
-          const mode = contentType === 'toeic' ? 'language' : 'knowledge';
-          saveLearningMode(mode);
-
-          if (contentType === 'toeic') {
-            toast.info("토익 필수 단어를 불러오는 중입니다...");
-            const toeicWords = await getToeicVocabulary(50); // 처음엔 50개
-
-            if (toeicWords.length > 0) {
-              setUserVocabulary((prev) => {
-                const newVocab = { ...prev };
-                toeicWords.forEach(word => {
-                  const wordKey = word.toLowerCase().trim();
-                  if (!newVocab[wordKey]) {
-                    newVocab[wordKey] = {
-                      status: 'white',
-                      koreanMeaning: '', // 나중에 필요할 때 가져오거나 지금 가져올 수도 있음
-                      category: 'toeic'
-                    };
-                  }
-                });
-
-                if (user) {
-                  saveVocabularyToDB(user.uid, newVocab);
-                }
-                return newVocab;
-              });
-              toast.success(`${toeicWords.length}개의 토익 단어가 추가되었습니다!`);
-            } else {
-              toast.error("단어를 불러오지 못했습니다.");
-            }
-          }
-        }}
-        onLogout={logout}
+      {/* Onboarding Modal - Show if needed OR if editing */}
+      <OnboardingModal 
+          isOpen={showOnboarding}
+          onComplete={handleOnboardingComplete}
+          onLogout={!isOnboardingEditing ? handleLogout : undefined} // Only show logout if initial setup
+          onClose={isOnboardingEditing ? () => {
+              setShowOnboarding(false);
+              setIsOnboardingEditing(false);
+          } : undefined} // Only show close if editing
       />
+
+      {/* TutorialModal removed as component is missing */}
 
       {/* Custom Reset Confirm Modal */}
       {showResetConfirm && (
@@ -1728,22 +1767,14 @@ export default function App() {
             sentence: sentenceStack.length,
           }}
           onLogout={handleLogout}
-          onResetLanguage={() => setShowResetConfirm(true)}
+          onResetLanguage={handleResetLanguage}
           onResetVocabulary={handleResetVocabulary}
           vocabCount={Object.keys(userVocabulary).length}
           personaInstructions={personaInstructions}
-
-          onUpdatePersonaInstructions={async (newInstructions) => {
-            setPersonaInstructions(newInstructions);
-            localStorage.setItem("signal_persona_instructions", JSON.stringify(newInstructions));
-            if (user) {
-              const userRef = doc(db, "users", user.uid);
-              await updateDoc(userRef, {
-                personaInstructions: newInstructions,
-                updatedAt: new Date()
-              });
-            }
-            toast.success("AI 페르소나 지침이 업데이트되었습니다.");
+          onUpdatePersonaInstructions={handleUpdatePersonaInstructions}
+          onOpenLanguageSettings={() => {
+            setShowOnboarding(true);
+            setIsOnboardingEditing(true);
           }}
 
           learningMode={learningMode}
@@ -1770,8 +1801,7 @@ export default function App() {
                 <MainContent
                   nativeLang={nativeLang}
                   targetLang={targetLang}
-                  setTargetLang={setTargetLang}
-                  setNativeLang={setNativeLang} 
+ 
                   currentConversation={currentConversation}
                   isTyping={isTyping}
                   onSendMessage={handleSendMessage}
@@ -1853,6 +1883,7 @@ export default function App() {
                   onResetWordStatus={handleResetWordStatus}
                   nativeLang={nativeLang}
                   setNativeLang={setNativeLang} 
+                  targetLang={targetLang || "en"}
                   onSaveSentence={handleSaveSentence}
                   onSaveImportant={handleSaveImportant}
                   importantStack={importantStack}

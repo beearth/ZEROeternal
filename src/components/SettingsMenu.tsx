@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Settings, LogOut, User, AlertTriangle, Lightbulb, ChevronRight, Trash2, Volume2, Mic } from "lucide-react";
+import { Settings, LogOut, User, AlertTriangle, Lightbulb, ChevronRight, Trash2, Volume2, Mic, Globe } from "lucide-react";
 
 
 
@@ -17,6 +17,7 @@ interface SettingsMenuProps {
     isAutoTTS?: boolean;
     onToggleAutoTTS?: () => void;
     vocabularyCount?: number;
+    onOpenLanguageSettings?: () => void;
 }
 
 
@@ -30,12 +31,14 @@ export function SettingsMenu({
     onUpdatePersonaInstructions,
     isAutoTTS = false,
     onToggleAutoTTS,
-    vocabularyCount = 0
+    vocabularyCount = 0,
+    onOpenLanguageSettings
 }: SettingsMenuProps) {
 
 
     const [isOpen, setIsOpen] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
+    const [showLanguageHelp, setShowLanguageHelp] = useState(false);
     const [confirmInput, setConfirmInput] = useState("");
     const [newInstruction, setNewInstruction] = useState("");
     const [isAdding, setIsAdding] = useState(false);
@@ -93,7 +96,7 @@ export function SettingsMenu({
     return (
         <>
             <div className={`relative ${isCollapsed ? 'w-full flex justify-center' : 'w-full'}`} ref={menuRef}>
-            <button
+                <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={`flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
                     title="설정"
@@ -110,118 +113,103 @@ export function SettingsMenu({
 
                 {isOpen && (
                     <div 
-                        className={`absolute w-80 bg-[#1e1f20] rounded-xl shadow-lg border border-[#2a2b2c] py-2 z-[9999] animate-in fade-in duration-200 ${
+                        className={`absolute min-w-[220px] bg-[#1e1f20] rounded-xl shadow-lg border border-[#2a2b2c] py-1.5 z-[9999] animate-in fade-in zoom-in-95 duration-200 ${
                             isCollapsed 
-                            ? "left-full bottom-0 ml-2 zoom-in-95 origin-bottom-left"
-                            : "left-0 bottom-full mb-2 zoom-in-95 origin-bottom-left"
+                            ? "left-full bottom-0 ml-2 origin-bottom-left"
+                            : "left-0 bottom-full mb-2 origin-bottom-left"
                         }`}
                     >
-                        <div className="px-4 py-2 border-b border-[#2a2b2c] mb-1">
-                            <h3 className="text-xs font-semibold text-[#9ca3af] uppercase tracking-wider">
-                                설정
-                            </h3>
-                        </div>
+                        {/* AI Instructions */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/settings/instructions");
+                                setIsOpen(false);
+                            }}
+                            className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3 group"
+                        >
+                            <Lightbulb className="w-4 h-4 text-zinc-400 group-hover:text-blue-400 transition-colors" />
+                            <span>지침 관리</span>
+                            {personaInstructions.some(p => p.isActive) && (
+                                <span className="ml-auto w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            )}
+                        </button>
 
-                        {/* AI Persona Multi-Instruction Section - Simplified Link */}
-                        <div className="px-4 py-3 border-b border-[#2a2b2c]">
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">
-                                    AI 페르소나 지침
-                                </label>
-                                <span className="text-[10px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {personaInstructions.filter(p => p.isActive).length}개 활성
-                                </span>
+                         {/* Voice Toggle */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleAutoTTS?.();
+                            }}
+                            className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3 group"
+                        >
+                            <Volume2 className={`w-4 h-4 ${isAutoTTS ? 'text-green-400' : 'text-zinc-400 group-hover:text-white'} transition-colors`} />
+                            <span>답변 읽어주기</span>
+                            <div className={`ml-auto w-8 h-4 rounded-full p-0.5 transition-colors ${isAutoTTS ? 'bg-green-600' : 'bg-zinc-700'}`}>
+                                <div className={`w-3 h-3 bg-white rounded-full transition-transform ${isAutoTTS ? 'translate-x-4' : 'translate-x-0'}`} />
                             </div>
-                            
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate("/settings/instructions");
-                                    setIsOpen(false);
-                                }}
-                                className="w-full flex items-center justify-between p-3 bg-[#131314] hover:bg-[#27272a] rounded-xl border border-zinc-800 transition-all group cursor-pointer"
-                            >
-                                <div className="flex items-center gap-3 pointer-events-none">
-                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                        <Lightbulb className="w-4 h-4 text-blue-400" />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-xs font-semibold text-white">지침 관리</div>
-                                        <div className="text-[10px] text-zinc-500">나만의 AI 요청 사항 설정</div>
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
+                        </button>
 
-                        {/* Voice Settings Section */}
-                        <div className="px-4 py-3 border-b border-[#2a2b2c]">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight mb-2 block">
-                                음성 기능
-                            </label>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleAutoTTS?.();
-                                }}
-                                className="w-full flex items-center justify-between p-3 bg-[#131314] hover:bg-[#27272a] rounded-xl border border-zinc-800 transition-all group cursor-pointer"
-                            >
-                                <div className="flex items-center gap-3 pointer-events-none">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isAutoTTS ? 'bg-green-500/10' : 'bg-zinc-800'}`}>
-                                        <Volume2 className={`w-4 h-4 ${isAutoTTS ? 'text-green-400' : 'text-zinc-500'}`} />
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="text-xs font-semibold text-white">답변 읽어주기</div>
-                                        <div className="text-[10px] text-zinc-500">AI 답변을 자동으로 음성 출력</div>
-                                    </div>
-                                </div>
-                                <div className={`w-10 h-6 rounded-full p-1 transition-colors pointer-events-none ${isAutoTTS ? 'bg-green-600' : 'bg-zinc-700'}`}>
-                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isAutoTTS ? 'translate-x-4' : 'translate-x-0'}`} />
-                                </div>
-                            </button>
-                        </div>
+                        {/* Language Settings */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenLanguageSettings) {
+                                    onOpenLanguageSettings();
+                                } else {
+                                    setShowLanguageHelp(true);
+                                }
+                                setIsOpen(false);
+                            }}
+                            className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3 group"
+                        >
+                            <Globe className="w-4 h-4 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
+                            <span>언어 설정</span>
+                        </button>
 
+                        <div className="my-1.5 border-t border-[#2a2b2c]" />
 
-
-
+                        {/* Reset Vocabulary */}
                         {onResetVocabulary && (
                             <button
                                 onClick={() => {
                                     setShowResetModal(true);
                                     setIsOpen(false);
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm"
+                                className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3 group"
                             >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4 text-zinc-400 group-hover:text-red-400 transition-colors" />
                                 <span>모든 저장소 초기화</span>
                             </button>
                         )}
 
+                        {/* Profile */}
                         <button
                             onClick={() => {
                                 navigate("/profile/current_user");
                                 setIsOpen(false);
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm"
+                            className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3"
                         >
-                            <User className="w-4 h-4" />
+                            <User className="w-4 h-4 text-zinc-400" />
                             <span>내 프로필</span>
                         </button>
 
-                        <div className="my-1 border-t border-[#2a2b2c]" />
+                        <div className="my-1.5 border-t border-[#2a2b2c]" />
 
+                        {/* Logout */}
                         <button
                             onClick={() => {
                                 onLogout();
                                 setIsOpen(false);
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm"
+                            className="w-full flex items-center px-4 py-2.5 text-[#E3E3E3] hover:bg-[#2a2b2c] transition-colors text-sm gap-3"
                         >
-                            <LogOut className="w-4 h-4" />
+                            <LogOut className="w-4 h-4 text-zinc-400" />
                             <span>로그아웃</span>
                         </button>
                     </div>
                 )}
-
             </div>
 
             {/* Custom Reset Confirmation Modal */}
@@ -282,6 +270,63 @@ export function SettingsMenu({
                                 }`}
                             >
                                 초기화
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Language Help Modal */}
+            {showLanguageHelp && (
+                 <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLanguageHelp(false)}>
+                    <div 
+                        className="w-[480px] bg-[#1e1f20] border border-[#27272a] rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                                <Globe className="w-5 h-5 text-indigo-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white">언어 설정 가이드</h3>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            <div className="bg-[#27272a] rounded-xl p-4 border border-[#3f3f46]">
+                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    Native Language (모국어)
+                                </h4>
+                                <p className="text-sm text-zinc-400 leading-relaxed ml-4">
+                                    상대방의 메시지가 <span className="text-white font-medium">번역되어 표시될 언어</span>입니다.<br/>
+                                    "Korean"으로 설정하면 모든 메시지를 한국어로 볼 수 있습니다.
+                                </p>
+                            </div>
+
+                            <div className="bg-[#27272a] rounded-xl p-4 border border-[#3f3f46]">
+                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                    Target Language (학습 언어)
+                                </h4>
+                                <p className="text-sm text-zinc-400 leading-relaxed ml-4">
+                                    내가 <span className="text-white font-medium">배우고 싶은 언어</span>입니다.<br/>
+                                    AI가 문장 분석 및 학습 팁을 제공할 때 기준이 됩니다.
+                                </p>
+                            </div>
+
+                            <div className="text-sm text-zinc-500 bg-zinc-800/50 p-4 rounded-xl">
+                                <p>
+                                    💡 <span className="font-medium text-zinc-300">Global Chat 상단</span>의 드롭다운 메뉴에서<br/>
+                                    언제든지 설정을 변경할 수 있습니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end mt-6">
+                            <button
+                                onClick={() => setShowLanguageHelp(false)}
+                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-900/20"
+                            >
+                                확인
                             </button>
                         </div>
                     </div>

@@ -30,8 +30,7 @@ interface Conversation {
 interface MainContentProps {
     nativeLang: string;
     targetLang: string | null;
-    setTargetLang: (lang: string) => void;
-    setNativeLang: (lang: string) => void;
+
     currentConversation?: Conversation;
     isTyping: boolean;
     onSendMessage: (content: string, images?: string[]) => Promise<string | void> | void;
@@ -60,8 +59,7 @@ interface MainContentProps {
 export function MainContent({
     nativeLang,
     targetLang,
-    setTargetLang,
-    setNativeLang,
+
     currentConversation,
     isTyping,
     onSendMessage,
@@ -200,32 +198,7 @@ export function MainContent({
                 {/* Right Section: Notifications + Profile Icon */}
                 {user && (
                     <div ref={profileMenuRef} className="flex items-center gap-4 ml-auto relative">
-                        {/* Compact Language Selector */}
-                        <div className="flex items-center gap-1 mr-2">
-                             {/* Native Lang Dropdown */}
-                            <select
-                                value={nativeLang}
-                                onChange={(e) => setNativeLang(e.target.value)}
-                                className="bg-transparent text-zinc-500 text-[10px] font-medium px-1 py-0.5 rounded outline-none cursor-pointer appearance-none text-center hover:text-zinc-300 transition-colors"
-                            >
-                                {['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de'].map((lang) => (
-                                    <option key={lang} value={lang} className="bg-[#1e1f20]">{lang.toUpperCase()}</option>
-                                ))}
-                            </select>
-                            
-                            <span className="text-zinc-600 text-[10px]">→</span>
-                            
-                            {/* Target Lang Dropdown */}
-                            <select
-                                value={targetLang || 'en'}
-                                onChange={(e) => setTargetLang(e.target.value)}
-                                className="bg-transparent text-zinc-400 text-[10px] font-bold px-1 py-0.5 rounded outline-none cursor-pointer appearance-none text-center hover:text-white transition-colors"
-                            >
-                                {['en', 'ko', 'ja', 'zh', 'es', 'fr', 'de'].filter(l => l !== nativeLang).map((lang) => (
-                                    <option key={lang} value={lang} className="bg-[#1e1f20]">{lang.toUpperCase()}</option>
-                                ))}
-                            </select>
-                        </div>
+
 
                         <NotificationsPopover userId={user.uid} />
                         {/* Small profile icon with dropdown */}

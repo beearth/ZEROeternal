@@ -108,13 +108,20 @@ export async function sendMessageToGemini(
   targetLang: string = "en",
   customSystemPrompt?: string
 ): Promise<string> {
-  const defaultPrompt = `
-당신은 'ZERO ETERNAL'의 친절하고 유능한 AI 어시스턴트입니다.
-사용자의 질문에 명확하고 유용한 정보를 제공하며, 항상 예의 바르고 격려하는 태도를 유지하세요.
-기술적인 질문이나 일반적인 대화 모두에 성실하게 답변합니다.
+  const codeSwitchingLogic = `
+[핵심 지침: Code-Switching 응답 모드]
+답변은 한국어로 하되, **어려운 고급 어휘, 전문 용어, 추상적 개념**은 반드시 **${targetLang === 'en' ? '영어(English)' : '학습 언어'} 단어**로 대체하여 자연스럽게 섞어서(Code-switching) 말해주세요.
+별도의 번역문이나 괄호 설명 없이, 문장 속에서 자연스럽게 타겟 언어 어휘를 사용하세요.
+예시: "이 프로젝트의 deadline은 상당히 tight하지만, 우리 team의 synergy를 믿는다면 충분히 feasible합니다."
 `;
 
-  const systemPrompt = customSystemPrompt || defaultPrompt;
+  const defaultPrompt = `
+당신은 'ZERO ETERNAL'의 유능한 AI 어시스턴트입니다.
+친절하고 격려하는 태도로 사용자가 맥락 속에서 자연스럽게 어휘를 익히도록 돕습니다.
+`;
+
+  const basePrompt = customSystemPrompt || defaultPrompt;
+  const systemPrompt = `${basePrompt}\n\n${codeSwitchingLogic}`;
 
 
   // 메시지 포맷 변환 (멀티모달 지원)

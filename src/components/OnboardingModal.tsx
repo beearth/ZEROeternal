@@ -6,20 +6,13 @@ import { useNavigate } from "react-router-dom";
 interface OnboardingModalProps {
     isOpen: boolean;
     onComplete: (nativeLang: string, targetLang: string, contentType: 'free' | 'toeic') => void;
-    onLogout: () => void;
+    onLogout?: () => void;
+    onClose?: () => void;
 }
 
-const LANGUAGES = [
-    { code: "ko", name: "한국어", flag: "🇰🇷" },
-    { code: "en", name: "English", flag: "🇺🇸" },
-    { code: "ja", name: "日本語", flag: "🇯🇵" },
-    { code: "zh", name: "中文", flag: "🇨🇳" },
-    { code: "es", name: "Español", flag: "🇪🇸" },
-    { code: "fr", name: "Français", flag: "🇫🇷" },
-    { code: "de", name: "Deutsch", flag: "🇩🇪" },
-];
+import { LANGUAGES } from "../constants/languages";
 
-export function OnboardingModal({ isOpen, onComplete, onLogout }: OnboardingModalProps) {
+export function OnboardingModal({ isOpen, onComplete, onLogout, onClose }: OnboardingModalProps) {
     const [nativeLang, setNativeLang] = useState("ko");
     const [targetLang, setTargetLang] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
@@ -35,7 +28,11 @@ export function OnboardingModal({ isOpen, onComplete, onLogout }: OnboardingModa
     const handleStart = () => {
         if (targetLang) {
             onComplete(nativeLang, targetLang, 'free');
-            navigate('/');
+            if (onClose) {
+                 onClose();
+            } else {
+                 navigate('/');
+            }
         }
     };
 
@@ -63,14 +60,27 @@ export function OnboardingModal({ isOpen, onComplete, onLogout }: OnboardingModa
                     overflowY: 'auto'
                 }}
             >
-                {/* Logout Button */}
-                <button
-                    onClick={onLogout}
-                    className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
-                    title="로그아웃"
-                >
-                    <LogOut className="w-5 h-5" />
-                </button>
+                {/* Close Button (Only if onClose is provided - Edit Mode) */}
+                {onClose && (
+                     <button
+                        onClick={onClose}
+                        className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                        title="닫기"
+                    >
+                        <ChevronDown className="w-5 h-5 rotate-90" />
+                    </button>
+                )}
+
+                {/* Logout Button (Only if onLogout is provided - Initial Onboarding) */}
+                {onLogout && (
+                    <button
+                        onClick={onLogout}
+                        className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                        title="로그아웃"
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
+                )}
 
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 shadow-sm">

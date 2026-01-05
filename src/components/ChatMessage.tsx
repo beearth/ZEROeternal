@@ -114,8 +114,8 @@ const WordSpan = React.memo(({
           : ""
         } ${isBold ? "font-bold text-blue-300" : ""}`}
       style={{
-        userSelect: "none",
-        WebkitUserSelect: "none",
+        userSelect: "text",
+        WebkitUserSelect: "text",
         touchAction: "manipulation",
         ...styleInfo.style,
         backgroundColor: holdingBg,
@@ -210,7 +210,7 @@ const processPart = (part: string) => {
     return { isValid: false, finalWord: '', wordKey: '', isBold: false };
   }
   const finalWord = cleanedPart.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-  if (!finalWord || finalWord.length < 2) {
+  if (!finalWord || finalWord.length < 1) { // Allow length 1 words (e.g. "I", "a", Korean syllables)
     return { isValid: false, finalWord: '', wordKey: '', isBold: false };
   }
   return { isValid: true, finalWord, wordKey: finalWord.toLowerCase(), isBold };
@@ -251,7 +251,12 @@ export function ChatMessage({
 
   const performTranslation = useCallback(async () => {
     // Basic guards
+    // [OPTIMIZATION] Disabled auto-translation to save API usage
+    return; 
+    
+    /*
     if (isTranslating || !message.content || isTyping) return;
+    
     
     const target = targetLang || 'en';
     // Create a unique signature for this translation request
@@ -287,6 +292,7 @@ export function ChatMessage({
     } finally {
         setIsTranslating(false);
     }
+    */
   }, [message.content, message.id, targetLang, onUpdateTranslation, isTranslating, isTyping]);
 
   // Single Effect to trigger translation
@@ -298,8 +304,8 @@ export function ChatMessage({
     if (timeSinceCreated > 600000) return; 
 
     // Debounce slightly to prevent flicker
-    const timer = setTimeout(performTranslation, 500);
-    return () => clearTimeout(timer);
+    // const timer = setTimeout(performTranslation, 500);
+    // return () => clearTimeout(timer);
   }, [isTyping, message.content, message.timestamp, targetLang, performTranslation]); // targetLang dependency is key!
 
   const [radialMenu, setRadialMenu] = useState<{
@@ -385,7 +391,7 @@ export function ChatMessage({
     const cleanWord = cleanMarkdown(word);
     if (!isMeaningfulWord(word)) return;
     const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-    if (!finalWord || finalWord.length < 2) return;
+    if (!finalWord || finalWord.length < 1) return;
 
     const now = Date.now();
     // Check for "Click + Hold" Coupling
@@ -736,13 +742,10 @@ export function ChatMessage({
   const messageProcessedParts = useMemo(() => {
       if (!message.content) return [];
       return getSegments(message.content).map(part => {
-          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
-          const hasEnglish = /[a-zA-Z]/.test(part);
-          const shouldDisable = hasKorean && !hasEnglish;
           const { isValid, finalWord, wordKey, isBold } = processPart(part); // Heavy Regex
           const displayPart = cleanMarkdown(part, false); // Regex
           
-          return { part, isValid, finalWord, wordKey, isBold, shouldDisable, displayPart };
+          return { part, isValid, finalWord, wordKey, isBold, shouldDisable: false, displayPart };
       });
   }, [message.content]);
 
@@ -756,12 +759,9 @@ export function ChatMessage({
     
     // Use precomputed parts if available, otherwise calculate on the fly (Legacy/Translation path)
     const items = precomputedParts || getSegments(text).map(part => {
-          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
-          const hasEnglish = /[a-zA-Z]/.test(part);
-          const shouldDisable = hasKorean && !hasEnglish;
           const { isValid, finalWord, wordKey, isBold } = processPart(part);
           const displayPart = cleanMarkdown(part, false);
-          return { part, isValid, finalWord, wordKey, isBold, shouldDisable, displayPart };
+          return { part, isValid, finalWord, wordKey, isBold, shouldDisable: false, displayPart };
     });
 
     return items.map((item, partIndex) => {
@@ -829,12 +829,9 @@ export function ChatMessage({
       if (!text) return 0;
       const parts = getSegments(text);
       return parts.reduce((count, part) => {
-          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(part);
-          const hasEnglish = /[a-zA-Z]/.test(part);
-          const shouldDisable = hasKorean && !hasEnglish;
           const { isValid } = processPart(part);
           
-          if (!isValid || shouldDisable) return count;
+          if (!isValid) return count;
           return count + 1;
       }, 0);
   }, []);

@@ -34,6 +34,7 @@ interface SidebarProps {
   onToggleAutoTTS?: () => void;
   vocabCount?: number;
   onOpenQuiz?: () => void;
+  onOpenLanguageSettings?: () => void;
 }
 
 
@@ -60,7 +61,8 @@ export function Sidebar({
   isAutoTTS = false,
   onToggleAutoTTS,
   vocabCount = 0,
-  onOpenQuiz
+  onOpenQuiz,
+  onOpenLanguageSettings
 }: SidebarProps) {
 
 
@@ -508,6 +510,7 @@ export function Sidebar({
               onToggleAutoTTS={onToggleAutoTTS}
               vocabularyCount={vocabCount}
               isCollapsed={isDesktop && !isOpen}
+              onOpenLanguageSettings={onOpenLanguageSettings}
             />
 
 
