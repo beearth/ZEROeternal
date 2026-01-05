@@ -425,12 +425,12 @@ export function Sidebar({
               className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
             >
               <div className="w-10 flex items-center justify-center flex-shrink-0">
-                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] ${learningMode === 'language' ? 'bg-blue-500 shadow-blue-500/50' : 'bg-red-600 shadow-red-600/50'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] bg-red-600 shadow-red-600/50`} />
               </div>
               {!(isDesktop && !isOpen) && (
                 <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
                   <span className="text-sm font-medium whitespace-nowrap truncate">
-                    {learningMode === 'language' ? 'Word Room' : 'Red Room'}
+                    Red Room
                   </span>
                   {counts.red > 0 && (
                     <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded ml-2">
