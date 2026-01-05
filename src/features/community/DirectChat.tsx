@@ -192,7 +192,7 @@ export function DirectChat({ user }: DirectChatProps) {
                         placeholder="메시지 입력..."
                         className="flex-1 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
                     />
-                    <Button onClick={handleSendMessage} disabled={!msgInput.trim()} size="icon" className="bg-blue-600 hover:bg-blue-700">
+                    <Button onClick={handleSendMessage} disabled={!msgInput.trim()} size="icon" className="bg-red-600 hover:bg-red-700">
                         <Send className="h-4 w-4" />
                     </Button>
                 </div>

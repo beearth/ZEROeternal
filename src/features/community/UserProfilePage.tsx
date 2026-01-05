@@ -484,9 +484,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                                 toast.error(`팔로우 실패: ${error.message || "알 수 없는 오류"}`);
                                             }
                                         }}
-                                        className={`h-11 px-8 font-black text-lg border-[3px] border-blue-500 shadow-sm transition-all rounded-xl ${isFollowing
+                                        className={`h-11 px-8 font-black text-lg border-[3px] border-red-500 shadow-sm transition-all rounded-xl ${isFollowing
                                             ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                            : 'bg-red-600 hover:bg-red-700 text-white'
                                             }`}
                                     >
                                         {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
@@ -505,7 +505,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                                 }
                                             });
                                         }}
-                                        className="w-11 h-11 p-0 rounded-full border-[3px] border-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center justify-center"
+                                        className="w-11 h-11 p-0 rounded-full border-[3px] border-red-500 bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center justify-center"
                                     >
                                         <Mail className="w-6 h-6 stroke-[2.5]" />
                                     </Button>
@@ -603,7 +603,7 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                             </button>
                             <button
                                 onClick={handleSaveBio}
-                                className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                className="px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-lg hover:bg-red-700"
                             >
                                 저장
                             </button>

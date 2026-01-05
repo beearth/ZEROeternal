@@ -773,7 +773,7 @@ export function GlobalChatRoom({
                     <Button
                         onClick={() => handleSendMessage()}
                         disabled={!inputValue.trim() || isSending}
-                        className="h-11 w-11 rounded-full bg-blue-600 hover:bg-blue-700 p-0 flex items-center justify-center shadow-md"
+                        className="h-11 w-11 rounded-full bg-red-600 hover:bg-red-700 p-0 flex items-center justify-center shadow-md"
                     >
                         {isSending ? (
                             <RefreshCw className="w-5 h-5 animate-spin text-white" />
