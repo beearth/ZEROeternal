@@ -1,0 +1,18 @@
+﻿{
+  "status": "success",
+  "result": {
+    "fileName": "firebase-js-config.json",
+    "fileContents": "{\n  \"projectId\": \"signal-voca-93bb9\",\n  \"appId\": \"1:705714352680:web:5675eaa50ae951f3057b1d\",\n  \"storageBucket\": \"signal-voca-93bb9.firebasestorage.app\",\n  \"apiKey\": \"AIzaSyBVKwSbL1woBY0cQGjcgOXVlQ1czEgpFc8\",\n  \"authDomain\": \"signal-voca-93bb9.firebaseapp.com\",\n  \"messagingSenderId\": \"705714352680\",\n  \"measurementId\": \"G-Q55CVDLHLN\",\n  \"projectNumber\": \"705714352680\",\n  \"version\": \"2\"\n}",
+    "sdkConfig": {
+      "projectId": "signal-voca-93bb9",
+      "appId": "1:705714352680:web:5675eaa50ae951f3057b1d",
+      "storageBucket": "signal-voca-93bb9.firebasestorage.app",
+      "apiKey": "AIzaSyBVKwSbL1woBY0cQGjcgOXVlQ1czEgpFc8",
+      "authDomain": "signal-voca-93bb9.firebaseapp.com",
+      "messagingSenderId": "705714352680",
+      "measurementId": "G-Q55CVDLHLN",
+      "projectNumber": "705714352680",
+      "version": "2"
+    }
+  }
+}

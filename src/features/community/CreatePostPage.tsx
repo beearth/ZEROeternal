@@ -82,9 +82,13 @@ export function CreatePostPage({ onSubmit, user }: CreatePostPageProps) {
         } catch (error: any) {
             console.error("게시글 저장 실패:", error);
             toast.dismiss(loadingToast);
-            toast.error(`업로드 실패: ${error.message}`);
+            
+            // Extract cleaner error message
+            const errorMsg = error.message || "알 수 없는 오류가 발생했습니다.";
+            toast.error(`업로드 실패: ${errorMsg}`);
+            
             // Explicit Alert for the user to see the exact error
-            alert(`게시글 업로드 중 오류가 발생했습니다.\n\n원인: ${error.message}\n\nFirebase 설정이나 권한을 확인해주세요.`);
+            alert(`게시글 업로드 중 오류가 발생했습니다.\n\n원인: ${errorMsg}\n\n시스템 설정(CORS, 파이어베이스 권한 등)을 확인해주세요.`);
         }
     };
 

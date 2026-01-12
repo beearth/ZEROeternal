@@ -235,16 +235,23 @@ export default function App() {
     const cleaned = cleanMarkdown(text);
     if (!cleaned) return "";
 
-    // 공백이나 문장부호로 분리하여 첫 번째 단어만 추출
+    // 1. 공백이나 문장부호로 분리하여 첫 번째 단어만 추출
     const words = cleaned.split(/[\s\n.,?!;:()\[\]{}"'`]+/).filter(w => w.length > 0);
 
-    // 유효한 단어인지 확인 (숫자로 시작하고 하이픈이 포함된 토큰 제외)
     if (words.length > 0) {
       const candidate = words[0];
-      // "17645250569 2-start" 같은 패턴 필터링 (숫자+하이픈+문자)
-      if (/^\d+-[a-zA-Z]+/.test(candidate) || /^\d+\s+\d+-[a-zA-Z]+/.test(candidate)) {
+      
+      // 2. [SAFETY] 기술적 ID 필터링 (숫자와 하이픈이 섞인 패턴)
+      // 예: "1764821232073-58-english"
+      if (/^\d{10,}/.test(candidate) || /^\d+-[a-zA-Z0-9]+-/.test(candidate) || /^[0-9a-f]{8,}-[0-9a-f]{4,}/.test(candidate)) {
         return "";
       }
+
+      // 3. 문장 필터링: 띄어쓰기가 일정 횟수 이상이면 문장으로 간주
+      if (cleaned.split(' ').filter(Boolean).length > 4 || cleaned.length > 40) {
+        return ""; // Too long/complex to be a "word"
+      }
+
       return candidate;
     }
 
@@ -680,10 +687,17 @@ export default function App() {
       const process = (list: any[], status: any) => {
         (list || []).forEach(item => {
           const wordText = typeof item === 'string' ? item : item.word;
+          
+          // [SAFETY] Dirty data filter for stacks
+          if (!wordText || typeof wordText !== 'string') return;
+          if (/^\d{10,}/.test(wordText) || wordText.length > 50) return;
+
           // Fix: Handle phrases (preserve spaces) vs single words
           let clean = "";
-          if (wordText && typeof wordText === 'string' && wordText.includes(' ')) {
+          if (wordText && wordText.includes(' ')) {
             clean = cleanMarkdown(wordText).trim();
+            // If it's too long, it's a sentence, don't put in word stacks
+            if (clean.split(' ').length > 4) return;
           } else {
             clean = extractCleanWord(wordText);
           }
@@ -797,6 +811,52 @@ export default function App() {
 
     return () => unsubscribe();
   }, [user?.uid]);
+
+  // [CLEANUP] Single-source truth purification & dirty data removal
+  useEffect(() => {
+    if (!isDataLoaded || !user) return;
+    
+    // 이펙트는 세션당 한 번만 수행하도록 체크 (또는 데이터 변경 시 정밀 수행)
+    const runCleanup = async () => {
+        let hasChanges = false;
+        const newVocab = { ...userVocabulary };
+        const newSentences = [...sentenceStack];
+
+        Object.entries(newVocab).forEach(([key, entry]) => {
+            // 1. 기술적 ID 거르기
+            const isTechnicalId = /^\d{10,}/.test(key) || /^[0-9a-f]{8,}-[0-9a-f]{4,}/.test(key);
+            
+            // 2. 너무 긴 문장이 단어장에 들어있는 경우
+            const isSentence = key.split(' ').length > 5 || key.length > 60;
+
+            if (isTechnicalId || isSentence) {
+                console.log(`[Purify] Removing dirty entry: ${key}`);
+                
+                // 만약 문장이라면 문장 보관소로 이동 (중복 체크)
+                if (isSentence && !isTechnicalId && !newSentences.includes(key)) {
+                    newSentences.push(key);
+                }
+                
+                delete newVocab[key];
+                hasChanges = true;
+                
+                // Firestore에서도 즉시 삭제 (Atomic)
+                deleteWordFromDB(user.uid, key);
+            }
+        });
+
+        if (hasChanges) {
+            setUserVocabulary(newVocab);
+            setSentenceStack(newSentences);
+            saveUserStackField(user.uid, "sentences", newSentences);
+            toast.info("단어장이 정제되었습니다. (기술 데이터 제거)");
+        }
+    };
+
+    // 로딩 완료 후 2초 뒤에 백그라운드에서 한 번 수행
+    const timer = setTimeout(runCleanup, 2000);
+    return () => clearTimeout(timer);
+  }, [isDataLoaded, user?.uid]);
 
   // Firebase 인증 상태 감지 및 단어장 동기화
   useEffect(() => {

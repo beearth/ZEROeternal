@@ -118,6 +118,12 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
                 ...(wordState > 0 ? styleInfo.style : {})
             }}
             // @ts-ignore
+            onPointerDown={(e) => {
+                // Store cursor position for sentence extraction
+                (window as any).lastClickOffset = fullSentence.indexOf(part, (window as any)._lastSearchIndex || 0);
+                (window as any)._lastSearchIndex = (window as any).lastClickOffset + part.length;
+            }}
+            // @ts-ignore
             onSelectStart={(e) => e.preventDefault()}
         >
             {part}
@@ -180,13 +186,15 @@ export function GlobalChatRoom({
         selectedWord: string | null;
         selectedMessageId: string | null;
         fullSentence: string | null;
-        selectedWordData?: { word: string; messageId: string; fullSentence: string }; // Compatible
+        startOffset: number;
+        selectedWordData?: { word: string; messageId: string; fullSentence: string; startOffset: number }; // Compatible
     }>({
         showRadialMenu: false,
         menuPosition: { x: 0, y: 0 },
         selectedWord: null,
         selectedMessageId: null,
-        fullSentence: null
+        fullSentence: null,
+        startOffset: 0
     });
 
     const [studyTip, setStudyTip] = useState<string | null>(null);
@@ -453,6 +461,9 @@ export function GlobalChatRoom({
 
         const cleanWord = cleanMarkdown(word);
         const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
+        
+        // Retrieve the offset captured in onPointerDown
+        const offset = (window as any).lastClickOffset || 0;
 
         setRadialMenu({
             showRadialMenu: true,
@@ -460,7 +471,8 @@ export function GlobalChatRoom({
             selectedWord: finalWord,
             selectedMessageId: messageId,
             fullSentence,
-            selectedWordData: { word: finalWord, messageId, fullSentence }
+            startOffset: offset,
+            selectedWordData: { word: finalWord, messageId, fullSentence, startOffset: offset }
         });
     }, []);
 
@@ -473,19 +485,33 @@ export function GlobalChatRoom({
         switch (option) {
             case "sentence":
                 if (onSaveSentence) {
-                    // 1. Try to get user selection first (High Priority)
+                    // Handle selected text if available
                     const selection = window.getSelection()?.toString().trim();
                     if (selection && selection.length > 5) {
                         onSaveSentence(selection);
-                        toast.success("선택한 문장이 저장되었습니다.");
-                    } else {
-                        // 2. If no selection, try to extract the specific sentence containing the word
-                        // Current `fullSentence` is usually the entire message content
-                        const sentences = fullSentence.match(/[^.!?]+[.!?]+/g) || [fullSentence];
-                        const targetSentence = sentences.find(s => s.toLowerCase().includes(word.toLowerCase()))?.trim() || fullSentence;
+                        toast.success(`선택한 문장이 저장되었습니다.`);
+                        return;
+                    }
 
-                        onSaveSentence(targetSentence);
-                        toast.success(targetSentence === fullSentence ? "문장(전체)이 저장되었습니다." : "문장이 저장되었습니다.");
+                    const targetOffset = selectedWordData.startOffset || 0;
+                    
+                    // Improved boundary detection for sentences and list items
+                    const beforeText = fullSentence.substring(0, targetOffset);
+                    const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
+                    const start = startMatch ? startMatch.index + startMatch[0].length : 0;
+                    
+                    const afterText = fullSentence.substring(targetOffset);
+                    const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
+                    const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullSentence.length;
+                    
+                    let foundSentence = fullSentence.substring(start, end).trim();
+
+                    if (foundSentence) {
+                        onSaveSentence(foundSentence);
+                        toast.success(`문장이 저장되었습니다.`);
+                    } else {
+                        onSaveSentence(fullSentence.trim());
+                        toast.success(`문장이 저장되었습니다.`);
                     }
                 } else {
                     toast.error("문장 저장 기능을 사용할 수 없습니다.");
@@ -583,6 +609,8 @@ export function GlobalChatRoom({
                     const status = globalEntry
                         ? globalEntry.status
                         : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
+
+                    if (index === 0) (window as any)._lastSearchIndex = 0;
 
                     // Debug Log for "Community" or similar
                     if (wordKey === "community") {

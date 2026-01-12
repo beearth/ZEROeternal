@@ -1,231 +1,185 @@
-import { supabase } from '../supabase';
+import { db } from '../firebase';
+import { 
+    collection, 
+    addDoc, 
+    query, 
+    orderBy, 
+    onSnapshot, 
+    serverTimestamp, 
+    deleteDoc, 
+    doc, 
+    updateDoc,
+    arrayUnion,
+    arrayRemove,
+    getDoc,
+    Timestamp,
+    getDocs
+} from "firebase/firestore";
 
-// Type definition matching our Supabase table structure
+// Type definition matching our Firestore structure
 export interface Post {
     id?: string;
-    author_id: string;
+    authorId: string;
     content: string;
-    image_url?: string;
-    user_info: {
+    image?: string;
+    user: {
         name: string;
         avatar: string;
         location: string;
         flag: string;
         targetLang?: string;
     };
-    likes_count: number;
-    reposts_count: number;
-    liked_by: string[];
-    reposted_by: string[];
+    likes: number;
+    reposts: number;
+    likedBy: string[];
+    repostedBy: string[];
     comments: any[];
-    created_at?: string;
+    createdAt?: any;
 }
 
 // Alias for backward compatibility
 export type FirestorePost = Post;
 
-// 1. Create Post (with seamless Image Upload)
+const COLLECTION_NAME = 'posts';
+
+// 1. Create Post
 export const createPost = async (postData: any, imageFileOrBase64?: File | string) => {
     try {
-        let finalImageUrl = '';
-
-        // Handle Image Upload
-        if (imageFileOrBase64 instanceof File) {
-            // Unique file name
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
-            const filePath = `posts/${fileName}`;
-
-            // Upload to Supabase Storage ('images' bucket)
-            const { data, error } = await supabase.storage
-                .from('images')
-                .upload(filePath, imageFileOrBase64);
-
-            if (error) throw error;
-
-            // Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('images')
-                .getPublicUrl(filePath);
-
-            finalImageUrl = publicUrl;
-
-        } else if (typeof imageFileOrBase64 === 'string' && imageFileOrBase64.startsWith('data:')) {
-            // If base64 comes in (rare in Supabase, but handle it), upload as file
-            // Convert Base64 to Blob
-            const res = await fetch(imageFileOrBase64);
-            const blob = await res.blob();
-            const fileName = `${Date.now()}_base64.jpg`;
-
-            const { error } = await supabase.storage
-                .from('images')
-                .upload(`posts/${fileName}`, blob);
-
-            if (error) throw error;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('images')
-                .getPublicUrl(`posts/${fileName}`);
-
-            finalImageUrl = publicUrl;
-        } else if (postData.image && postData.image.startsWith('http')) {
-            finalImageUrl = postData.image;
-        }
-
-        // Insert into DB
-        const { error: dbError } = await supabase
-            .from('posts')
-            .insert({
-                author_id: postData.authorId,
-                content: postData.content,
-                image_url: finalImageUrl,
-                user_info: postData.user, // Store JSON
-                likes_count: 0,
-                reposts_count: 0,
-                liked_by: [],
-                reposted_by: [],
-                comments: []
-            });
-
-        if (dbError) throw dbError;
-        console.log("Post created in Supabase!");
-
+        // Note: For now, we use the imageUrl directly as passed in postData.image
+        // Storage upload logic can be added later if needed via firebase/storage
+        
+        const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+            authorId: postData.authorId,
+            content: postData.content,
+            image: postData.image || '',
+            user: postData.user,
+            likes: 0,
+            reposts: 0,
+            likedBy: [],
+            repostedBy: [],
+            comments: [],
+            createdAt: serverTimestamp()
+        });
+        
+        console.log("Post created in Firestore with ID:", docRef.id);
+        return docRef.id;
     } catch (error) {
-        console.error("Error creating post (Supabase):", error);
+        console.error("Error creating post (Firestore):", error);
         throw error;
     }
 };
 
 // 2. Real-time Subscription
 export const subscribeToPosts = (callback: (posts: any[]) => void) => {
-    // 1. Initial Fetch
-    const fetchPosts = async () => {
-        const { data, error } = await supabase
-            .from('posts')
-            .select('*')
-            .order('created_at', { ascending: false });
+    const q = query(
+        collection(db, COLLECTION_NAME),
+        orderBy("createdAt", "desc")
+    );
 
-        if (data) {
-            const formattedPosts = data.map(formatPostForUI);
-            callback(formattedPosts);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const posts = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                authorId: data.authorId,
+                content: data.content,
+                image: data.image,
+                user: data.user,
+                likes: data.likes || 0,
+                reposts: data.reposts || 0,
+                likedBy: data.likedBy || [],
+                repostedBy: data.repostedBy || [],
+                comments: data.comments || [],
+                createdAt: data.createdAt instanceof Timestamp 
+                    ? data.createdAt.toDate().toISOString() 
+                    : new Date().toISOString()
+            };
+        });
+        callback(posts);
+    }, (error) => {
+        console.error("Firestore subscription error:", error);
+        // Fallback for missing index error
+        if (error.message.includes("index")) {
+            console.warn("Firestore index missing. Retrying without orderBy.");
+            const fallbackQ = query(collection(db, COLLECTION_NAME));
+            onSnapshot(fallbackQ, (snapshot) => {
+                const posts = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        createdAt: data.createdAt instanceof Timestamp 
+                            ? data.createdAt.toDate().toISOString() 
+                            : new Date().toISOString()
+                    } as any;
+                });
+                callback(posts);
+            });
         }
-    };
+    });
 
-    fetchPosts();
-
-    // 2. Real-time Listener (Postgres Changes)
-    const channel = supabase
-        .channel('public:posts')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
-            console.log('Change received!', payload);
-            fetchPosts(); // Simply re-fetch for simplicity (MVP)
-        })
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
+    return unsubscribe;
 };
-
-// Helper to format Supabase DB row to UI Post object
-const formatPostForUI = (row: any) => ({
-    id: row.id,
-    authorId: row.author_id,
-    content: row.content,
-    image: row.image_url, // Changed from imageUrl to image
-    user: row.user_info,
-    likes: row.likes_count,
-    reposts: row.reposts_count,
-    likedBy: row.liked_by || [],
-    repostedBy: row.reposted_by || [],
-    comments: row.comments || [],
-    createdAt: row.created_at
-});
 
 // 3. Delete Post
 export const deletePost = async (postId: string) => {
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-    if (error) throw error;
+    await deleteDoc(doc(db, COLLECTION_NAME, postId));
 };
 
 // 4. Toggle Like
 export const toggleLike = async (postId: string, userId: string, isLiked: boolean) => {
-    // We need to fetch current array first or use a Postgres function
-    // For MVP, simple fetch-update strategy (Optimistic UI handled in component)
-
-    // Actually, let's just use RPC or simple update if we can
-    // Supabase doesn't have array_union/remove seamlessly in JS client without raw SQL call often
-    // Let's do: Fetch -> Modify -> Update
-
-    const { data: post } = await supabase.from('posts').select('liked_by, likes_count').eq('id', postId).single();
-    if (!post) return;
-
-    let newLikedBy = post.liked_by || [];
-    let newCount = post.likes_count;
-
+    const postRef = doc(db, COLLECTION_NAME, postId);
+    
     if (isLiked) {
         // Unlike
-        newLikedBy = newLikedBy.filter((id: string) => id !== userId);
-        newCount = Math.max(0, newCount - 1);
+        await updateDoc(postRef, {
+            likedBy: arrayRemove(userId),
+            likes: (await getDoc(postRef)).data()?.likes - 1 || 0
+        });
     } else {
         // Like
-        if (!newLikedBy.includes(userId)) {
-            newLikedBy.push(userId);
-            newCount++;
-        }
+        await updateDoc(postRef, {
+            likedBy: arrayUnion(userId),
+            likes: (await getDoc(postRef)).data()?.likes + 1 || 1
+        });
     }
-
-    await supabase
-        .from('posts')
-        .update({ liked_by: newLikedBy, likes_count: newCount })
-        .eq('id', postId);
 };
 
 // 5. Add Comment
 export const addCommentToPost = async (postId: string, comment: any) => {
-    const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
-    if (!post) return;
-
-    const newComments = [...(post.comments || []), comment];
-
-    await supabase
-        .from('posts')
-        .update({ comments: newComments })
-        .eq('id', postId);
+    const postRef = doc(db, COLLECTION_NAME, postId);
+    await updateDoc(postRef, {
+        comments: arrayUnion(comment)
+    });
 };
 
 // 6. Toggle Repost
 export const toggleRepost = async (postId: string, userId: string, isReposted: boolean) => {
-    const { data: post } = await supabase.from('posts').select('reposted_by, reposts_count').eq('id', postId).single();
-    if (!post) return;
-
-    let newRepostedBy = post.reposted_by || [];
-    let newCount = post.reposts_count;
-
+    const postRef = doc(db, COLLECTION_NAME, postId);
+    
     if (isReposted) {
-        newRepostedBy = newRepostedBy.filter((id: string) => id !== userId);
-        newCount = Math.max(0, newCount - 1);
+        await updateDoc(postRef, {
+            repostedBy: arrayRemove(userId),
+            reposts: (await getDoc(postRef)).data()?.reposts - 1 || 0
+        });
     } else {
-        if (!newRepostedBy.includes(userId)) {
-            newRepostedBy.push(userId);
-            newCount++;
-        }
+        await updateDoc(postRef, {
+            repostedBy: arrayUnion(userId),
+            reposts: (await getDoc(postRef)).data()?.reposts + 1 || 1
+        });
     }
-
-    await supabase
-        .from('posts')
-        .update({ reposted_by: newRepostedBy, reposts_count: newCount })
-        .eq('id', postId);
 };
 
 // 7. Delete Comment
 export const deleteCommentFromPost = async (postId: string, commentId: string) => {
-    const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
-    if (!post) return;
+    const postRef = doc(db, COLLECTION_NAME, postId);
+    const postDoc = await getDoc(postRef);
+    if (!postDoc.exists()) return;
 
-    const newComments = (post.comments || []).filter((c: any) => c.id !== commentId);
+    const comments = postDoc.data().comments || [];
+    const updatedComments = comments.filter((c: any) => c.id !== commentId);
 
-    await supabase
-        .from('posts')
-        .update({ comments: newComments })
-        .eq('id', postId);
+    await updateDoc(postRef, {
+        comments: updatedComments
+    });
 };

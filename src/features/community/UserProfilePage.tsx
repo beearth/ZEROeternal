@@ -6,9 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Button } from "../../components/ui/button";
 import { PostCard, Comment } from './PostCard';
 import { User, updateProfile } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { auth, db, storage } from '../../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from "../../services/toast";
-import { supabase } from '../../supabase';
 import {
     getUserProfile, updateUserProfileData, subscribeToUserProfile,
     toggleFollowUser
@@ -193,7 +193,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         // Double Safety: Overlay State Data if the chosen source is missing critical fields
         avatar: (displaySource.avatar) ? displaySource.avatar : (stateUserProfile?.avatar || ''),
         flag: (displaySource.flag && displaySource.flag !== '🏳️') ? displaySource.flag : (stateUserProfile?.flag || '🏳️'),
-        name: (displaySource.name && displaySource.name !== 'Unknown User') ? displaySource.name : (stateUserProfile?.name || 'Unknown User')
+        name: (displaySource.name && !/Unknown (User|Name)/i.test(displaySource.name)) 
+            ? displaySource.name 
+            : (currentUser?.displayName || currentUser?.email?.split('@')[0] || stateUserProfile?.name || 'Unknown User')
     };
 
     // State for Posts from Firestore
@@ -228,6 +230,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editName, setEditName] = useState(selectedUser.name);
     const [editAvatar, setEditAvatar] = useState(selectedUser.avatar);
+    const [editLocation, setEditLocation] = useState(selectedUser.location);
+    const [editFlag, setEditFlag] = useState(selectedUser.flag);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     // Sync state with selectedUser when it changes (e.g. after fetch)
@@ -273,34 +278,33 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
     const handleSaveProfile = async () => {
         if (isCurrentUser && currentUser) {
+            if (isSubmitting) return;
+            setIsSubmitting(true);
+            const mainToastId = toast.loading("프로필 정보를 저장하는 중...");
             try {
                 let finalAvatarUrl = editAvatar;
 
-                // 1. If Avatar is Base64, upload to Supabase Storage first
+                // 1. If Avatar is Base64, upload to Firebase Storage first
                 if (editAvatar && editAvatar.startsWith('data:')) {
-                    const toastId = toast.loading("이미지 업로드 중...");
-                    const blob = dataURLtoBlob(editAvatar);
-                    const fileName = `avatars/${currentUser.uid}_${Date.now()}.jpg`;
+                    const uploadToastId = toast.loading("이미지 업로드 중...");
+                    try {
+                        const blob = dataURLtoBlob(editAvatar);
+                        const fileName = `avatars/${currentUser.uid}_${Date.now()}.jpg`;
+                        const storageRef = ref(storage, fileName);
 
-                    // Upload
-                    const { error: uploadError } = await supabase.storage
-                        .from('images')
-                        .upload(fileName, blob, { upsert: true });
+                        // Upload
+                        const uploadResult = await uploadBytes(storageRef, blob);
+                        const publicUrl = await getDownloadURL(uploadResult.ref);
 
-                    if (uploadError) {
+                        finalAvatarUrl = publicUrl;
+                        setEditAvatar(publicUrl); // Update state for UI
+                        toast.dismiss(uploadToastId);
+                    } catch (uploadError: any) {
                         console.error("Avatar upload failed:", uploadError);
-                        toast.dismiss(toastId);
-                        throw new Error("이미지 업로드 실패");
+                        toast.dismiss(uploadToastId);
+                        toast.error("이미지 업로드에 실패했습니다(CORS/권한). 이름과 소개만 먼저 저장합니다.");
+                        // DO NOT throw, continue with name update
                     }
-
-                    // Get Public URL
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('images')
-                        .getPublicUrl(fileName);
-
-                    finalAvatarUrl = publicUrl;
-                    setEditAvatar(publicUrl); // Update state for UI
-                    toast.dismiss(toastId);
                 }
 
                 // 2. Firebase Auth Update (Global)
@@ -322,14 +326,18 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                 await updateUserProfileData(currentUser.uid, {
                     name: editName,
                     avatar: finalAvatarUrl,
-                    location: selectedUser.location,
-                    flag: selectedUser.flag
+                    location: editLocation,
+                    flag: editFlag
                 });
 
+                toast.dismiss(mainToastId);
                 toast.success("프로필이 성공적으로 업데이트되었습니다!");
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Profile update failed:", error);
-                toast.error("프로필 업데이트 실패: 잠시 후 다시 시도해주세요.");
+                toast.dismiss(mainToastId);
+                toast.error(`프로필 업데이트 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
+            } finally {
+                setIsSubmitting(false);
             }
         } else {
             // Fallback for non-auth users (Mock mode) - store locally
@@ -535,27 +543,72 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
             {/* User Info */}
             <div className="mt-6 ml-4 space-y-1">
                 {isEditingProfile ? (
-                    <div className="flex items-center gap-2">
-                        <input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="text-2xl font-black text-white border-b-2 border-zinc-600 focus:border-blue-500 focus:outline-none bg-transparent w-48"
-                        />
-                        <button onClick={handleSaveProfile} className="p-1 hover:bg-green-900/30 rounded-full text-green-500">
-                            <Check className="w-5 h-5" />
-                        </button>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                            <input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="text-2xl font-black text-white border-b-2 border-zinc-600 focus:border-blue-500 focus:outline-none bg-transparent w-48"
+                                placeholder="이름"
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <input
+                                value={editFlag}
+                                onChange={(e) => setEditFlag(e.target.value)}
+                                className="text-xl bg-transparent border-b border-zinc-700 w-12 text-center"
+                                placeholder="🚩"
+                                disabled={isSubmitting}
+                            />
+                            <input
+                                value={editLocation}
+                                onChange={(e) => setEditLocation(e.target.value)}
+                                className="text-sm font-bold text-zinc-400 border-b border-zinc-700 bg-transparent w-32"
+                                placeholder="위치"
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                            <Button 
+                                onClick={handleSaveProfile} 
+                                disabled={isSubmitting}
+                                className="bg-blue-600 hover:bg-blue-700 h-8 text-xs px-4"
+                            >
+                                {isSubmitting ? "저장 중..." : "저장"}
+                            </Button>
+                            <Button 
+                                onClick={() => setIsEditingProfile(false)} 
+                                variant="outline"
+                                disabled={isSubmitting}
+                                className="h-8 text-xs px-4 border-zinc-700"
+                            >
+                                취소
+                            </Button>
+                        </div>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-3xl font-black text-white tracking-tight">@{postUser.name || 'Unknown User'}</h2>
-                        {isCurrentUser && (
-                            <button
-                                onClick={() => { setIsEditingProfile(true); setEditName(postUser.name); }}
-                                className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-full transition-colors"
-                            >
-                                <Pencil className="w-4 h-4" />
-                            </button>
-                        )}
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-3xl font-black text-white tracking-tight">@{postUser.name || 'Unknown User'}</h2>
+                            {isCurrentUser && (
+                                <button
+                                    onClick={() => { 
+                                        setIsEditingProfile(true); 
+                                        setEditName(postUser.name);
+                                        setEditLocation(postUser.location);
+                                        setEditFlag(postUser.flag);
+                                    }}
+                                    className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-full transition-colors"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <span className="text-xl">{postUser.flag || '🚩'}</span>
+                             <span className="text-sm font-bold text-zinc-400">{postUser.location}</span>
+                        </div>
                     </div>
                 )}
                 <p className="text-base text-zinc-500 font-bold">{postUser.joinDate}</p>

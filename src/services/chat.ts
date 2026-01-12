@@ -52,7 +52,7 @@ export const deleteMessage = async (messageId: string) => {
 export const subscribeToMessages = (callback: (messages: any[]) => void) => {
     const q = query(
         collection(db, COLLECTION_NAME),
-        // orderBy("created_at", "asc"), // Removed to avoid Index Error
+        orderBy("created_at", "asc"),
         limit(100)
     );
 

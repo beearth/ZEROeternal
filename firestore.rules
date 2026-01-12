@@ -33,5 +33,11 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.sender_id;
     }
+
+    // Notifications: Only recipient can read, anyone authenticated can create
+    match /notifications/{notifId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.recipientId;
+      allow create: if request.auth != null;
+    }
   }
 }

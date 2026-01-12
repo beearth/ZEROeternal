@@ -640,22 +640,19 @@ export function ChatMessage({
         if (onSaveSentence && finalWord && finalWord.length >= 2) {
           const fullText = message.content;
           const targetOffset = startOffset;
-          const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
-          const parts = fullText.split(sentenceRegex);
-          let currentPos = 0;
-          let foundSentence = "";
+          
+          // Improved boundary detection for sentences and list items
+          const beforeText = fullText.substring(0, targetOffset);
+          const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
+          const start = startMatch ? startMatch.index + startMatch[0].length : 0;
+          
+          const afterText = fullText.substring(targetOffset);
+          const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
+          const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullText.length;
+          
+          let foundSentence = fullText.substring(start, end).trim();
 
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            const partLength = part.length;
-            const endPos = currentPos + partLength;
-            if (targetOffset >= currentPos && targetOffset < endPos) {
-              foundSentence = part;
-              break;
-            }
-            currentPos += partLength;
-          }
-
+          // Handle selected text if available
           const selection = window.getSelection()?.toString().trim();
           if (selection && selection.length > 5) {
             onSaveSentence(selection);
@@ -663,9 +660,12 @@ export function ChatMessage({
             return;
           }
 
-          const targetSentence = foundSentence.trim() || message.content;
-          if (targetSentence) {
-            onSaveSentence(targetSentence.trim());
+          if (foundSentence) {
+            onSaveSentence(foundSentence);
+            toast.success(`문장이 저장되었습니다.`);
+          } else {
+            // Fallback to whole content if extraction fails
+            onSaveSentence(message.content.trim());
             toast.success(`문장이 저장되었습니다.`);
           }
         }
@@ -697,23 +697,18 @@ export function ChatMessage({
         if (finalWord && finalWord.length >= 2) {
           const fullText = message.content;
           const targetOffset = startOffset;
-          const sentenceRegex = /([.?!](?:\s+|$)|(?:\r?\n){2,})/;
-          const parts = fullText.split(sentenceRegex);
-          let currentPos = 0;
-          let foundSentence = "";
+          
+          // Same improved boundary detection
+          const beforeText = fullText.substring(0, targetOffset);
+          const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
+          const start = startMatch ? startMatch.index + startMatch[0].length : 0;
+          
+          const afterText = fullText.substring(targetOffset);
+          const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
+          const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullText.length;
+          
+          const targetSentence = fullText.substring(start, end).trim() || message.content;
 
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            const partLength = part.length;
-            const endPos = currentPos + partLength;
-            if (targetOffset >= currentPos && targetOffset < endPos) {
-              foundSentence = part;
-              break;
-            }
-            currentPos += partLength;
-          }
-
-          const targetSentence = foundSentence.trim() || message.content;
           if (targetSentence) {
             // 번역 API 호출 (gemini 서비스 사용)
             import("../services/gemini").then(({ translateText }) => {

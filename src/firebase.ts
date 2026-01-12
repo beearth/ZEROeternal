@@ -8,13 +8,13 @@ import { getFirestore } from "firebase/firestore";
 // Firebase 설정
 // Firebase 설정
 const firebaseConfig = {
-  apiKey: "AIzaSyCdulV_M0eO-hlZfwABnpxvpbgbJSgNZmY",
-  authDomain: "voca2-df831.firebaseapp.com",
-  projectId: "voca2-df831",
-  storageBucket: "voca2-df831.firebasestorage.app",
-  messagingSenderId: "109533029020",
-  appId: "1:109533029020:web:58690c2c80cf098cd08359",
-  measurementId: "G-6GW28EEWDC"
+  apiKey: "AIzaSyBVKwSbL1woBY0cQGjcgOXVlQ1czEgpFc8",
+  authDomain: "signal-voca-93bb9.firebaseapp.com",
+  projectId: "signal-voca-93bb9",
+  storageBucket: "signal-voca-93bb9.firebasestorage.app",
+  messagingSenderId: "705714352680",
+  appId: "1:705714352680:web:5675eaa50ae951f3057b1d",
+  measurementId: "G-Q55CVDLHLN"
 };
 
 // Firebase 앱 초기화
