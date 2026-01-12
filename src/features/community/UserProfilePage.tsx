@@ -293,8 +293,16 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                         const fileName = `avatars/${currentUser.uid}_${Date.now()}.jpg`;
                         const storageRef = ref(storage, fileName);
 
-                        console.log("Storage ref created, calling uploadBytes...");
-                        const uploadResult = await uploadBytes(storageRef, blob);
+                        console.log("Storage ref created, calling uploadBytes with timeout...");
+                        
+                        // Setup timeout for upload
+                        const uploadPromise = uploadBytes(storageRef, blob);
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error("Timeout: 이미지 업로드 시간이 초과되었습니다.")), 15000)
+                        );
+
+                        const uploadResult = await Promise.race([uploadPromise, timeoutPromise]) as any;
+                        
                         console.log("Upload result obtained, getting download URL...");
                         const publicUrl = await getDownloadURL(uploadResult.ref);
 
@@ -303,10 +311,9 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                         toast.dismiss(uploadToastId);
                         console.log("Avatar upload success:", publicUrl);
                     } catch (uploadError: any) {
-                        console.error("Avatar upload CRITICAL error:", uploadError);
+                        console.error("Avatar upload error/timeout:", uploadError);
                         toast.dismiss(uploadToastId);
-                        toast.dismiss(); // Dismiss all as safe fallback
-                        toast.error("이미지 업로드에 실패했습니다(CORS/권한). 이름과 소개만 먼저 저장합니다.");
+                        toast.error(uploadError.message || "이미지 업로드에 실패했습니다. 이름과 소개만 먼저 저장합니다.");
                         // DO NOT throw, continue with name update
                     }
                 }
@@ -335,10 +342,13 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                 });
 
                 toast.dismiss(mainToastId);
+                toast.dismiss(); // Final safety sweep
                 toast.success("프로필이 성공적으로 업데이트되었습니다!");
+                setIsEditingProfile(false); // Close edit mode
             } catch (error: any) {
                 console.error("Profile update failed:", error);
                 toast.dismiss(mainToastId);
+                toast.dismiss();
                 toast.error(`프로필 업데이트 실패: ${error.message || "잠시 후 다시 시도해주세요."}`);
             } finally {
                 setIsSubmitting(false);
