@@ -231,6 +231,26 @@ export const getUserStacks = async (userId: string) => {
   }
 };
 
+// Helper: Sanitize data for Firestore (remove undefined, functions, etc.)
+const sanitizeForFirestore = (obj: any): any => {
+  if (obj === null || obj === undefined) return null;
+  if (obj instanceof Date) return obj;
+  if (typeof obj === 'function') return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item)).filter(item => item !== null);
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && typeof value !== 'function') {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
 // 사용자 대화 저장
 export const saveUserConversations = async (
   userId: string,
@@ -241,10 +261,13 @@ export const saveUserConversations = async (
     return { success: false, error: "Rate limit exceeded" };
   }
 
+  // Sanitize conversations before saving
+  const sanitizedConversations = sanitizeForFirestore(conversations);
+
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
-      conversations,
+      conversations: sanitizedConversations,
       updatedAt: new Date(),
     });
     return { success: true, error: null };
@@ -252,7 +275,7 @@ export const saveUserConversations = async (
     try {
       const userRef = doc(db, "users", userId);
       await setDoc(userRef, {
-        conversations,
+        conversations: sanitizedConversations,
         createdAt: new Date(),
         updatedAt: new Date(),
       }, { merge: true });

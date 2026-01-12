@@ -1,7 +1,7 @@
 import React from "react";
-import { BookOpen, Star, Volume2, Search, X, Trash2, Languages } from "lucide-react";
+import { BookOpen, Volume2, Search, X, Trash2, TextSelect } from "lucide-react";
 
-export type WordOptionType = "sentence" | "translate" | "important" | "tts" | "detail" | "delete";
+export type WordOptionType = "sentence" | "tts" | "detail" | "delete" | "select";
 
 interface WordOptionMenuProps {
     isOpen: boolean;
@@ -10,10 +10,8 @@ interface WordOptionMenuProps {
     onSelectOption: (option: WordOptionType) => void;
     hideSentenceOption?: boolean;
     hideDeleteOption?: boolean;
-    hideImportantOption?: boolean;
 }
 
-// WordOptionMenu.tsx Reverted to Centered Modal
 export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
     isOpen,
     onClose,
@@ -21,7 +19,6 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
     onSelectOption,
     hideSentenceOption,
     hideDeleteOption,
-    hideImportantOption,
 }) => {
     if (!isOpen) return null;
 
@@ -62,17 +59,6 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                             }}
                         />
                     )}
-                    {!hideSentenceOption && (
-                        <MenuButton
-                            icon={<Languages className="w-5 h-5 text-cyan-400" />}
-                            label="문장 번역"
-                            subLabel="이 문장을 한국어로 번역"
-                            onClick={() => {
-                                onSelectOption("translate");
-                                onClose();
-                            }}
-                        />
-                    )}
                     <MenuButton
                         icon={<Volume2 className="w-5 h-5 text-green-400" />}
                         label="발음 듣기"
@@ -85,9 +71,18 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                     <MenuButton
                         icon={<Search className="w-5 h-5 text-purple-400" />}
                         label="상세 보기"
-                        subLabel="사전 및 예문 확인"
+                        subLabel="AI 학습 전략 확인"
                         onClick={() => {
                             onSelectOption("detail");
+                            onClose();
+                        }}
+                    />
+                    <MenuButton
+                        icon={<TextSelect className="w-5 h-5 text-cyan-400" />}
+                        label="텍스트 선택"
+                        subLabel="복사할 텍스트 선택"
+                        onClick={() => {
+                            onSelectOption("select");
                             onClose();
                         }}
                     />

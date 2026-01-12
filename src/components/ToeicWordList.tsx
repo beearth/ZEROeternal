@@ -18,7 +18,6 @@ interface ToeicWordListProps {
   ) => Promise<string>;
   onLoadMore: () => Promise<void>;
   onDeleteWord?: (word: string) => void;
-  onSaveImportant?: (word: WordData) => void;
   isLoading: boolean;
   onToggleSidebar: () => void;
 }
@@ -29,7 +28,6 @@ export function ToeicWordList({
   onGenerateStudyTips,
   onLoadMore,
   onDeleteWord,
-  onSaveImportant,
   isLoading,
   onToggleSidebar,
 }: ToeicWordListProps) {
@@ -169,20 +167,6 @@ export function ToeicWordList({
       case "sentence": // 문장 저장 (현재 기능 없음, 필요 시 구현)
         // Placeholder or future implementation
         toast.info("문장 저장 기능은 준비 중입니다.");
-        break;
-      case "important": // 중요 저장
-        if (onSaveImportant && entry) {
-          onSaveImportant({
-            id: Date.now().toString(),
-            word: menuOpenWord,
-            koreanMeaning: entry.koreanMeaning,
-            status: "orange",
-            messageId: "manual",
-            sentence: "",
-            timestamp: new Date(),
-          });
-          toast.success("중요 단어장에 저장되었습니다.");
-        }
         break;
     }
     setMenuOpenWord(null); // 메뉴 닫기

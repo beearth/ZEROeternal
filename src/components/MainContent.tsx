@@ -49,7 +49,6 @@ interface MainContentProps {
         isReturningToRed?: boolean
     ) => Promise<void>;
     onResetWordStatus: (word: string) => void;
-    onSaveImportant: (word: WordData) => void;
     onSaveSentence: (sentence: string) => void;
     learningMode?: 'knowledge' | 'language';
     onUpdateTranslation?: (messageId: string, translation: string) => void;
@@ -70,7 +69,6 @@ export function MainContent({
     userVocabulary,
     onUpdateWordStatus,
     onResetWordStatus,
-    onSaveImportant,
     onSaveSentence,
     learningMode = 'knowledge',
     onUpdateTranslation,
@@ -96,7 +94,6 @@ export function MainContent({
                                         message={message}
                                         onUpdateWordStatus={onUpdateWordStatus}
                                         onResetWordStatus={onResetWordStatus}
-                                        onSaveImportant={onSaveImportant}
                                         onSaveSentence={onSaveSentence}
                                         userVocabulary={userVocabulary}
                                         learningMode={learningMode}
@@ -339,7 +336,6 @@ export function MainContent({
                                         message={message}
                                         onUpdateWordStatus={onUpdateWordStatus}
                                         onResetWordStatus={onResetWordStatus}
-                                        onSaveImportant={onSaveImportant}
                                         onSaveSentence={onSaveSentence}
                                         userVocabulary={userVocabulary}
                                         learningMode={learningMode}

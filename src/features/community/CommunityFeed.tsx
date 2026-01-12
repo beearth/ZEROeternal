@@ -285,7 +285,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
                                 }
                             })}
                             isOwner={post.authorId === currentUserId}
-                            onEdit={() => navigate(`/edit-post/${post.id}`)}
+                            onEdit={() => navigate(`/community/edit/${post.id}`)}
                             onDelete={() => handleDeletePost(post.id)}
                             onLike={() => handleLike(post.id)}
                             isLiked={(post.likedBy || []).includes(currentUserId)}

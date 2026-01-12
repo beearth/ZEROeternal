@@ -57,14 +57,7 @@ import { DirectChat } from "./features/community/DirectChat";
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      title: "새로운 대화",
-      messages: [],
-      timestamp: new Date(),
-    },
-  ]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState(() => localStorage.getItem("signal_last_conversation_id") || "1");
   // Initialize sidebar open state based on screen width (Open on Desktop by default)
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -201,7 +194,6 @@ export default function App() {
   const lastLoadedRed = useRef<string[] | null>(null);
   const lastLoadedYellow = useRef<string[] | null>(null); // Restored
   const lastLoadedGreen = useRef<string[] | null>(null); // Restored
-  const lastLoadedImportant = useRef<WordData[] | null>(null);
   const lastLoadedSentence = useRef<string[] | null>(null);
 
   // Debounce를 위한 ref
@@ -263,7 +255,6 @@ export default function App() {
   const [redStack, setRedStack] = useState<string[]>([]);
   const [yellowStack, setYellowStack] = useState<string[]>([]); // Learning words (Restored)
   const [greenStack, setGreenStack] = useState<string[]>([]); // Completed words
-  const [importantStack, setImportantStack] = useState<WordData[]>([]);
   const [sentenceStack, setSentenceStack] = useState<string[]>([]);
 
   // Firestore에서 단어장 불러오기
@@ -549,12 +540,7 @@ export default function App() {
     saveUserStackField(user.uid, "green", greenStack);
   }, [greenStack, user, isDataLoaded]);
 
-  // Important Stack 저장
-  useEffect(() => {
-    if (!isDataLoaded || !user) return;
-    if (importantStack === lastLoadedImportant.current) return;
-    saveUserStackField(user.uid, "important", importantStack);
-  }, [importantStack, user, isDataLoaded]);
+  // Important Stack save removed
 
   // Sentence Stack 저장
   useEffect(() => {
@@ -569,26 +555,35 @@ export default function App() {
 
   // 대화를 Firebase에 저장
   useEffect(() => {
-    if (!isDataLoaded) return;
+    if (!isDataLoaded || !user) {
+      console.log("[ConvSave] Skip: not loaded or no user");
+      return;
+    }
 
     // Firebase에서 온 업데이트라면 저장하지 않음 (루프 방지)
     if (isRemoteUpdate.current) {
+      console.log("[ConvSave] Skip: isRemoteUpdate");
       isRemoteUpdate.current = false;
       return;
     }
 
     // Prevent Echo Save (Loop) - Ref check fallback
-    if (conversations === lastLoadedConvs.current) return;
+    if (JSON.stringify(conversations) === JSON.stringify(lastLoadedConvs.current)) {
+      console.log("[ConvSave] Skip: no change");
+      return;
+    }
 
-    if (user && conversations.length > 0) {
-      // Debounce logic could be added here if needed
-      saveUserConversations(user.uid, conversations).catch(err => {
-         if (err.code === 'resource-exhausted') {
-            // Quota exceeded: Do nothing, just stop trying
-         } else {
-            console.error("Save conversations error:", err);
-         }
-      });
+    console.log("[ConvSave] Saving conversations:", conversations.length, "items");
+
+    if (conversations.length > 0) {
+      // Small delay to allow multiple state updates to settle if needed
+      const timeout = setTimeout(() => {
+          console.log("[ConvSave] Executing save...");
+          saveUserConversations(user.uid, conversations)
+            .then(result => console.log("[ConvSave] Save result:", result))
+            .catch(err => console.error("[ConvSave] Save error:", err));
+      }, 500);
+      return () => clearTimeout(timeout);
     }
   }, [conversations, user, isDataLoaded]); 
 
@@ -647,12 +642,25 @@ export default function App() {
       if (snapshot.metadata.hasPendingWrites) return;
 
       if (!snapshot.exists()) {
-        // [SAFETY] 문서가 삭제된 경우: 로컬 데이터가 있으면 즉시 지우지 않고 경고
-        if (Object.keys(userVocabulary).length > 0 && !deliberateResetRef.current) {
+        // [SAFETY] 문서가 삭제되거나 없는 경우: 로컬 데이터가 있으면 즉시 지우지 않고 경고
+        if (Object.keys(lastLoadedVocab.current || {}).length > 0 && !deliberateResetRef.current) {
             console.warn("Snapshot: Document disappeared, but local data exists. Blocking reset.");
             return;
         }
         setUserVocabulary({});
+        
+        // Ensure at least one room exists locally if server is empty
+        setConversations(prev => {
+            if (prev.length > 0) return prev;
+            return [{
+                id: "1",
+                title: "새로운 대화",
+                messages: [],
+                timestamp: new Date(),
+            }];
+        });
+        if (!currentConversationId) setCurrentConversationId("1");
+
         setIsDataLoaded(true);
         setLoading(false);
         return;
@@ -660,17 +668,21 @@ export default function App() {
 
       const data = snapshot.data();
       const dbVocab = data.vocabulary || {};
+      const stacks = data.stacks || {};
+
+      // Profile settings synchronization
+      if (data.nativeLang) setNativeLang(data.nativeLang);
+      if (data.targetLang) setTargetLang(data.targetLang);
+      if (data.personaInstructions) {
+        setPersonaInstructions(data.personaInstructions);
+        localStorage.setItem("signal_persona_instructions", JSON.stringify(data.personaInstructions));
+      }
 
       // [SAFETY] DB 데이터가 비어있는 경우: 로컬에 데이터가 있다면 함부로 덮어쓰지 않음
-      if (Object.keys(dbVocab).length === 0 && Object.keys(userVocabulary).length > 0 && !deliberateResetRef.current) {
+      if (Object.keys(dbVocab).length === 0 && Object.keys(lastLoadedVocab.current || {}).length > 0 && !deliberateResetRef.current) {
           console.warn("Snapshot: DB vocabulary is empty, but local has data. Blocking overwrite.");
           return;
       }
-
-      const stacks = data.stacks || {};
-
-      if (data.nativeLang) setNativeLang(data.nativeLang);
-      if (data.targetLang) setTargetLang(data.targetLang);
 
       const mergedVocab: Record<string, VocabularyEntry> = {};
 
@@ -683,20 +695,16 @@ export default function App() {
         mergedVocab[wordKey] = { status, koreanMeaning: meaning, category };
       });
 
-      // 2. Merge Stacks
+      // 2. Merge Stacks Logic
       const process = (list: any[], status: any) => {
         (list || []).forEach(item => {
           const wordText = typeof item === 'string' ? item : item.word;
-          
-          // [SAFETY] Dirty data filter for stacks
           if (!wordText || typeof wordText !== 'string') return;
           if (/^\d{10,}/.test(wordText) || wordText.length > 50) return;
 
-          // Fix: Handle phrases (preserve spaces) vs single words
           let clean = "";
           if (wordText && wordText.includes(' ')) {
             clean = cleanMarkdown(wordText).trim();
-            // If it's too long, it's a sentence, don't put in word stacks
             if (clean.split(' ').length > 4) return;
           } else {
             clean = extractCleanWord(wordText);
@@ -712,47 +720,36 @@ export default function App() {
       };
 
       process(stacks.red, 'red');
-      process(stacks.yellow, 'yellow'); // Restored
-      process(stacks.green, 'green'); // Restored
-      process(stacks.important, 'orange');
+      process(stacks.yellow, 'yellow');
+      process(stacks.green, 'green');
 
       setUserVocabulary(mergedVocab);
       lastLoadedVocab.current = mergedVocab;
 
-      // 3. Stacks are DERIVED from Vocabulary (Single Source of Truth)
-      // DB의 stacks 필드는 참고용이거나 마이그레이션용으로만 사용하고,
-      // 실제 앱 내 스택 상태는 항상 loadedVocab을 기준으로 재구축하여 동기화 불일치 방지
+      // 3. Derived Stacks
       const deriveStack = (status: string) => {
         return Object.entries(mergedVocab)
           .filter(([_, entry]) => entry.status === status)
-          .map(([word, _]) => word); // 키만 반환
+          .map(([word, _]) => word);
       };
 
       const newRedStack = deriveStack('red');
-      const newYellowStack = deriveStack('yellow'); // Restored
-      const newGreenStack = deriveStack('green'); // Restored
+      const newYellowStack = deriveStack('yellow');
+      const newGreenStack = deriveStack('green');
       
-      // Apply derived red stack to state and update lastLoaded to prevent save loop
       setRedStack(newRedStack);
       lastLoadedRed.current = newRedStack;
-
-      setYellowStack(newYellowStack); // Restored
+      setYellowStack(newYellowStack);
       lastLoadedYellow.current = newYellowStack;
-
-      setGreenStack(newGreenStack); // Restored
+      setGreenStack(newGreenStack);
       lastLoadedGreen.current = newGreenStack;
-
-      if (Array.isArray(stacks.important)) {
-        setImportantStack(stacks.important);
-        lastLoadedImportant.current = stacks.important;
-      }
 
       if (Array.isArray(stacks.sentences)) {
         setSentenceStack(stacks.sentences);
         lastLoadedSentence.current = stacks.sentences;
       }
 
-      // Conversations
+      // 4. Conversations Sync
       const rawConvs = data.conversations || [];
       const loadedConvs = rawConvs.map((conv: any) => ({
         ...conv,
@@ -767,46 +764,46 @@ export default function App() {
         const serverMap = new Map(loadedConvs.map((c: any) => [c.id, c]));
         const localIds = new Set(prev.map(c => c.id));
 
-        // 1. Merge existing (preserve local if newer/more messages)
         const merged = prev.map((localConv: Conversation) => {
             const serverConv = serverMap.get(localConv.id) as any;
-            if (!serverConv) return localConv; // Keep unsynced new convs
-            
-            // If local has more messages (optimistic update pending), keep local
-            if (localConv.messages.length > (serverConv.messages?.length || 0)) {
-                // console.log(`Preserving local messages for conversation ${localConv.id}`);
-                return localConv;
-            }
+            if (!serverConv) return localConv;
+            if (localConv.messages.length > (serverConv.messages?.length || 0)) return localConv;
             return serverConv;
         });
 
-        // 2. Add new from server
         const newFromServer = loadedConvs.filter((c: any) => !localIds.has(c.id));
-        
-        // Mark as remote update to prevent useEffect from saving back to DB
-        isRemoteUpdate.current = true;
-
+        // Only mark as remote update if there's actual data from server
+        if (loadedConvs.length > 0) {
+          isRemoteUpdate.current = true;
+        }
         return [...merged, ...newFromServer].sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime());
       });
       lastLoadedConvs.current = loadedConvs;
 
-      if (loadedConvs.length > 0 && !currentConversationId) {
-        setCurrentConversationId("1");
+      if (loadedConvs.length > 0) {
+        if (!currentConversationId || currentConversationId === "1") {
+            setCurrentConversationId(loadedConvs[0].id);
+        }
+      } else {
+        setConversations(prev => {
+           if (prev.length > 0) return prev;
+           return [{
+              id: "1",
+              title: "새로운 대화",
+              messages: [],
+              timestamp: new Date(),
+           }];
+        });
+        if (!currentConversationId) setCurrentConversationId("1");
       }
 
       setIsDataLoaded(true);
       setLoading(false);
     }, (error) => {
       console.error("Firestore Snapshot Error:", error);
-      if (error && error.code === 'resource-exhausted') {
-        toast.error("서버 사용량 초과. 로컬 데이터로 실행합니다.");
-      }
-      
-      // Attempt to restore from local storage on ANY error
       restoreFromLocal();
-      
       setLoading(false);
-      setIsDataLoaded(true); // 에러 상황에서도 앱 진입 허용
+      setIsDataLoaded(true);
     });
 
     return () => unsubscribe();
@@ -877,17 +874,9 @@ export default function App() {
         setRedStack([]);
         setYellowStack([]); // Restored
         setGreenStack([]); // Restored
-        setImportantStack([]);
         setSentenceStack([]);
-        setConversations([
-          {
-            id: "1",
-            title: "새로운 대화",
-            messages: [],
-            timestamp: new Date(),
-          },
-        ]);
-        setCurrentConversationId("1");
+        setConversations([]);
+        setCurrentConversationId("");
         setTargetLang(null); // 로그아웃 시 언어 설정 초기화
 
         // Debounce 타이머 정리
@@ -1048,13 +1037,18 @@ export default function App() {
         timestamp: new Date(),
       };
 
-      setConversations((prev) =>
-        prev.map((conv) =>
+      setConversations((prev) => {
+        const updated = prev.map((conv) =>
           conv.id === targetConversationId
             ? { ...conv, messages: [...conv.messages, aiMessage] }
             : conv
-        )
-      );
+        );
+        // [MOD] If it's a new conversation, save immediately for better persistence
+        if (isNewConversation && user) {
+            saveUserConversations(user.uid, updated).catch(console.error);
+        }
+        return updated;
+      });
       
       // Auto TTS if enabled
       if (isAutoTTS) {
@@ -1313,11 +1307,6 @@ export default function App() {
                 }
                 return newVocab;
               });
-
-              // Also update in Important Stack if present
-              setImportantStack(prev => prev.map(w =>
-                w.word.toLowerCase().trim() === wordKey ? { ...w, koreanMeaning: meaning } : w
-              ));
             }
           })
           .catch((err) => console.error("Meaning fetch error:", err));
@@ -1345,7 +1334,6 @@ export default function App() {
     setRedStack(prev => prev.filter(w => w !== wordKey));
     setYellowStack(prev => prev.filter(w => w !== wordKey));
     setGreenStack(prev => prev.filter(w => w !== wordKey));
-    setImportantStack(prev => prev.filter(w => w.word.toLowerCase() !== wordKey));
   };
 
   // Track words that failed to fetch meaning in current session to avoid infinite retries
@@ -1379,10 +1367,6 @@ export default function App() {
                 return { ...prev, [wordKey]: updated };
              });
 
-             // Also update in Important Stack if present
-             setImportantStack(prev => prev.map(w =>
-                w.word.toLowerCase().trim() === wordKey ? { ...w, koreanMeaning: meaning } : w
-              ));
           } else {
              // If meaning is empty, mark as failed for this session
              failedMeaningFetches.current.add(wordKey);
@@ -1479,85 +1463,7 @@ export default function App() {
     }
   };
 
-  // 중요 단어 저장 핸들러 (Refactored for Speed)
-  const handleSaveImportant = async (word: WordData) => {
-    const wordKey = word.word.toLowerCase().trim();
-    let initialMeaning = word.koreanMeaning;
-
-    // 0. 길이 체크
-    if (word.word.length > 50) {
-      toast.error("문장은 중요 단어장에 저장할 수 없습니다.");
-      return;
-    }
-
-    // 0.1 중복 체크 (Removed early return to allow status update)
-    // Check against current importantStack state handled in setter
-    const isDuplicate = importantStack.some(
-      w => w.word.toLowerCase().trim() === wordKey
-    );
-    if (isDuplicate) {
-      // toast.info("이미 중요 단어장에 있는 단어입니다."); 
-      // Do not return, proceed to update status to 'orange'
-    }
-
-    // 1. [Optimistic] Check Global Vocab for meaning needed?
-    if (!initialMeaning) {
-      const globalEntry = userVocabulary[wordKey];
-      if (globalEntry?.koreanMeaning) {
-        initialMeaning = globalEntry.koreanMeaning;
-      }
-    }
-
-    const optimisticWordData = { ...word, koreanMeaning: initialMeaning || "" };
-
-    // 2. [Optimistic Update] Add to Important Stack & Global List IMMEDIATELY
-    // Important Stack Update
-    setImportantStack((prev) => {
-      if (prev.find((w) => w.word.toLowerCase() === wordKey)) return prev;
-      return [...prev, optimisticWordData];
-    });
-
-    // Global Vocab Update (Sync status to 'orange')
-    setUserVocabulary((prev) => {
-      const existingEntry = prev[wordKey];
-      const updatedVocabulary = {
-        ...prev,
-        [wordKey]: {
-          ...existingEntry,
-          status: "orange" as "red" | "yellow" | "green" | "white" | "orange",
-          koreanMeaning: initialMeaning || existingEntry?.koreanMeaning || "",
-          category: existingEntry?.category || "important"
-        },
-      };
-
-      // Save Global Vocab DB
-      if (user) {
-        saveVocabularyToDB(user.uid, updatedVocabulary);
-      }
-      return updatedVocabulary;
-    });
-
-    // 3. 자동 번역 (Meaning fetch if missing)
-    if (!initialMeaning) {
-      getKoreanMeaning(word.word)
-        .then((meaning) => {
-           if (meaning) {
-              setUserVocabulary(prev => {
-                 const current = prev[wordKey];
-                 if (!current) return prev;
-                 const updated = { ...current, koreanMeaning: meaning, meaning: meaning };
-                 if (user) saveWordToDB(user.uid, wordKey, updated);
-                 return { ...prev, [wordKey]: updated };
-              });
-              // Also update in Important Stack
-              setImportantStack(prev => prev.map(w => 
-                 w.word.toLowerCase() === wordKey ? { ...w, koreanMeaning: meaning } : w
-              ));
-           }
-        })
-        .catch(err => console.error("Important word meaning fetch error:", err));
-    }
-  };
+  // handleSaveImportant removed
 
   // Message Translation Persistence Handler
   const handleUpdateTranslation = useCallback((messageId: string, translation: string) => {
@@ -1702,7 +1608,6 @@ export default function App() {
           vocabulary: {},
           stacks: {
             red: [],
-            important: [],
             sentences: []
           },
           updatedAt: new Date()
@@ -1712,7 +1617,6 @@ export default function App() {
       // 로컬 상태 초기화
       setUserVocabulary({});
       setRedStack([]);
-      setImportantStack([]);
       setSentenceStack([]);
 
       toast.success("모든 단어 데이터가 초기화되었습니다.");
@@ -1749,7 +1653,6 @@ export default function App() {
     setUserVocabulary({});
     setRedStack([]);
     // yellow/green removed
-    setImportantStack([]);
     setSentenceStack([]);
     setConversations([]);
     setCurrentConversationId("");
@@ -1823,7 +1726,6 @@ export default function App() {
             red: redStack.length,
             yellow: yellowStack.length,
             green: greenStack.length,
-            important: importantStack.length,
             sentence: sentenceStack.length,
           }}
           onLogout={handleLogout}
@@ -1836,11 +1738,11 @@ export default function App() {
             setShowOnboarding(true);
             setIsOnboardingEditing(true);
           }}
-
           learningMode={learningMode}
           isAutoTTS={isAutoTTS}
           onToggleAutoTTS={toggleAutoTTS}
           onOpenQuiz={() => setIsQuizOpen(true)}
+          user={user}
         />
 
         <div className="flex-1 flex flex-col min-w-0 bg-[#1e1f20] relative transition-all duration-300 ease-in-out">
@@ -1872,7 +1774,6 @@ export default function App() {
                   userVocabulary={userVocabulary}
                   onUpdateWordStatus={handleUpdateWordStatus}
                   onResetWordStatus={handleResetWordStatus}
-                  onSaveImportant={handleSaveImportant}
                   onSaveSentence={handleSaveSentence}
                   learningMode={learningMode}
                   onUpdateTranslation={handleUpdateTranslation}
@@ -1945,8 +1846,6 @@ export default function App() {
                   setNativeLang={setNativeLang} 
                   targetLang={targetLang || "en"}
                   onSaveSentence={handleSaveSentence}
-                  onSaveImportant={handleSaveImportant}
-                  importantStack={importantStack}
                 />
               } 
             />
@@ -1964,7 +1863,6 @@ export default function App() {
                   isLoading={isToeicLoading}
                   onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   onDeleteWord={handleResetWordStatus}
-                  onSaveImportant={handleSaveImportant}
                 />
               } 
             />
@@ -2003,27 +1901,28 @@ export default function App() {
                 />
               } 
             />
-            <Route 
-              path="/stack/sentence" 
+            <Route
+              path="/stack/sentence"
               element={
                 <StackView
                   title="Sentences"
-                  color="#3b82f6" 
+                  color="#3b82f6"
                   items={sentenceStack}
                   userVocabulary={userVocabulary}
-                  onUpdateWordStatus={handleUpdateWordStatus} // 문장 스택에서 단어 클릭 시 필요할 수 있음
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onGenerateStudyTips={handleGenerateStudyTips}
                   onDeleteWord={(sentence) => setSentenceStack(prev => prev.filter(s => s !== sentence))}
                   onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   learningMode={learningMode}
                 />
-              } 
+              }
             />
-            <Route 
-              path="/stack/green" 
+            <Route
+              path="/stack/green"
               element={
                 <StackView
                   title="Green Room"
-                  color="#22c55e" 
+                  color="#22c55e"
                   items={greenStack}
                   userVocabulary={userVocabulary}
                   onUpdateWordStatus={handleUpdateWordStatus}
@@ -2032,8 +1931,9 @@ export default function App() {
                   onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                   learningMode={learningMode}
                 />
-              } 
+              }
             />
+            {/* /stack/important deleted */}
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

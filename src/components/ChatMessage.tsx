@@ -31,7 +31,6 @@ interface ChatMessageProps {
     isReturningToRed?: boolean
   ) => Promise<void>;
   onResetWordStatus?: (word: string) => void;
-  onSaveImportant?: (word: WordData) => void;
   onSaveSentence?: (sentence: string) => void;
   userVocabulary?: Record<string, VocabularyEntry>;
   learningMode?: 'knowledge' | 'language';
@@ -69,7 +68,8 @@ const WordSpan = React.memo(({
   koreanMeaning,
   isSaved,
   isConfirmed,
-  isProcessing
+  isProcessing,
+  startOffset
 }: {
   part: string;
   partIndex: number;
@@ -83,6 +83,7 @@ const WordSpan = React.memo(({
   isSaved?: boolean;
   isConfirmed?: boolean;
   isProcessing?: boolean;
+  startOffset?: number;
 }) => {
   const styleInfo = getWordStyle(wordState);
 
@@ -105,6 +106,7 @@ const WordSpan = React.memo(({
       data-part-index={partIndex}
       data-final-word={finalWord}
       data-word-state={wordState}
+      data-start-offset={startOffset}
       className={`inline whitespace-pre-wrap px-0.5 cursor-pointer relative align-baseline ${wordState > 0 ? styleInfo.className : "hover:bg-slate-100 rounded"
         } ${isCurrentlyHolding
           ? "scale-[0.98] shadow-inner font-medium text-white"
@@ -221,7 +223,6 @@ export function ChatMessage({
   isTyping = false,
   onUpdateWordStatus,
   onResetWordStatus,
-  onSaveImportant,
   onSaveSentence,
   userVocabulary = {},
   learningMode = 'knowledge',
@@ -235,6 +236,29 @@ export function ChatMessage({
   const [highlightWord, setHighlightWord] = useState<number | null>(null);
   const [translation, setTranslation] = useState<string | null>(message.translation || null);
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Status dot animation state
+  // - idle (red): message just created, waiting
+  // - loading (yellow): AI is processing
+  // - complete (green): AI response received - stays green permanently
+  const [dotStatus, setDotStatus] = useState<'idle' | 'loading' | 'complete'>(
+    message.content && !isTyping ? 'complete' : 'idle'
+  );
+
+  // Handle typing state transitions for dot animation: Red → Yellow → Green
+  useEffect(() => {
+    if (!isTyping && message.content) {
+      // AI finished - show green (stays green permanently)
+      setDotStatus('complete');
+    } else if (isTyping) {
+      // AI is processing - start with red briefly, then show yellow
+      setDotStatus('idle'); // Show red first
+      const timer = setTimeout(() => {
+        setDotStatus('loading'); // After 1 second, switch to yellow
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isTyping, message.content]);
 
   // Sync translation from props (DB persistence)
   useEffect(() => {
@@ -368,8 +392,6 @@ export function ChatMessage({
         // 여기서는 개별 단어들의 상태를 'red'로 유지하여 하이라이팅이 유지되게 함
         // (onResetWordStatus를 호출하면 하이라이팅이 사라짐)
         
-        toast.success(`✨ "${phrase}" 저장됨!`);
-
       } catch (error) {
         console.error(error);
       }
@@ -640,25 +662,30 @@ export function ChatMessage({
         if (onSaveSentence && finalWord && finalWord.length >= 2) {
           const fullText = message.content;
           const targetOffset = startOffset;
-          
-          // Improved boundary detection for sentences and list items
-          const beforeText = fullText.substring(0, targetOffset);
-          const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
-          const start = startMatch ? startMatch.index + startMatch[0].length : 0;
-          
-          const afterText = fullText.substring(targetOffset);
-          const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
-          const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullText.length;
-          
-          let foundSentence = fullText.substring(start, end).trim();
 
-          // Handle selected text if available
+          // Handle selected text if available (highest priority)
           const selection = window.getSelection()?.toString().trim();
           if (selection && selection.length > 5) {
             onSaveSentence(selection);
             toast.success(`선택한 문장이 저장되었습니다.`);
             return;
           }
+
+          // Extract full line (newline to newline) - priority over sentence boundaries
+          const beforeText = fullText.substring(0, targetOffset);
+          const afterText = fullText.substring(targetOffset);
+
+          // Find line boundaries (newlines only)
+          const lineStartMatch = beforeText.lastIndexOf('\n');
+          const lineStart = lineStartMatch !== -1 ? lineStartMatch + 1 : 0;
+
+          const lineEndMatch = afterText.indexOf('\n');
+          const lineEnd = lineEndMatch !== -1 ? targetOffset + lineEndMatch : fullText.length;
+
+          let foundSentence = fullText.substring(lineStart, lineEnd).trim();
+
+          // Clean up: remove leading numbers/bullets like "1.", "→", "-", etc.
+          foundSentence = foundSentence.replace(/^[\d]+\.\s*/, '').replace(/^[→\-•]\s*/, '').trim();
 
           if (foundSentence) {
             onSaveSentence(foundSentence);
@@ -690,38 +717,6 @@ export function ChatMessage({
             fullSentence: message.content,
             wordId: wordId,
           });
-        }
-        break;
-      case "translate":
-        // 문장 번역 - 해당 문장을 찾아서 번역 요청
-        if (finalWord && finalWord.length >= 2) {
-          const fullText = message.content;
-          const targetOffset = startOffset;
-          
-          // Same improved boundary detection
-          const beforeText = fullText.substring(0, targetOffset);
-          const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
-          const start = startMatch ? startMatch.index + startMatch[0].length : 0;
-          
-          const afterText = fullText.substring(targetOffset);
-          const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
-          const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullText.length;
-          
-          const targetSentence = fullText.substring(start, end).trim() || message.content;
-
-          if (targetSentence) {
-            // 번역 API 호출 (gemini 서비스 사용)
-            import("../services/gemini").then(({ translateText }) => {
-              translateText(targetSentence, 'ko')
-                .then(translation => {
-                  toast.success(`번역: ${translation}`, { duration: 8000 });
-                })
-                .catch(() => {
-                  toast.error("번역에 실패했습니다.");
-                });
-            });
-            toast.info("번역 중...");
-          }
         }
         break;
     }
@@ -814,6 +809,7 @@ export function ChatMessage({
           koreanMeaning={globalEntry?.koreanMeaning}
           isBold={isBold}
           isSaved={isSaved}
+          startOffset={currentStartOffset}
         />
       );
     });
@@ -911,6 +907,7 @@ export function ChatMessage({
      
      const index = parseInt(wordSpan.getAttribute('data-word-index') || '-1');
      const word = wordSpan.getAttribute('data-final-word') || '';
+     const startOffset = parseInt(wordSpan.getAttribute('data-start-offset') || '0');
      
      if (index === -1) return;
 
@@ -927,7 +924,7 @@ export function ChatMessage({
      interactionRef.current.longPressTimer = setTimeout(() => {
          setIsHolding(prev => ({ ...prev, [index]: true }));
          if (navigator.vibrate) navigator.vibrate(50);
-         handleLongPress(e as any, index, word, 0); 
+         handleLongPress(e as any, index, word, startOffset); 
          interactionRef.current.targetIndex = null; // Mark as handled
      }, 400); 
   };
@@ -1163,7 +1160,12 @@ export function ChatMessage({
       <div className={`flex flex-col ${isAssistant ? "w-full max-w-full" : "max-w-[85%]"} ${isAssistant ? "items-start" : "items-end"}`}>
         {isAssistant && (
           <div className="mb-2">
-            <EternalLogo textClassName="hidden" dotClassName="w-2.5 h-2.5" onlyDot />
+            <EternalLogo
+              textClassName="hidden"
+              dotClassName="w-2.5 h-2.5"
+              onlyDot
+              status={dotStatus}
+            />
           </div>
         )}
 

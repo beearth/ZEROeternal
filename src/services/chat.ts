@@ -50,41 +50,46 @@ export const deleteMessage = async (messageId: string) => {
 };
 
 export const subscribeToMessages = (callback: (messages: any[]) => void) => {
-    const q = query(
+    // Try to use orderBy first
+    const qWithOrder = query(
         collection(db, COLLECTION_NAME),
-        // orderBy("created_at", "asc"), // Temporarily disabled to check if data exists without index
-        limit(50)
+        orderBy("created_at", "asc"),
+        limit(100)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const processSnapshot = (snapshot: any) => {
         console.log(`Global Chat: Received ${snapshot.docs.length} messages`);
-        const messages = snapshot.docs.map(docSnap => {
+        const messages = snapshot.docs.map((docSnap: any) => {
             const data = docSnap.data();
             const ts = data.created_at || data.createdAt;
             
             return {
                 id: docSnap.id,
-                text: data.content,
-                translatedText: data.translated_text,
+                text: data.content || data.text,
+                translatedText: data.translated_text || data.translatedText,
                 senderId: data.sender_id || data.senderId,
                 senderName: data.sender_name || data.senderName,
                 senderAvatar: data.sender_avatar || data.senderAvatar,
                 timestamp: ts instanceof Timestamp
                     ? ts.toDate().toISOString()
-                    : new Date().toISOString(),
+                    : (typeof ts === 'string' ? ts : new Date().toISOString()),
                 originalLang: data.original_lang || data.originalLang,
                 targetLang: data.target_lang || data.targetLang
             };
         });
 
-        // Client-side Sort
-        messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
+        // Ensure chronological sort even if index is missing
+        messages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
         callback(messages);
-    }, (error) => {
-        console.error("Global Chat subscription error:", error);
-        if (error.code === 'permission-denied') {
-            console.warn("Global Chat: Permission denied. Check firestore.rules deployment.");
+    };
+
+    let unsubscribe = onSnapshot(qWithOrder, processSnapshot, (error) => {
+        if (error.code === 'failed-precondition' || error.message.includes('index')) {
+            console.warn("Global Chat: Index required. Falling back to unordered query.");
+            const qFallback = query(collection(db, COLLECTION_NAME), limit(100));
+            onSnapshot(qFallback, processSnapshot);
+        } else {
+            console.error("Global Chat subscription error:", error);
         }
     });
 

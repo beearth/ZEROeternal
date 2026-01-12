@@ -30,8 +30,6 @@ interface GlobalChatRoomProps {
     setNativeLang: (lang: string) => void;
     targetLang: string;
     onSaveSentence?: (sentence: string) => void;
-    onSaveImportant?: (word: WordData) => void;
-    importantStack: WordData[];
 }
 
 interface ChatMessage {
@@ -54,6 +52,7 @@ interface WordSpanProps {
     isMe: boolean;
     messageId: string;
     fullSentence: string;
+    startOffset: number;
     onClick: () => void;
     onLongPress: (e: React.PointerEvent) => void;
 }
@@ -86,7 +85,7 @@ const getWordStyle = (state: number) => {
     }
 };
 
-const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onLongPress }: WordSpanProps) => {
+const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, startOffset, onClick, onLongPress }: WordSpanProps) => {
     const longPressHandlers = useLongPress({
         onLongPress: (e) => onLongPress(e),
         onClick: onClick,
@@ -96,7 +95,7 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
     const styleInfo = getWordStyle(wordState);
 
     // Default Style (if no status) - Keeps bubble colors
-    const defaultClass = isMe ? "hover:bg-blue-500 text-white" : "hover:bg-zinc-700 text-zinc-100";
+    const defaultClass = isMe ? "hover:bg-zinc-500 text-white" : "hover:bg-zinc-700 text-zinc-100";
 
     // Unified Class Logic
     const finalClassName = wordState > 0
@@ -106,25 +105,22 @@ const WordSpan = ({ part, wordState, isMe, messageId, fullSentence, onClick, onL
     return (
         <span
             {...longPressHandlers}
-            onContextMenu={(e) => e.preventDefault()}
-            className={finalClassName}
-            style={{
-                userSelect: "none",
-                WebkitUserSelect: "none",
-                MozUserSelect: "none",
-                msUserSelect: "none",
-                WebkitTouchCallout: "none",
-                touchAction: "manipulation",
-                ...(wordState > 0 ? styleInfo.style : {})
-            }}
-            // @ts-ignore
-            onPointerDown={(e) => {
-                // Store cursor position for sentence extraction
+            onPointerDown={(e: React.PointerEvent<HTMLSpanElement>) => {
+                // First call the long press handler to ensure click/longPress logic works
+                longPressHandlers.onPointerDown(e);
+
+                // Then store cursor position for sentence extraction
                 (window as any).lastClickOffset = fullSentence.indexOf(part, (window as any)._lastSearchIndex || 0);
                 (window as any)._lastSearchIndex = (window as any).lastClickOffset + part.length;
             }}
-            // @ts-ignore
-            onSelectStart={(e) => e.preventDefault()}
+            onContextMenu={(e) => e.preventDefault()}
+            className={finalClassName}
+            style={{
+                userSelect: "text",
+                WebkitUserSelect: "text",
+                cursor: "text",
+                ...(wordState > 0 ? styleInfo.style : {})
+            }}
         >
             {part}
         </span>
@@ -159,8 +155,6 @@ export function GlobalChatRoom({
     setNativeLang,
     targetLang,
     onSaveSentence,
-    onSaveImportant,
-    importantStack
 }: GlobalChatRoomProps) {
     const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -175,10 +169,10 @@ export function GlobalChatRoom({
     const [wordStates, setWordStates] = useState<Record<string, number>>({});
     const updateTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+    // Ref to store selected word data (fixes stale closure issue)
+    const selectedWordDataRef = useRef<{ word: string; messageId: string; fullSentence: string; startOffset: number } | null>(null);
+
     // Radial Menu State
-    useEffect(() => {
-        console.log("GlobalChatRoom importantStack:", importantStack);
-    }, [importantStack]);
 
     const [radialMenu, setRadialMenu] = useState<{
         showRadialMenu: boolean;
@@ -202,6 +196,40 @@ export function GlobalChatRoom({
     const [selectedMessageForTip, setSelectedMessageForTip] = useState<string | null>(null);
     const failedTranslations = useRef<Set<string>>(new Set());
     const [selectedWordDetail, setSelectedWordDetail] = useState<WordData | null>(null);
+
+    // Text selection mode state
+    const [selectionMode, setSelectionMode] = useState<string | null>(null); // messageId when in selection mode
+
+    // Clear selection mode when clicking outside or after copying
+    useEffect(() => {
+        if (!selectionMode) return;
+
+        console.log("Selection mode active for:", selectionMode);
+
+        const handleClearSelection = (e: MouseEvent | TouchEvent) => {
+            // Don't clear if selecting text
+            const selection = window.getSelection();
+            if (selection && selection.toString().length > 0) {
+                console.log("Not clearing - text is selected:", selection.toString());
+                return;
+            }
+
+            console.log("Clearing selection mode");
+            setSelectionMode(null);
+        };
+
+        // Add listeners with delay so it doesn't trigger immediately
+        const timer = setTimeout(() => {
+            document.addEventListener('click', handleClearSelection);
+            document.addEventListener('touchend', handleClearSelection);
+        }, 1000); // Increased to 1 second
+
+        return () => {
+            clearTimeout(timer);
+            document.removeEventListener('click', handleClearSelection);
+            document.removeEventListener('touchend', handleClearSelection);
+        };
+    }, [selectionMode]);
 
     // Close menu on click outside
     useEffect(() => {
@@ -246,89 +274,44 @@ export function GlobalChatRoom({
     }, [messages, isInitialLoad]);
 
 
-    // Supabase Subscription Logic + Translation Logic
     useEffect(() => {
-        const unsubscribe = subscribeToMessages(async (fetchedMessages) => {
-            console.log("GlobalChatRoom: Fetched raw messages:", fetchedMessages.length);
-            if (fetchedMessages.length > 0) {
-                console.log("GlobalChatRoom: Sample message:", fetchedMessages[0]);
-            }
-            // fetchedMessages are generic, we need to map to ChatMessage with local logic
-
-            const processedMessages = await Promise.all(fetchedMessages.map(async (msg) => {
+        const unsubscribe = subscribeToMessages((fetchedMessages) => {
+            console.log("GlobalChatRoom: Received messages update:", fetchedMessages.length);
+            
+            // Map messages to ChatMessage type with fallback translation logic
+            const processed = fetchedMessages.map((msg) => {
                 const chatMsg: ChatMessage = {
                     ...msg,
-                    timestamp: msg.timestamp // Should be ISO string
+                    nativeTranslation: "",
+                    learningTranslation: ""
                 };
 
-                // 1. Native Translation
-                let nativeTx = "";
-                const cachedNative = localStorage.getItem(`trans_${chatMsg.id}_${nativeLang}`);
-                const nativeFailKey = `${chatMsg.id}_${nativeLang}`;
-
-                if (cachedNative) {
-                    nativeTx = cachedNative;
-                } else {
-                    const isMyMessage = chatMsg.senderId === user?.uid;
-                    const isNativeLangMatch = chatMsg.originalLang === nativeLang;
-                    let looksLikeNative = true;
-                    if (nativeLang === 'ko') {
-                        looksLikeNative = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(chatMsg.text);
-                    }
-
-                    if (isMyMessage && isNativeLangMatch && looksLikeNative) {
-                        nativeTx = chatMsg.text;
-                    } else if (chatMsg.targetLang === nativeLang && chatMsg.translatedText && chatMsg.translatedText !== chatMsg.text) {
-                        nativeTx = chatMsg.translatedText;
-                    } else if (!failedTranslations.current.has(nativeFailKey)) {
-                        // Only translate if needed
-                        // For simplicity in MVP, skipping deep translation logic unless explicitly requested or clearly different
-                        nativeTx = chatMsg.text;
-                        // Note: Previous code did lots of async translation checks. 
-                        // We can restore it if we want advanced translation,
-                        // but for 'Chat is gone', getting basic functionality is priority.
-                        // Let's use stored translatedText if compatible
-                        if (nativeLang !== chatMsg.originalLang && chatMsg.translatedText) {
-                            nativeTx = chatMsg.translatedText;
-                        }
-                    } else {
-                        nativeTx = chatMsg.text;
-                    }
+                // Logic to determine what to show based on user's native/target languages
+                // If it has translatedText and that matches our native/target, use it
+                if (msg.translatedText && msg.translatedText !== msg.text) {
+                     // Check if this translation is for our native language
+                     if (msg.targetLang === nativeLang) {
+                         chatMsg.nativeTranslation = msg.translatedText;
+                     } else if (msg.targetLang === targetLang) {
+                         chatMsg.learningTranslation = msg.translatedText;
+                     }
                 }
-                chatMsg.nativeTranslation = nativeTx || chatMsg.text;
-
-                // 2. Learning Translation
-                let learningTx = "";
-                // If the message has a translation that's different from the original text, show it
-                if (chatMsg.translatedText && chatMsg.translatedText !== chatMsg.text) {
-                    learningTx = chatMsg.translatedText;
-                }
-                chatMsg.learningTranslation = learningTx; // Can be empty, UI handles it
+                
+                // Fallbacks if no translations found or matched
+                if (!chatMsg.nativeTranslation) chatMsg.nativeTranslation = msg.text;
 
                 return chatMsg;
-            }));
-
-            // Deduplicate logic
-            const uniqueMsgs: ChatMessage[] = [];
-            processedMessages.forEach((msg) => {
-                if (uniqueMsgs.length > 0) {
-                    const lastMsg = uniqueMsgs[uniqueMsgs.length - 1];
-                    if (lastMsg.senderId === msg.senderId && lastMsg.text === msg.text) {
-                        return; // Basic dedupe
-                    }
-                }
-                uniqueMsgs.push(msg);
             });
 
-            setMessages(uniqueMsgs);
+            setMessages(processed);
+            if (isInitialLoad && processed.length > 0) {
+                setTimeout(() => scrollToBottom("auto"), 200);
+                setIsInitialLoad(false);
+            }
         });
 
-        // The unsubscribe function void
-        return () => {
-            // wrapper to call unsubscribe
-            unsubscribe();
-        };
-    }, [nativeLang, targetLang, user]);
+        return () => unsubscribe();
+    }, [nativeLang, targetLang, user, isInitialLoad]);
 
 
     const handleSendMessage = async (e?: React.FormEvent) => {
@@ -403,53 +386,61 @@ export function GlobalChatRoom({
     };
 
     const handleWordClick = useCallback(async (word: string, messageId: string, fullSentence: string) => {
-        const cleanWord = cleanMarkdown(word);
-        if (!isMeaningfulWord(word)) return;
+        // Aligned cleaning logic with renderClickableText
+        const clean = cleanMarkdown(word);
+        const wordKey = clean.replace(/[.,!?:;()"']+/g, "").trim().toLowerCase();
+        
+        if (!wordKey || wordKey.length < 2) return;
 
-        const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-        if (!finalWord || finalWord.length < 2) return;
-
-        const wordKey = finalWord.toLowerCase();
-        const uniqueKey = `${messageId}-${wordKey}`;
-
+        console.log("GlobalChatRoom: Word Clicked:", wordKey, "MessageId:", messageId);
         const globalEntry = userVocabulary[wordKey];
-        const currentState = globalEntry
-            ? (globalEntry.status === "red" ? 1 : globalEntry.status === "yellow" ? 2 : globalEntry.status === "green" ? 3 : globalEntry.status === "orange" ? 4 : 0)
-            : (wordStates[uniqueKey] || 0);
-
-        let nextState: number;
-        if (currentState === 0) nextState = 1;
-        else if (currentState === 4) nextState = 0; // Click orange -> clear
-        else if (currentState === 3) nextState = 0;
-        else nextState = currentState + 1;
-
-        setWordStates(prev => ({ ...prev, [uniqueKey]: nextState }));
-
-        if (updateTimeouts.current[uniqueKey]) {
-            clearTimeout(updateTimeouts.current[uniqueKey]);
+        
+        // Determine current status (0-white, 1-red, 2-yellow, 3-green)
+        let currentState = 0;
+        if (globalEntry) {
+            const status = globalEntry.status;
+            if (status === "red") currentState = 1;
+            else if (status === "yellow") currentState = 2;
+            else if (status === "green") currentState = 3;
+            else if (status === "orange") currentState = 4;
         }
 
-        updateTimeouts.current[uniqueKey] = setTimeout(async () => {
+        // Cycle through states: 0 -> 1(red) -> 2(yellow) -> 3(green) -> 0
+        let nextState: number;
+        if (currentState === 0) nextState = 1;
+        else if (currentState === 3) nextState = 0;
+        else if (currentState === 4) nextState = 0;
+        else nextState = currentState + 1;
+
+        console.log(`GlobalChatRoom: State Cycle: ${currentState} -> ${nextState}`);
+
+        // Update local UI immediately for responsiveness
+        const uniqueKey = `${messageId}-${wordKey}`;
+        setWordStates(prev => ({ ...prev, [uniqueKey]: nextState }));
+
+        // Send to server (onUpdateWordStatus or onResetWordStatus)
+        try {
             if (nextState === 0) {
-                onResetWordStatus(finalWord);
-                toast.success(`"${finalWord}" 초기화됨`);
+                onResetWordStatus(wordKey);
             } else {
                 const statusMap: Record<number, "red" | "yellow" | "green"> = { 1: "red", 2: "yellow", 3: "green" };
+                const targetStatus = statusMap[nextState] || "red";
+                
                 await onUpdateWordStatus(
-                    `${messageId}-${finalWord}`,
-                    statusMap[nextState],
-                    finalWord,
+                    `${messageId}-${wordKey}`,
+                    targetStatus,
+                    wordKey,
                     messageId,
                     fullSentence
                 );
-                toast.success(`"${finalWord}" -> ${statusMap[nextState].toUpperCase()}`);
             }
-            delete updateTimeouts.current[uniqueKey];
-        }, 500);
+        } catch (error) {
+            console.error("Error updating word status from Global Chat:", error);
+            toast.error("단어 상태 업데이트 실패");
+        }
+    }, [userVocabulary, onUpdateWordStatus, onResetWordStatus]);
 
-    }, [userVocabulary, wordStates, onUpdateWordStatus, onResetWordStatus]);
-
-    const handleLongPress = useCallback((e: React.PointerEvent, word: string, messageId: string, fullSentence: string) => {
+    const handleLongPress = useCallback((e: React.PointerEvent, word: string, messageId: string, fullSentence: string, targetOffset?: number) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -461,8 +452,13 @@ export function GlobalChatRoom({
         const cleanWord = cleanMarkdown(word);
         const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
         
-        // Retrieve the offset captured in onPointerDown
-        const offset = (window as any).lastClickOffset || 0;
+        const offset = targetOffset !== undefined ? targetOffset : ((window as any).lastClickOffset || 0);
+
+        // Store in ref immediately (sync) to avoid stale closure
+        console.log("=== handleLongPress: Setting ref ===");
+        console.log("finalWord:", finalWord, "messageId:", messageId, "fullSentence:", fullSentence, "offset:", offset);
+        selectedWordDataRef.current = { word: finalWord, messageId, fullSentence, startOffset: offset };
+        console.log("selectedWordDataRef.current after set:", selectedWordDataRef.current);
 
         setRadialMenu({
             showRadialMenu: true,
@@ -476,15 +472,29 @@ export function GlobalChatRoom({
     }, []);
 
     const handleOptionSelect = useCallback((option: WordOptionType) => {
-        const { selectedWordData } = radialMenu;
-        if (!selectedWordData) return;
+        console.log("=== handleOptionSelect START ===");
+        console.log("option:", option);
+        console.log("selectedWordDataRef.current:", selectedWordDataRef.current);
+        console.log("onSaveSentence exists:", !!onSaveSentence);
+
+        // Use ref to avoid stale closure (ref is always current)
+        const selectedWordData = selectedWordDataRef.current;
+
+        if (!selectedWordData) {
+            console.error("selectedWordData is null/undefined!");
+            toast.error("단어 데이터가 없습니다. 다시 시도해주세요.");
+            return;
+        }
 
         const { word, messageId, fullSentence } = selectedWordData;
+        console.log("word:", word, "fullSentence:", fullSentence);
 
         switch (option) {
             case "sentence":
+                console.log("SENTENCE case entered");
                 if (onSaveSentence) {
-                    // Handle selected text if available
+                    console.log("onSaveSentence is defined, proceeding...");
+                    // Handle selected text if available (highest priority)
                     const selection = window.getSelection()?.toString().trim();
                     if (selection && selection.length > 5) {
                         onSaveSentence(selection);
@@ -493,26 +503,38 @@ export function GlobalChatRoom({
                     }
 
                     const targetOffset = selectedWordData.startOffset || 0;
-                    
-                    // Improved boundary detection for sentences and list items
+                    console.log("targetOffset:", targetOffset);
+
+                    // Extract full line (newline to newline) - priority over sentence boundaries
                     const beforeText = fullSentence.substring(0, targetOffset);
-                    const startMatch = [...beforeText.matchAll(/[.?!](?:\s+|$)|[\r\n]+/g)].pop();
-                    const start = startMatch ? startMatch.index + startMatch[0].length : 0;
-                    
                     const afterText = fullSentence.substring(targetOffset);
-                    const endMatch = afterText.match(/[.?!](?:\s+|$)|[\r\n]+/);
-                    const end = (endMatch && endMatch.index !== undefined) ? targetOffset + endMatch.index : fullSentence.length;
-                    
-                    let foundSentence = fullSentence.substring(start, end).trim();
+
+                    // Find line boundaries (newlines only)
+                    const lineStartMatch = beforeText.lastIndexOf('\n');
+                    const lineStart = lineStartMatch !== -1 ? lineStartMatch + 1 : 0;
+
+                    const lineEndMatch = afterText.indexOf('\n');
+                    const lineEnd = lineEndMatch !== -1 ? targetOffset + lineEndMatch : fullSentence.length;
+
+                    let foundSentence = fullSentence.substring(lineStart, lineEnd).trim();
+                    console.log("foundSentence before cleanup:", foundSentence);
+
+                    // Clean up: remove leading numbers/bullets like "1.", "→", "-", etc.
+                    foundSentence = foundSentence.replace(/^[\d]+\.\s*/, '').replace(/^[→\-•]\s*/, '').trim();
+                    console.log("foundSentence after cleanup:", foundSentence);
 
                     if (foundSentence) {
+                        console.log("Calling onSaveSentence with:", foundSentence);
                         onSaveSentence(foundSentence);
                         toast.success(`문장이 저장되었습니다.`);
+                        console.log("Toast shown, sentence saved!");
                     } else {
+                        console.log("No foundSentence, saving fullSentence:", fullSentence.trim());
                         onSaveSentence(fullSentence.trim());
                         toast.success(`문장이 저장되었습니다.`);
                     }
                 } else {
+                    console.error("onSaveSentence is NOT defined!");
                     toast.error("문장 저장 기능을 사용할 수 없습니다.");
                 }
                 break;
@@ -527,32 +549,7 @@ export function GlobalChatRoom({
                     timestamp: new Date()
                 } as any);
                 break;
-            case "important":
-                if (onSaveImportant) {
-                    // Strict cleaning: remove punctuation from the saved word
-                    const wordToSave = word.replace(/[.,!?:;()"']+/g, "").trim();
 
-                    onSaveImportant({
-                        id: `${messageId}-${wordToSave}`,
-                        word: wordToSave,
-                        status: "orange",
-                        messageId: messageId,
-                        sentence: fullSentence,
-                        timestamp: new Date(),
-                        koreanMeaning: userVocabulary[wordToSave.toLowerCase()]?.koreanMeaning || ""
-                    });
-                    toast.success(`"${wordToSave}" 중요 단어로 저장됨`);
-                } else {
-                    onUpdateWordStatus(
-                        `${messageId}-${word}`,
-                        "red",
-                        word,
-                        messageId,
-                        fullSentence
-                    );
-                    toast.success(`"${word}" 중요 단어로 저장됨`);
-                }
-                break;
             case "tts":
                 if (window.speechSynthesis) {
                     const utterance = new SpeechSynthesisUtterance(word);
@@ -560,26 +557,61 @@ export function GlobalChatRoom({
                     window.speechSynthesis.speak(utterance);
                 }
                 break;
-            /* case "delete":
-                toast.info("채팅에서는 단어 삭제를 지원하지 않습니다");
-                break; */
+
+            case "select":
+                // Enable selection mode for this message
+                console.log("=== SELECT MODE TRIGGERED ===");
+                console.log("messageId:", messageId);
+                setSelectionMode(messageId);
+                toast.success("텍스트를 선택하세요. 다른 곳을 탭하면 해제됩니다.");
+                // Close menu but keep selectionMode
+                setRadialMenu(prev => ({
+                    ...prev,
+                    showRadialMenu: false,
+                }));
+                return;
         }
+
+        // Clear ref when done
+        selectedWordDataRef.current = null;
 
         setRadialMenu(prev => ({
             ...prev,
             showRadialMenu: false,
             selectedWordData: undefined
         }));
-    }, [radialMenu, onSaveSentence, onSaveImportant, onUpdateWordStatus, userVocabulary]);
+    }, [onSaveSentence, onUpdateWordStatus, userVocabulary]);
 
     const renderClickableText = (text: string | undefined, messageId: string, isMe: boolean) => {
         if (!text) return null;
 
+        // If in selection mode for this message, render plain selectable text
+        if (selectionMode === messageId) {
+            console.log("Rendering selectable text for messageId:", messageId);
+            return (
+                <div
+                    className="whitespace-pre-wrap"
+                    style={{
+                        userSelect: "text",
+                        WebkitUserSelect: "text",
+                        MozUserSelect: "text",
+                        cursor: "text",
+                    }}
+                >
+                    {text}
+                </div>
+            );
+        }
+
         const parts = getSegments(text);
+        let charCursor = 0;
 
         return (
             <div className="flex flex-wrap items-center gap-y-1">
                 {parts.map((part, index) => {
+                    const currentOffset = charCursor;
+                    charCursor += part.length;
+
                     // preserve whitespace or punctuation as is (Comprehensive check)
                     if (/^[\s\n.,?!;:()\[\]{}"'`，。？！、：；“”‘’（）《》【】]+$/.test(part)) {
                         return <span key={index}>{part}</span>;
@@ -591,30 +623,17 @@ export function GlobalChatRoom({
 
                     if (!wordKey) return <span key={index}>{part}</span>;
 
-                    // Use unique key for random state consistency
-                    const uniqueKey = `${messageId}-${index}`;
-
-                    // Initialize random state if needed (consistency)
-                    if (wordStates[uniqueKey] === undefined) {
-                        // ...
-                    }
+                    // Use unique key consistent with handleWordClick
+                    const uniqueKey = `${messageId}-${wordKey}`;
 
                     const globalEntry = userVocabulary[wordKey];
 
-                    // [STRICT TRUTH] Only use userVocabulary (globalEntry).
-                    // If word is in vocabulary, use its status.
-                    // If deleted (globalEntry undefined), fall back to random wordStates or White.
-                    // This prevents "Ghost Orange" colors from stale importantStack.
+                    // Truth: Priority to global vocabulary status, then local wordStates
                     const status = globalEntry
                         ? globalEntry.status
                         : (wordStates[uniqueKey] === 1 ? "red" : wordStates[uniqueKey] === 2 ? "yellow" : wordStates[uniqueKey] === 3 ? "green" : "white");
 
                     if (index === 0) (window as any)._lastSearchIndex = 0;
-
-                    // Debug Log for "Community" or similar
-                    if (wordKey === "community") {
-                        console.log(`[GlobalChat Debug] Word: ${wordKey}, globalEntry:`, globalEntry, "status:", status);
-                    }
 
                     // Map status to number for WordSpan interaction
                     let statusNumber = 0;
@@ -622,10 +641,6 @@ export function GlobalChatRoom({
                     else if (status === "yellow") statusNumber = 2;
                     else if (status === "green") statusNumber = 3;
                     else if (status === "orange") statusNumber = 4;
-
-                    // Use WordSpan for unified behavior (matches ChatMessage exactly)
-                    // Note: WordSpan handles its own styling via getWordStyle internally if we pass wordState
-                    // We remove manual bgClass/textClass to avoid conflict
 
                     return (
                         <WordSpan
@@ -635,8 +650,9 @@ export function GlobalChatRoom({
                             isMe={isMe}
                             messageId={messageId}
                             fullSentence={text}
+                            startOffset={currentOffset}
                             onClick={() => handleWordClick(wordKey, messageId, text)}
-                            onLongPress={(e) => handleLongPress(e, wordKey, messageId, text)}
+                            onLongPress={(e) => handleLongPress(e, wordKey, messageId, text, currentOffset)}
                         />
                     );
                 })}
@@ -734,9 +750,9 @@ export function GlobalChatRoom({
 
                                 <div
                                     className={`p-4 rounded-2xl shadow-sm ${isMe
-                                        ? "bg-blue-600 text-white rounded-tr-none"
+                                        ? "bg-[#3a3b3c] text-white rounded-tr-none"
                                         : "bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-tl-none"
-                                        }`}
+                                        } ${selectionMode === message.id ? "ring-2 ring-cyan-500 ring-opacity-70" : ""}`}
                                 >
                                     {/* 1. Native Translation (Primary) */}
                                     <div className={`text-[15px] leading-relaxed font-medium ${isMe ? 'text-white' : 'text-zinc-100'}`}>
@@ -745,7 +761,7 @@ export function GlobalChatRoom({
 
                                     {/* 2. Learning Translation (Secondary) */}
                                     {message.learningTranslation && (
-                                        <div className={`text-sm mt-3 pt-2 border-t ${isMe ? "border-blue-400/50 text-blue-50" : "border-zinc-700 text-zinc-400"}`}>
+                                        <div className={`text-sm mt-3 pt-2 border-t ${isMe ? "border-zinc-500/50 text-zinc-200" : "border-zinc-700 text-zinc-400"}`}>
                                             <div className="flex items-center gap-1 mb-1 opacity-70">
                                                 <span className="text-[10px] uppercase tracking-wider font-bold">
                                                     Learning

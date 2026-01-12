@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search, SquarePen, Settings, MoreHorizontal, Pencil, Brain } from "lucide-react";
+import { Plus, Trash2, X, BookOpen, FileText, Users, ChevronDown, ChevronRight, LayoutGrid, Menu, Search, SquarePen, Settings, MoreHorizontal, Pencil, Brain, MessageCircle } from "lucide-react";
 import { SettingsMenu } from "./SettingsMenu";
 import { EternalLogo } from "./EternalLogo";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { Conversation, Message, PersonaInstruction } from "../types";
+import { subscribeToPosts, type Post } from "../services/firestore";
 
 interface StackCounts {
   red: number;
   yellow: number;
   green: number;
-  important: number;
   sentence: number;
 }
 
@@ -35,6 +35,7 @@ interface SidebarProps {
   vocabCount?: number;
   onOpenQuiz?: () => void;
   onOpenLanguageSettings?: () => void;
+  user?: any;
 }
 
 
@@ -62,7 +63,8 @@ export function Sidebar({
   onToggleAutoTTS,
   vocabCount = 0,
   onOpenQuiz,
-  onOpenLanguageSettings
+  onOpenLanguageSettings,
+  user
 }: SidebarProps) {
 
 
@@ -106,6 +108,16 @@ export function Sidebar({
   const [renameModalId, setRenameModalId] = useState<string | null>(null);
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [recentPosts, setRecentPosts] = useState<Post[]>([]);
+
+  // Subscribe to recent community posts
+  useEffect(() => {
+    const unsubscribe = subscribeToPosts((posts) => {
+      // Only keep the 3 most recent posts
+      setRecentPosts(posts.slice(0, 3));
+    });
+    return () => unsubscribe();
+  }, []);
 
   const startEditing = (id: string, currentTitle: string) => {
     setRenameModalId(id);
@@ -171,7 +183,12 @@ export function Sidebar({
         <div className={`flex items-center justify-between overflow-hidden transition-[width,opacity] duration-300 ${collapsed ? 'w-0 opacity-0' : 'flex-1 opacity-100 ml-2'}`}>
           <span className={`${active ? "font-bold" : "font-medium"} truncate`}>{label}</span>
            {count !== undefined && count > 0 && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ml-2 ${active ? `text-${activeColor}-500 bg-${activeColor}-500/10` : "text-zinc-600 bg-zinc-800"
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ml-2 ${
+              activeColor === 'red' ? 'text-red-500 bg-red-500/10' :
+              activeColor === 'yellow' ? 'text-yellow-400 bg-yellow-400/10' :
+              activeColor === 'green' ? 'text-emerald-500 bg-emerald-500/10' :
+              activeColor === 'blue' ? 'text-blue-400 bg-blue-400/10' :
+              'text-zinc-600 bg-zinc-800'
               }`}>
               {count}
             </span>
@@ -416,90 +433,32 @@ export function Sidebar({
             />
 
             {/* Red Signal Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigate("/stack/red");
-                if (!isDesktop) onClose();
-              }}
-              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
-            >
-              <div className="w-10 flex items-center justify-center flex-shrink-0">
-                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] bg-red-600 shadow-red-600/50`} />
-              </div>
-              {!(isDesktop && !isOpen) && (
-                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
-                  <span className="text-sm font-medium whitespace-nowrap truncate">
-                    Red Room
-                  </span>
-                  {counts.red > 0 && (
-                    <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded ml-2">
-                      {counts.red}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+            <MenuItem
+              path="/stack/red"
+              label={learningMode === 'language' ? 'Word Room' : 'Red Room'}
+              count={counts.red}
+              icon={<div className="w-2.5 h-2.5 rounded-full shadow-[0_0_6px_rgba(220,38,38,0.5)] bg-red-600" />}
+              activeColor="red"
+            />
 
             {/* Yellow Room Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigate("/stack/yellow");
-                if (!isDesktop) onClose();
-              }}
-              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
-            >
-              <div className="w-10 flex items-center justify-center flex-shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.5)]" />
-              </div>
-              {!(isDesktop && !isOpen) && (
-                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
-                  <span className="text-sm font-medium whitespace-nowrap truncate">
-                    Yellow Room
-                  </span>
-                  {counts.yellow > 0 && (
-                    <span className="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded ml-2">
-                      {counts.yellow}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+            <MenuItem
+              path="/stack/yellow"
+              label="Yellow Room"
+              count={counts.yellow}
+              icon={<div className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.5)]" />}
+              activeColor="yellow"
+            />
 
             {/* Green Room Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigate("/stack/green");
-                if (!isDesktop) onClose();
-              }}
-              className={`relative z-10 flex items-center py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272a] transition-all duration-300 w-full`}
-            >
-              <div className="w-10 flex items-center justify-center flex-shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-              </div>
-              {!(isDesktop && !isOpen) && (
-                <div className="flex-1 flex items-center justify-between ml-2 overflow-hidden">
-                  <span className="text-sm font-medium whitespace-nowrap truncate">
-                    Green Room
-                  </span>
-                  {counts.green > 0 && (
-                    <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded ml-2">
-                      {counts.green}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+            <MenuItem
+              path="/stack/green"
+              label="Green Room"
+              count={counts.green}
+              icon={<div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />}
+              activeColor="green"
+            />
 
-            {/* Settings - Using SettingsMenu Component */}
             <SettingsMenu
               onLogout={onLogout}
               onResetLanguage={onResetLanguage}
@@ -512,6 +471,41 @@ export function Sidebar({
               isCollapsed={isDesktop && !isOpen}
               onOpenLanguageSettings={onOpenLanguageSettings}
             />
+
+            {/* Recent Post - Bottom Section */}
+            {recentPosts.length > 0 && (
+              <div
+                className="mt-1 border-t border-[#27272a] pt-3 pb-2 cursor-pointer group"
+                onClick={() => {
+                  navigate("/community");
+                  if (!isDesktop) onClose();
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 flex-shrink-0 flex justify-center">
+                    {recentPosts[0].image ? (
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-[#27272a] bg-zinc-800">
+                        <img src={recentPosts[0].image} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-[#27272a] bg-zinc-800 flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-zinc-500" />
+                      </div>
+                    )}
+                  </div>
+                  {!(isDesktop && !isOpen) && (
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-sm font-medium text-[#E3E3E3] truncate group-hover:text-white transition-colors">
+                        {recentPosts[0].content.length > 20 ? recentPosts[0].content.slice(0, 20) + '...' : recentPosts[0].content}
+                      </p>
+                      <p className="text-[10px] text-zinc-500 font-medium truncate">
+                        {recentPosts[0].user?.name || 'Community'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
 
 
