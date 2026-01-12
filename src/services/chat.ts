@@ -52,25 +52,28 @@ export const deleteMessage = async (messageId: string) => {
 export const subscribeToMessages = (callback: (messages: any[]) => void) => {
     const q = query(
         collection(db, COLLECTION_NAME),
-        orderBy("created_at", "asc"),
-        limit(100)
+        // orderBy("created_at", "asc"), // Temporarily disabled to check if data exists without index
+        limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messages = snapshot.docs.map(doc => {
-            const data = doc.data();
+        console.log(`Global Chat: Received ${snapshot.docs.length} messages`);
+        const messages = snapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            const ts = data.created_at || data.createdAt;
+            
             return {
-                id: doc.id,
+                id: docSnap.id,
                 text: data.content,
                 translatedText: data.translated_text,
-                senderId: data.sender_id,
-                senderName: data.sender_name,
-                senderAvatar: data.sender_avatar,
-                timestamp: data.created_at instanceof Timestamp
-                    ? data.created_at.toDate().toISOString()
+                senderId: data.sender_id || data.senderId,
+                senderName: data.sender_name || data.senderName,
+                senderAvatar: data.sender_avatar || data.senderAvatar,
+                timestamp: ts instanceof Timestamp
+                    ? ts.toDate().toISOString()
                     : new Date().toISOString(),
-                originalLang: data.original_lang,
-                targetLang: data.target_lang
+                originalLang: data.original_lang || data.originalLang,
+                targetLang: data.target_lang || data.targetLang
             };
         });
 
@@ -78,6 +81,11 @@ export const subscribeToMessages = (callback: (messages: any[]) => void) => {
         messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
         callback(messages);
+    }, (error) => {
+        console.error("Global Chat subscription error:", error);
+        if (error.code === 'permission-denied') {
+            console.warn("Global Chat: Permission denied. Check firestore.rules deployment.");
+        }
     });
 
     return unsubscribe;

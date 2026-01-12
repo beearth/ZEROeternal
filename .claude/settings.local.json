@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(gsutil:*)",
-      "Bash(gcloud --version:*)"
+      "Bash(gcloud --version:*)",
+      "Bash(firebase deploy:*)"
     ]
   }
 }

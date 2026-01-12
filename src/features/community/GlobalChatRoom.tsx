@@ -249,7 +249,10 @@ export function GlobalChatRoom({
     // Supabase Subscription Logic + Translation Logic
     useEffect(() => {
         const unsubscribe = subscribeToMessages(async (fetchedMessages) => {
-            // Process translation logic here similar to previous onSnapshot
+            console.log("GlobalChatRoom: Fetched raw messages:", fetchedMessages.length);
+            if (fetchedMessages.length > 0) {
+                console.log("GlobalChatRoom: Sample message:", fetchedMessages[0]);
+            }
             // fetchedMessages are generic, we need to map to ChatMessage with local logic
 
             const processedMessages = await Promise.all(fetchedMessages.map(async (msg) => {
@@ -296,11 +299,9 @@ export function GlobalChatRoom({
 
                 // 2. Learning Translation
                 let learningTx = "";
-                if (targetLang !== nativeLang) {
-                    // Check if caching exists or if text is already in targetLang
-                    if (chatMsg.targetLang === targetLang) {
-                        learningTx = chatMsg.translatedText;
-                    }
+                // If the message has a translation that's different from the original text, show it
+                if (chatMsg.translatedText && chatMsg.translatedText !== chatMsg.text) {
+                    learningTx = chatMsg.translatedText;
                 }
                 chatMsg.learningTranslation = learningTx; // Can be empty, UI handles it
 
@@ -345,24 +346,22 @@ export function GlobalChatRoom({
             const tLang = targetLang;
 
             let translated = inputValue;
-            // [OPTIMIZATION] AI Translation API Removed by User Request to save usage
-            // The AI Logic is now "Code-Switching" so explicit translation is redundant.
-            /*
+            // Determined target language for translation: If source is KO, target is EN, and vice versa.
+            const translationTarget = originalLang === 'ko' ? 'en' : 'ko';
+
             try {
-                if (originalLang !== tLang) {
-                    translated = await translateText(inputValue, tLang);
-                }
+                // Always try to translate to the opposite language for Global Chat
+                translated = await translateText(inputValue, translationTarget);
             } catch (translationError) {
                 console.warn("Translation failed:", translationError);
             }
-            */
 
             await sendMessage(
                 inputValue,
                 translated,
                 user,
                 originalLang,
-                tLang
+                translationTarget // Use the actual translation target
             );
 
             setInputValue('');
