@@ -286,22 +286,26 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
 
                 // 1. If Avatar is Base64, upload to Firebase Storage first
                 if (editAvatar && editAvatar.startsWith('data:')) {
+                    console.log("Starting avatar upload to Firebase Storage...");
                     const uploadToastId = toast.loading("이미지 업로드 중...");
                     try {
                         const blob = dataURLtoBlob(editAvatar);
                         const fileName = `avatars/${currentUser.uid}_${Date.now()}.jpg`;
                         const storageRef = ref(storage, fileName);
 
-                        // Upload
+                        console.log("Storage ref created, calling uploadBytes...");
                         const uploadResult = await uploadBytes(storageRef, blob);
+                        console.log("Upload result obtained, getting download URL...");
                         const publicUrl = await getDownloadURL(uploadResult.ref);
 
                         finalAvatarUrl = publicUrl;
                         setEditAvatar(publicUrl); // Update state for UI
                         toast.dismiss(uploadToastId);
+                        console.log("Avatar upload success:", publicUrl);
                     } catch (uploadError: any) {
-                        console.error("Avatar upload failed:", uploadError);
+                        console.error("Avatar upload CRITICAL error:", uploadError);
                         toast.dismiss(uploadToastId);
+                        toast.dismiss(); // Dismiss all as safe fallback
                         toast.error("이미지 업로드에 실패했습니다(CORS/권한). 이름과 소개만 먼저 저장합니다.");
                         // DO NOT throw, continue with name update
                     }
