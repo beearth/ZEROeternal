@@ -59,6 +59,13 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
     const location = useLocation();
     const [isFollowing, setIsFollowing] = useState(false);
 
+    // Followers/Following Modal State
+    const [followModal, setFollowModal] = useState<{
+        type: 'followers' | 'following' | null;
+        users: { id: string; name: string; avatar: string }[];
+        loading: boolean;
+    }>({ type: null, users: [], loading: false });
+
     // DEBUG: Check user prop
     useEffect(() => {
         console.log("UserProfilePage: currentUser prop", currentUser);
@@ -264,6 +271,33 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
         setIsEditingBio(false);
     }, [effectiveTargetId]);
 
+    // Load followers or following list
+    const handleOpenFollowModal = async (type: 'followers' | 'following') => {
+        setFollowModal({ type, users: [], loading: true });
+
+        const userIds = type === 'followers' ? postUser.followers : postUser.following;
+        if (!userIds || userIds.length === 0) {
+            setFollowModal({ type, users: [], loading: false });
+            return;
+        }
+
+        try {
+            const userProfiles = await Promise.all(
+                userIds.map(async (id: string) => {
+                    const { profile } = await getUserProfile(id);
+                    return {
+                        id,
+                        name: profile?.name || 'Unknown',
+                        avatar: profile?.avatar || ''
+                    };
+                })
+            );
+            setFollowModal({ type, users: userProfiles, loading: false });
+        } catch (error) {
+            console.error("Failed to load users:", error);
+            setFollowModal({ type, users: [], loading: false });
+        }
+    };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -538,13 +572,19 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
                                 )}
                             </div>
                             <div className="flex gap-6 pr-2">
-                                <div className="flex items-center gap-1.5">
+                                <div
+                                    className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => handleOpenFollowModal('followers')}
+                                >
                                     <span className="font-black text-white text-base">
                                         {postUser.followers ? postUser.followers.length : 0}
                                     </span>
                                     <span className="font-bold text-zinc-400 text-sm">followers</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
+                                <div
+                                    className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => handleOpenFollowModal('following')}
+                                >
                                     <span className="font-black text-white text-base">{postUser.following ? postUser.following.length : 0}</span>
                                     <span className="font-bold text-zinc-400 text-sm">following</span>
                                 </div>
@@ -734,5 +774,58 @@ export function UserProfilePage({ user: currentUser }: UserProfilePageProps) {
             </div>
         </div>
 
+        {/* Followers/Following Modal */}
+        {followModal.type && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-[#1e1f20] border border-[#2a2b2c] rounded-2xl w-full max-w-sm mx-4 max-h-[70vh] flex flex-col shadow-xl">
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-[#2a2b2c]">
+                        <h3 className="text-lg font-bold text-white">
+                            {followModal.type === 'followers' ? 'Followers' : 'Following'}
+                        </h3>
+                        <button
+                            onClick={() => setFollowModal({ type: null, users: [], loading: false })}
+                            className="p-1.5 hover:bg-[#2a2b2c] rounded-lg transition-colors"
+                        >
+                            <X className="w-5 h-5 text-zinc-400" />
+                        </button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="flex-1 overflow-y-auto p-2">
+                        {followModal.loading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="w-6 h-6 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
+                            </div>
+                        ) : followModal.users.length === 0 ? (
+                            <div className="text-center py-8 text-zinc-500">
+                                {followModal.type === 'followers' ? '팔로워가 없습니다' : '팔로잉이 없습니다'}
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                {followModal.users.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#2a2b2c] cursor-pointer transition-colors"
+                                        onClick={() => {
+                                            setFollowModal({ type: null, users: [], loading: false });
+                                            navigate(`/profile/${user.id}`);
+                                        }}
+                                    >
+                                        <Avatar className="w-10 h-10">
+                                            <AvatarImage src={user.avatar} />
+                                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                                                {user.name[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="font-semibold text-white">{user.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
     </div>;
 }
