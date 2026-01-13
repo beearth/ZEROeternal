@@ -2,6 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Globe, BookOpen, RefreshCw, Trash2, Menu, Bot, Save } from 'lucide-react';
 import { Button } from "../../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { ChatAvatar, ChatUserName } from "./components/ChatUserIdentity";
 import { Input } from "../../components/ui/input";
 import { toast } from "../../services/toast";
@@ -29,6 +37,7 @@ interface GlobalChatRoomProps {
     nativeLang: string;
     setNativeLang: (lang: string) => void;
     targetLang: string;
+    setTargetLang: (lang: string) => void;
     onSaveSentence?: (sentence: string) => void;
 }
 
@@ -154,6 +163,7 @@ export function GlobalChatRoom({
     nativeLang,
     setNativeLang,
     targetLang,
+    setTargetLang,
     onSaveSentence,
 }: GlobalChatRoomProps) {
     const navigate = useNavigate();
@@ -626,8 +636,19 @@ export function GlobalChatRoom({
 
             case "tts":
                 if (window.speechSynthesis && word && word.length >= 2) {
-                    const utterance = new SpeechSynthesisUtterance(word);
-                    utterance.lang = "en-US";
+                    // 특수문자 제거
+                    const cleanWord = word.replace(/\*+/g, '').replace(/[#_~`\[\]()]/g, '').trim();
+                    const utterance = new SpeechSynthesisUtterance(cleanWord);
+                    // Determine language based on content characters
+                    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(cleanWord);
+                    // If word is Korean, use Korean voice. Otherwise assume targetLang or English.
+                    utterance.lang = hasKorean ? "ko-KR" : (targetLang === 'ja' ? 'ja-JP' : (targetLang === 'zh' ? 'zh-CN' : 'en-US'));
+
+                    // Specific fix for Japanese if target is Japanese
+                    if (targetLang === 'ja' && !hasKorean) {
+                         utterance.lang = 'ja-JP';
+                    }
+
                     window.speechSynthesis.speak(utterance);
                 }
                 break;
@@ -757,7 +778,8 @@ export function GlobalChatRoom({
             )}
 
             {/* WordOptionMenu */}
-            {radialMenu.showRadialMenu && console.log("WordOptionMenu is OPEN, word:", radialMenu.selectedWord)}
+            {/* WordOptionMenu */}
+
             <WordOptionMenu
                 isOpen={radialMenu.showRadialMenu}
                 word={radialMenu.selectedWord || ""}
@@ -805,9 +827,70 @@ export function GlobalChatRoom({
                     <ArrowLeft className="w-5 h-5 text-zinc-400" />
                 </button>
 
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
-                    <Globe className="w-6 h-6" />
-                </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white hover:opacity-90 transition-opacity">
+                            <Globe className="w-6 h-6" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 bg-[#1e1f20] border-[#2a2b2c] text-zinc-200">
+                        <DropdownMenuLabel>Translation Settings</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="bg-[#2a2b2c]" />
+                        
+                        <div className="px-2 py-1.5">
+                            <span className="text-xs font-semibold text-zinc-500 mb-2 block uppercase">Target Language (배울 언어)</span>
+                            <div className="grid grid-cols-2 gap-1">
+                                {[
+                                    { code: 'en', label: 'English', flag: '🇺🇸' },
+                                    { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+                                    { code: 'zh', label: 'Chinese', flag: '🇨🇳' },
+                                    { code: 'es', label: 'Spanish', flag: '🇪🇸' },
+                                    { code: 'fr', label: 'French', flag: '🇫🇷' },
+                                    { code: 'ko', label: 'Korean', flag: '🇰🇷' },
+                                ].map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => setTargetLang(lang.code)}
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
+                                            targetLang === lang.code 
+                                            ? 'bg-blue-600 text-white' 
+                                            : 'hover:bg-[#2a2b2c] text-zinc-400'
+                                        }`}
+                                    >
+                                        <span>{lang.flag}</span>
+                                        <span>{lang.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <DropdownMenuSeparator className="bg-[#2a2b2c]" />
+
+                        <div className="px-2 py-1.5 pt-0">
+                            <span className="text-xs font-semibold text-zinc-500 mb-2 block uppercase mt-2">Native Language (모국어)</span>
+                            <div className="grid grid-cols-2 gap-1">
+                                {[
+                                    { code: 'ko', label: 'Korean', flag: '🇰🇷' },
+                                    { code: 'en', label: 'English', flag: '🇺🇸' },
+                                    { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+                                ].map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => setNativeLang(lang.code)}
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
+                                            nativeLang === lang.code 
+                                            ? 'bg-green-600 text-white' 
+                                            : 'hover:bg-[#2a2b2c] text-zinc-400'
+                                        }`}
+                                    >
+                                        <span>{lang.flag}</span>
+                                        <span>{lang.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 <div className="flex flex-col flex-1">
                     <span className="font-bold text-white text-lg">Global Open Chat 🌏</span>

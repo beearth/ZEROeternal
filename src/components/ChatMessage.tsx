@@ -699,7 +699,9 @@ export function ChatMessage({
         break;
       case "tts":
         if (window.speechSynthesis && finalWord && finalWord.length >= 2) {
-          const utterance = new SpeechSynthesisUtterance(finalWord);
+          // 특수문자 제거
+          const cleanWord = finalWord.replace(/\*+/g, '').replace(/[#_~`\[\]()]/g, '').trim();
+          const utterance = new SpeechSynthesisUtterance(cleanWord);
           utterance.lang = "en-US";
           window.speechSynthesis.speak(utterance);
         } else {

@@ -103,7 +103,15 @@ export function useVoice() {
         // Stop any current speech
         window.speechSynthesis.cancel();
 
-        const utterance = new SpeechSynthesisUtterance(text);
+        // TTS용 텍스트 정리 (특수문자 제거)
+        const cleanText = text
+            .replace(/\*+/g, '')           // asterisks 제거
+            .replace(/[#_~`]/g, '')        // markdown 특수문자 제거
+            .replace(/\[|\]|\(|\)/g, '')   // 괄호 제거
+            .replace(/\s+/g, ' ')          // 연속 공백 정리
+            .trim();
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = lang;
         
         // Find a natural sounding voice if possible

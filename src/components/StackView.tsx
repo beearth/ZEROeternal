@@ -159,7 +159,8 @@ export function StackView({ title, color, items, userVocabulary = {}, onUpdateVo
         }
         break;
       case "tts": // 듣기
-        const utterance = new SpeechSynthesisUtterance(menuOpenWord);
+        const cleanWord = menuOpenWord.replace(/\*+/g, '').replace(/[#_~`\[\]()]/g, '').trim();
+        const utterance = new SpeechSynthesisUtterance(cleanWord);
         utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
         break;
