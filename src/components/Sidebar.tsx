@@ -562,7 +562,7 @@ export function Sidebar({
                 >
                     <h3 className="text-lg font-semibold text-white mb-4">채팅을 삭제하시겠습니까?</h3>
                     <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-                        프롬프트, 대답, 의견이 Gemini 앱 활동에서 삭제될 뿐만 아니라, 사용자가 만든 콘텐츠도 삭제됩니다.
+                        이 채팅의 모든 메시지와 관련 데이터가 삭제됩니다. 삭제된 채팅은 복구할 수 없습니다.
                         <br />
                         <button className="text-blue-400 hover:text-blue-300 mt-2 block text-sm font-medium">자세히 알아보기</button>
                     </p>

@@ -147,10 +147,20 @@ export const toggleLike = async (postId: string, userId: string, isLiked: boolea
 
 // 5. Add Comment
 export const addCommentToPost = async (postId: string, comment: any) => {
-    const postRef = doc(db, COLLECTION_NAME, postId);
-    await updateDoc(postRef, {
-        comments: arrayUnion(comment)
-    });
+    try {
+        const postRef = doc(db, COLLECTION_NAME, postId);
+        await updateDoc(postRef, {
+            comments: arrayUnion(comment)
+        });
+        console.log("댓글 추가 성공:", postId, comment);
+    } catch (error: any) {
+        console.error("댓글 추가 실패:", error);
+        // 권한 오류인 경우 더 구체적인 메시지
+        if (error.code === 'permission-denied') {
+            throw new Error("댓글을 추가할 권한이 없습니다. Firestore 규칙을 확인하세요.");
+        }
+        throw error;
+    }
 };
 
 // 6. Toggle Repost

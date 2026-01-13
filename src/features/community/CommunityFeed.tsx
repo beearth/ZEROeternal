@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { toast } from "../../services/toast";
 import { NotificationsPopover } from "../../components/NotificationsPopover";
-import { AiKnowHowCard } from "./AiKnowHowCard";
+
 
 // Extended interface with authorId and title
 interface ExtendedPostCardProps extends PostCardProps {
@@ -136,7 +136,13 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
             content: text,
             createdAt: '방금 전'
         };
-        await addCommentToPost(postId, newComment);
+        try {
+            await addCommentToPost(postId, newComment);
+            toast.success("댓글이 추가되었습니다.");
+        } catch (error: any) {
+            console.error("댓글 추가 실패:", error);
+            toast.error(error.message || "댓글 추가에 실패했습니다.");
+        }
     };
 
     const handleRepost = async (postId: string) => {
@@ -260,14 +266,7 @@ export function CommunityFeed({ user, nativeLang, targetLang, onToggleSidebar }:
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-2xl mx-auto pt-6 pb-20 px-4 space-y-6">
                     {/* Posts */}
-                    <div className="mb-6">
-                        <AiKnowHowCard
-                            category="Prompt Tip"
-                            title="DeepSeek로 리액트 코드 3초 컷 하기"
-                            description="복잡한 설명 필요 없이 이 프롬프트 한 줄이면 구조까지 완벽하게 잡아줍니다. 지금 바로 내 채팅창에 적용해 보세요."
-                            onAction={() => toast.success("Signal 적용됨!")}
-                        />
-                    </div>
+
 
                     {posts.map((post) => (
                         <PostCard

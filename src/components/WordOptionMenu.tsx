@@ -30,8 +30,11 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                 onClick={onClose}
             />
 
-            {/* Menu Container */}
-            <div className="relative w-full max-w-xs bg-[#2b2d31] rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden animate-in zoom-in-95 duration-200 p-1">
+            {/* Menu Container - z-10 ensures it's above the backdrop */}
+            <div
+                className="relative z-10 w-full max-w-xs bg-[#2b2d31] rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden animate-in zoom-in-95 duration-200 p-1 pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-700/50 bg-[#313338] flex justify-between items-center">
@@ -54,6 +57,7 @@ export const WordOptionMenu: React.FC<WordOptionMenuProps> = ({
                             label="문장 저장"
                             subLabel="이 문장을 보관함에 저장"
                             onClick={() => {
+                                console.log(">>> 문장 저장 버튼 클릭됨!");
                                 onSelectOption("sentence");
                                 onClose();
                             }}
@@ -112,8 +116,14 @@ interface MenuButtonProps {
 
 const MenuButton: React.FC<MenuButtonProps> = ({ icon, label, subLabel, onClick }) => (
     <button
-        onClick={onClick}
-        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-[#383a40] active:bg-[#404249] transition-all group text-left"
+        onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log("MenuButton clicked:", label);
+            onClick();
+        }}
+        className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-[#383a40] active:bg-[#404249] transition-all group text-left pointer-events-auto cursor-pointer"
+        style={{ pointerEvents: 'auto' }}
     >
         <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             {icon}

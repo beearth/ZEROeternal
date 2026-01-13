@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Globe, BookOpen, RefreshCw, Trash2, Menu, Bot } from 'lucide-react';
+import { ArrowLeft, Send, Globe, BookOpen, RefreshCw, Trash2, Menu, Bot, Save } from 'lucide-react';
 import { Button } from "../../components/ui/button";
 import { ChatAvatar, ChatUserName } from "./components/ChatUserIdentity";
 import { Input } from "../../components/ui/input";
@@ -169,9 +169,6 @@ export function GlobalChatRoom({
     const [wordStates, setWordStates] = useState<Record<string, number>>({});
     const updateTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-    // Ref to store selected word data (fixes stale closure issue)
-    const selectedWordDataRef = useRef<{ word: string; messageId: string; fullSentence: string; startOffset: number } | null>(null);
-
     // Radial Menu State
 
     const [radialMenu, setRadialMenu] = useState<{
@@ -181,7 +178,7 @@ export function GlobalChatRoom({
         selectedMessageId: string | null;
         fullSentence: string | null;
         startOffset: number;
-        selectedWordData?: { word: string; messageId: string; fullSentence: string; startOffset: number }; // Compatible
+        selectedWordData?: { word: string; messageId: string; fullSentence: string; startOffset: number; capturedSelection?: string };
     }>({
         showRadialMenu: false,
         menuPosition: { x: 0, y: 0 },
@@ -199,6 +196,66 @@ export function GlobalChatRoom({
 
     // Text selection mode state
     const [selectionMode, setSelectionMode] = useState<string | null>(null); // messageId when in selection mode
+
+    // Floating selection toolbar state
+    const [selectionToolbar, setSelectionToolbar] = useState<{
+        show: boolean;
+        text: string;
+        x: number;
+        y: number;
+    }>({ show: false, text: "", x: 0, y: 0 });
+
+    // Detect text selection and show floating save button
+    useEffect(() => {
+        const handleSelectionChange = () => {
+            const selection = window.getSelection();
+            const selectedText = selection?.toString().trim() || "";
+
+            if (selectedText.length > 3) {
+                const range = selection?.getRangeAt(0);
+                if (range) {
+                    const rect = range.getBoundingClientRect();
+                    setSelectionToolbar({
+                        show: true,
+                        text: selectedText,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 10
+                    });
+                }
+            } else {
+                setSelectionToolbar(prev => ({ ...prev, show: false }));
+            }
+        };
+
+        document.addEventListener('selectionchange', handleSelectionChange);
+        document.addEventListener('mouseup', handleSelectionChange);
+        document.addEventListener('touchend', handleSelectionChange);
+
+        return () => {
+            document.removeEventListener('selectionchange', handleSelectionChange);
+            document.removeEventListener('mouseup', handleSelectionChange);
+            document.removeEventListener('touchend', handleSelectionChange);
+        };
+    }, []);
+
+    // 선택 텍스트 정리 (줄바꿈 제거, 공백 정리)
+    const cleanSelectedText = (text: string): string => {
+        return text
+            .replace(/\n+/g, ' ')  // 줄바꿈을 공백으로
+            .replace(/\s+/g, ' ')  // 연속 공백을 하나로
+            .trim();
+    };
+
+    // Save selected text handler
+    const handleSaveSelection = useCallback(() => {
+        if (selectionToolbar.text && onSaveSentence) {
+            const cleanText = cleanSelectedText(selectionToolbar.text);
+            onSaveSentence(cleanText);
+            toast.success("선택한 문장이 저장되었습니다!");
+            window.getSelection()?.removeAllRanges();
+            setSelectionToolbar({ show: false, text: "", x: 0, y: 0 });
+        }
+    }, [selectionToolbar.text, onSaveSentence]);
 
     // Clear selection mode when clicking outside or after copying
     useEffect(() => {
@@ -449,17 +506,15 @@ export function GlobalChatRoom({
 
         if (navigator.vibrate) navigator.vibrate(50);
 
+        // 롱프레스 전에 선택된 텍스트 캡처 (선택이 해제되기 전에)
+        const currentSelection = window.getSelection()?.toString().trim() || "";
+
         const cleanWord = cleanMarkdown(word);
         const finalWord = cleanWord.trim().split(/[\s\n.,?!;:()\[\]{}"'`]+/)[0];
-        
+
         const offset = targetOffset !== undefined ? targetOffset : ((window as any).lastClickOffset || 0);
 
-        // Store in ref immediately (sync) to avoid stale closure
-        console.log("=== handleLongPress: Setting ref ===");
-        console.log("finalWord:", finalWord, "messageId:", messageId, "fullSentence:", fullSentence, "offset:", offset);
-        selectedWordDataRef.current = { word: finalWord, messageId, fullSentence, startOffset: offset };
-        console.log("selectedWordDataRef.current after set:", selectedWordDataRef.current);
-
+        // ChatMessage.tsx와 동일하게 state에 직접 저장 + 선택된 텍스트 포함
         setRadialMenu({
             showRadialMenu: true,
             menuPosition: { x: clickX, y: clickY },
@@ -467,49 +522,65 @@ export function GlobalChatRoom({
             selectedMessageId: messageId,
             fullSentence,
             startOffset: offset,
-            selectedWordData: { word: finalWord, messageId, fullSentence, startOffset: offset }
+            selectedWordData: {
+                word: finalWord,
+                messageId,
+                fullSentence,
+                startOffset: offset,
+                capturedSelection: currentSelection // 선택된 텍스트 저장
+            }
         });
     }, []);
 
     const handleOptionSelect = useCallback((option: WordOptionType) => {
-        console.log("=== handleOptionSelect START ===");
+        console.log("=== handleOptionSelect called ===");
         console.log("option:", option);
-        console.log("selectedWordDataRef.current:", selectedWordDataRef.current);
-        console.log("onSaveSentence exists:", !!onSaveSentence);
+        console.log("radialMenu.selectedWordData:", radialMenu.selectedWordData);
 
-        // Use ref to avoid stale closure (ref is always current)
-        const selectedWordData = selectedWordDataRef.current;
-
+        // ChatMessage.tsx와 동일하게 radialMenu.selectedWordData 직접 사용
+        const selectedWordData = radialMenu.selectedWordData;
         if (!selectedWordData) {
-            console.error("selectedWordData is null/undefined!");
+            console.error("selectedWordData is NULL!");
             toast.error("단어 데이터가 없습니다. 다시 시도해주세요.");
             return;
         }
 
-        const { word, messageId, fullSentence } = selectedWordData;
-        console.log("word:", word, "fullSentence:", fullSentence);
+        console.log("selectedWordData found:", selectedWordData);
+        const { word, messageId, fullSentence, startOffset, capturedSelection } = selectedWordData;
 
         switch (option) {
             case "sentence":
-                console.log("SENTENCE case entered");
-                if (onSaveSentence) {
-                    console.log("onSaveSentence is defined, proceeding...");
-                    // Handle selected text if available (highest priority)
-                    const selection = window.getSelection()?.toString().trim();
-                    if (selection && selection.length > 5) {
-                        onSaveSentence(selection);
-                        toast.success(`선택한 문장이 저장되었습니다.`);
-                        return;
+                console.log("SENTENCE case - onSaveSentence:", !!onSaveSentence, "word:", word);
+                console.log("capturedSelection:", capturedSelection);
+                if (onSaveSentence && word && word.length >= 2) {
+                    // 1순위: 롱프레스 전에 캡처된 선택 텍스트
+                    if (capturedSelection && capturedSelection.length > 5) {
+                        const cleanText = cleanSelectedText(capturedSelection);
+                        console.log("Saving capturedSelection:", cleanText);
+                        onSaveSentence(cleanText);
+                        toast.success(`선택한 문장이 저장되었습니다!`);
+                        break;
                     }
 
-                    const targetOffset = selectedWordData.startOffset || 0;
+                    // 2순위: 현재 선택된 텍스트
+                    const selection = window.getSelection()?.toString().trim();
+                    if (selection && selection.length > 5) {
+                        const cleanText = cleanSelectedText(selection);
+                        console.log("Saving current selection:", cleanText);
+                        onSaveSentence(cleanText);
+                        toast.success(`선택한 문장이 저장되었습니다.`);
+                        break;
+                    }
+
+                    // 3순위: 해당 줄 추출
+                    const targetOffset = startOffset || 0;
+                    console.log("fullSentence:", fullSentence);
                     console.log("targetOffset:", targetOffset);
 
-                    // Extract full line (newline to newline) - priority over sentence boundaries
+                    // Extract full line (newline to newline)
                     const beforeText = fullSentence.substring(0, targetOffset);
                     const afterText = fullSentence.substring(targetOffset);
 
-                    // Find line boundaries (newlines only)
                     const lineStartMatch = beforeText.lastIndexOf('\n');
                     const lineStart = lineStartMatch !== -1 ? lineStartMatch + 1 : 0;
 
@@ -517,41 +588,44 @@ export function GlobalChatRoom({
                     const lineEnd = lineEndMatch !== -1 ? targetOffset + lineEndMatch : fullSentence.length;
 
                     let foundSentence = fullSentence.substring(lineStart, lineEnd).trim();
-                    console.log("foundSentence before cleanup:", foundSentence);
+                    console.log("foundSentence:", foundSentence);
 
-                    // Clean up: remove leading numbers/bullets like "1.", "→", "-", etc.
+                    // Clean up: remove leading numbers/bullets and extra whitespace
                     foundSentence = foundSentence.replace(/^[\d]+\.\s*/, '').replace(/^[→\-•]\s*/, '').trim();
-                    console.log("foundSentence after cleanup:", foundSentence);
+                    foundSentence = cleanSelectedText(foundSentence);
 
                     if (foundSentence) {
-                        console.log("Calling onSaveSentence with:", foundSentence);
+                        console.log(">>> SAVING SENTENCE:", foundSentence);
                         onSaveSentence(foundSentence);
                         toast.success(`문장이 저장되었습니다.`);
-                        console.log("Toast shown, sentence saved!");
                     } else {
-                        console.log("No foundSentence, saving fullSentence:", fullSentence.trim());
-                        onSaveSentence(fullSentence.trim());
+                        // Fallback to whole content
+                        const cleanFull = cleanSelectedText(fullSentence);
+                        console.log(">>> SAVING FULL:", cleanFull);
+                        onSaveSentence(cleanFull);
                         toast.success(`문장이 저장되었습니다.`);
                     }
                 } else {
-                    console.error("onSaveSentence is NOT defined!");
-                    toast.error("문장 저장 기능을 사용할 수 없습니다.");
+                    console.error("Cannot save - onSaveSentence:", !!onSaveSentence, "word:", word);
                 }
                 break;
+
             case "detail":
-                const entry = userVocabulary[word.toLowerCase()];
-                setSelectedWordDetail({ // Fixed state set
-                    word: word,
-                    koreanMeaning: entry?.koreanMeaning || "",
-                    status: entry?.status || "white",
-                    messageId: messageId,
-                    sentence: fullSentence, // aligned with type if needed, or pass fullSentence
-                    timestamp: new Date()
-                } as any);
+                if (word && word.length >= 2) {
+                    const entry = userVocabulary[word.toLowerCase()];
+                    setSelectedWordDetail({
+                        word: word,
+                        koreanMeaning: entry?.koreanMeaning || "",
+                        status: entry?.status || "white",
+                        messageId: messageId,
+                        sentence: fullSentence,
+                        timestamp: new Date()
+                    } as any);
+                }
                 break;
 
             case "tts":
-                if (window.speechSynthesis) {
+                if (window.speechSynthesis && word && word.length >= 2) {
                     const utterance = new SpeechSynthesisUtterance(word);
                     utterance.lang = "en-US";
                     window.speechSynthesis.speak(utterance);
@@ -559,28 +633,22 @@ export function GlobalChatRoom({
                 break;
 
             case "select":
-                // Enable selection mode for this message
-                console.log("=== SELECT MODE TRIGGERED ===");
-                console.log("messageId:", messageId);
                 setSelectionMode(messageId);
                 toast.success("텍스트를 선택하세요. 다른 곳을 탭하면 해제됩니다.");
-                // Close menu but keep selectionMode
-                setRadialMenu(prev => ({
-                    ...prev,
-                    showRadialMenu: false,
-                }));
+                setRadialMenu(prev => ({ ...prev, showRadialMenu: false }));
                 return;
         }
 
-        // Clear ref when done
-        selectedWordDataRef.current = null;
-
-        setRadialMenu(prev => ({
-            ...prev,
+        setRadialMenu({
             showRadialMenu: false,
+            menuPosition: { x: 0, y: 0 },
+            selectedWord: null,
+            selectedMessageId: null,
+            fullSentence: null,
+            startOffset: 0,
             selectedWordData: undefined
-        }));
-    }, [onSaveSentence, onUpdateWordStatus, userVocabulary]);
+        });
+    }, [radialMenu.selectedWordData, onSaveSentence, userVocabulary]);
 
     const renderClickableText = (text: string | undefined, messageId: string, isMe: boolean) => {
         if (!text) return null;
@@ -669,12 +737,35 @@ export function GlobalChatRoom({
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#09090b] relative">
+            {/* Floating Selection Save Button */}
+            {selectionToolbar.show && (
+                <div
+                    className="fixed z-[100] transform -translate-x-1/2 -translate-y-full"
+                    style={{ left: selectionToolbar.x, top: selectionToolbar.y }}
+                >
+                    <button
+                        onClick={handleSaveSelection}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-lg transition-all"
+                    >
+                        <BookOpen className="w-4 h-4" />
+                        문장 저장
+                    </button>
+                </div>
+            )}
+
             {/* WordOptionMenu */}
+            {radialMenu.showRadialMenu && console.log("WordOptionMenu is OPEN, word:", radialMenu.selectedWord)}
             <WordOptionMenu
                 isOpen={radialMenu.showRadialMenu}
                 word={radialMenu.selectedWord || ""}
-                onClose={() => setRadialMenu(prev => ({ ...prev, showRadialMenu: false }))}
-                onSelectOption={handleOptionSelect}
+                onClose={() => {
+                    console.log("WordOptionMenu onClose called");
+                    setRadialMenu(prev => ({ ...prev, showRadialMenu: false }));
+                }}
+                onSelectOption={(option) => {
+                    console.log("WordOptionMenu onSelectOption called with:", option);
+                    handleOptionSelect(option);
+                }}
                 hideDeleteOption={true}
             />
 

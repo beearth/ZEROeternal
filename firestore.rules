@@ -9,10 +9,13 @@ service cloud.firestore {
     }
 
     // Posts: Publicly readable, Write if authenticated
+    // update: 모든 인증된 사용자 허용 (댓글, 좋아요, 리포스트용)
+    // delete: 작성자만 허용
     match /posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
     }
     
     // Chats: Only participants can read/write
