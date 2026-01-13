@@ -1,20 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-
-
-
 import { User } from 'firebase/auth';
+import { subscribeToChat, sendMessage, ChatMessage } from '../../services/chatService';
 
 interface DirectChatProps {
     user: User | null;
 }
-
-import { subscribeToChat, sendMessage, ChatMessage } from '../../services/chatService';
-import { useEffect } from 'react';
 
 // ... (interface DirectChatProps remains)
 
@@ -33,6 +28,9 @@ export function DirectChat({ user }: DirectChatProps) {
 
     const [msgInput, setMsgInput] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+    // Auto-scroll ref
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Robust Profile State: Starts with navigation state, backfills from messages
     const [partnerProfile, setPartnerProfile] = useState({
@@ -71,6 +69,11 @@ export function DirectChat({ user }: DirectChatProps) {
 
         return () => unsubscribe();
     }, [chatId, currentUserId, targetUserId]); // Removed partnerProfile dependencies to avoid loops
+
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const handleSendMessage = async () => {
         if (!msgInput.trim() || !currentUserId) return;
@@ -181,6 +184,8 @@ export function DirectChat({ user }: DirectChatProps) {
                                 </div>
                             );
                         })}
+                        {/* Auto-scroll anchor */}
+                        <div ref={messagesEndRef} />
                     </div>
                 )}
             </div>
